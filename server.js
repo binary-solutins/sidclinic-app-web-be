@@ -5,10 +5,10 @@ const specs = require('./swagger');
 const authRoutes = require('./routes/auth.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const queryRoutes = require('./routes/query.routes');
-
+const cors = require("cors");
 
 const app = express();
-
+app.use(cors());
 app.use(express.json());
 
 
