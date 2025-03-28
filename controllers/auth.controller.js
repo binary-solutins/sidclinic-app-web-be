@@ -52,15 +52,15 @@ exports.sendOtp = async (req, res) => {
 
 exports.register = async (req, res) => {
   try {
-    const { phone, otp, name, password, gender, role = 'user' } = req.body;
+    const { phone, name, password, gender, role = 'user' } = req.body;
     
-    const verificationCheck = await twilioClient.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
-      .verificationChecks
-      .create({ to: phone, code: otp });
+    // const verificationCheck = await twilioClient.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+    //   .verificationChecks
+    //   .create({ to: phone, code: otp });
 
-    if (verificationCheck.status !== 'approved') {
-      return res.status(400).json({ message: 'Invalid OTP' });
-    }
+    // if (verificationCheck.status !== 'approved') {
+    //   return res.status(400).json({ message: 'Invalid OTP' });
+    // }
 
     const existingUser = await User.findOne({ where: { phone } });
     if (existingUser) {
