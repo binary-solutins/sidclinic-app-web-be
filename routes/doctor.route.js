@@ -193,7 +193,7 @@ router.get('/profile', authenticate(), doctorController.getProfile);
  * 
  * /doctors/approve/{id}:
  *   put:
- *     summary: Approve a doctor profile (Admin only)
+ *     summary: Approve or disapprove a doctor profile (Admin only)
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
