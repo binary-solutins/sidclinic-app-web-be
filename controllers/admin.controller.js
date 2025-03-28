@@ -7,7 +7,6 @@ exports.listPendingDoctors = async (req, res) => {
       where: { isApproved: false },
       include: [{
         model: User,
-        as: 'user',
         attributes: ['name', 'phone', 'createdAt']
       }]
     });
@@ -17,14 +16,49 @@ exports.listPendingDoctors = async (req, res) => {
   }
 };
 
-exports.approveDoctor = async (req, res) => {
+exports.listApprovedDoctors = async (req, res) => {
+  try {
+    const doctors = await Doctor.findAll({
+      where: { isApproved: true },
+      include: [{
+        model: User,
+        attributes: ['name', 'phone', 'createdAt']
+      }]
+    });
+    res.json(doctors);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.listAllDoctors = async (req, res) => {
+  try {
+    const doctors = await Doctor.findAll({
+      include: [{
+        model: User,
+        attributes: ['name', 'phone', 'createdAt']
+      }]
+    });
+    res.json(doctors);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.toggleDoctorApproval = async (req, res) => {
   try {
     const doctor = await Doctor.findByPk(req.params.id);
-    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
-    
-    doctor.isApproved = true;
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    doctor.isApproved = !doctor.isApproved;
     await doctor.save();
-    res.json({ message: 'Doctor approved successfully' });
+
+    res.json({ 
+      message: `Doctor ${doctor.isApproved ? 'approved' : 'disapproved'} successfully`, 
+      isApproved: doctor.isApproved 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
