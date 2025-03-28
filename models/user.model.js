@@ -3,31 +3,31 @@ const sequelize = require('../config/db');
 const bcrypt = require('bcryptjs');
 
 const User = sequelize.define('User', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+  id: { 
+    type: DataTypes.INTEGER, 
+    primaryKey: true, 
+    autoIncrement: true 
   },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false
+  name: { 
+    type: DataTypes.STRING, 
+    allowNull: false 
   },
-  phone: {
-    type: DataTypes.STRING(15),
-    unique: true,
-    allowNull: false
+  phone: { 
+    type: DataTypes.STRING(15), 
+    unique: true, 
+    allowNull: false 
   },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false
+  password: { 
+    type: DataTypes.STRING, 
+    allowNull: false 
   },
-  role: {
-    type: DataTypes.ENUM('user', 'doctor', 'admin'),
-    defaultValue: 'user'
+  role: { 
+    type: DataTypes.ENUM('user', 'doctor', 'admin'), 
+    defaultValue: 'user' 
   },
-  gender: {
-    type: DataTypes.ENUM('Male', 'Female', 'Other'),
-    allowNull: false
+  gender: { 
+    type: DataTypes.ENUM('Male', 'Female', 'Other'), 
+    allowNull: false 
   }
 }, {
   hooks: {
