@@ -32,7 +32,7 @@ sequelize.authenticate()
   .catch(err => console.error('Unable to connect to the database:', err));
 
 // Sync models (be cautious with alter: true in production)
-sequelize.sync({ alter: true });
+sequelize.sync({ alter: false });
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
