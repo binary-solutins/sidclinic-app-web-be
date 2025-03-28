@@ -18,8 +18,11 @@
 
 
 const jwt = require('jsonwebtoken');
+const twilio = require('twilio');
 const User = require('../models/user.model');
 const { Op } = require('sequelize');
+
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -29,26 +32,42 @@ const generateToken = (user) => {
   );
 };
 
-exports.register = async (req, res) => {
+exports.sendOtp = async (req, res) => {
   try {
-    const { name, phone, password, gender,role } = req.body;
-    
-    const existingUser = await User.findOne({
-      where: { [Op.or]: [{ phone }] }
-    });
-
+    const { phone } = req.body;
+    const existingUser = await User.findOne({ where: { phone } });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    const user = await User.create({
-      name,
-      phone,
-      password,
-      gender,
-      role
-    });
+    await twilioClient.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+      .verifications
+      .create({ to: phone, channel: 'sms' });
 
+    res.status(200).json({ message: 'OTP sent successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Failed to send OTP' });
+  }
+};
+
+exports.register = async (req, res) => {
+  try {
+    const { phone, otp, name, password, gender, role = 'user' } = req.body;
+    
+    const verificationCheck = await twilioClient.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+      .verificationChecks
+      .create({ to: phone, code: otp });
+
+    if (verificationCheck.status !== 'approved') {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    const existingUser = await User.findOne({ where: { phone } });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+
+    const user = await User.create({ name, phone, password, gender, role });
     const token = generateToken(user);
     
     res.status(201).json({
@@ -59,10 +78,9 @@ exports.register = async (req, res) => {
       token
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error.message || 'Registration failed' });
   }
 };
-
 exports.login = async (req, res) => {
   try {
     const { phone, password } = req.body;
