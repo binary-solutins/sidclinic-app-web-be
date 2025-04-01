@@ -48,18 +48,34 @@ exports.listAllDoctors = async (req, res) => {
 exports.toggleDoctorApproval = async (req, res) => {
   try {
     const doctor = await Doctor.findByPk(req.params.id);
+
+    // If doctor is not found, return 404 status
     if (!doctor) {
-      return res.status(404).json({ message: 'Doctor not found' });
+      return res.status(404).json({ 
+        status: "error",
+        statusCode: 404,
+        message: "Doctor not found" 
+      });
     }
 
+    // Toggle approval status
     doctor.isApproved = !doctor.isApproved;
     await doctor.save();
 
-    res.json({ 
+    res.status(200).json({ 
+      status: "success",
+      statusCode: 200,
       message: `Doctor ${doctor.isApproved ? 'approved' : 'disapproved'} successfully`, 
       isApproved: doctor.isApproved 
     });
+
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      status: "error",
+      statusCode: 500,
+      message: "Internal Server Error", 
+      error: error.message 
+    });
   }
 };
+
