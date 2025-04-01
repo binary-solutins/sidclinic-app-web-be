@@ -13,25 +13,24 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// Middleware
 app.use(cors());
-app.use(helmet()); // Adds security headers
+app.use(helmet());
 app.use(express.json());
 
-// Rate limiting for authentication routes
+
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
   message: 'Too many authentication attempts, please try again later'
 });
 app.use('/api/auth/', authLimiter);
 
-// Database connection
+
 sequelize.authenticate()
   .then(() => console.log('Database connected'))
   .catch(err => console.error('Unable to connect to the database:', err));
 
-// Sync models (be cautious with alter: true in production)
+
 sequelize.sync({ alter: false });
 
 // API Documentation

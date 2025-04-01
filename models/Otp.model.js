@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database'); // Your database connection
+const sequelize = require('../config/database'); 
 
 const Otp = sequelize.define('Otp', {
   phone: {
@@ -16,8 +16,8 @@ const Otp = sequelize.define('Otp', {
     allowNull: false,
   },
 }, {
-  tableName: 'otps', // Optional: Specify table name
-  timestamps: false, // Optional: Disable timestamps (createdAt, updatedAt)
+  tableName: 'otps',
+  timestamps: false, 
 });
 
 module.exports = Otp;
