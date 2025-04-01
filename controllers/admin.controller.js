@@ -64,7 +64,7 @@ exports.toggleDoctorApproval = async (req, res) => {
 
     res.status(200).json({ 
       status: "success",
-      statusCode: 200,
+      code: 200,
       message: `Doctor ${doctor.isApproved ? 'approved' : 'disapproved'} successfully`, 
       isApproved: doctor.isApproved 
     });
