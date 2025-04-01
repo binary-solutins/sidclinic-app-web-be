@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const doctorController = require('../controllers/doctor.controller');
-const adminController = require('../controllers/admin.controller'); // Updated to correct controller
+const adminController = require('../controllers/admin.controller');
 const { authenticate, authorize } = require('../middleware/auth');
 
 /**
@@ -15,45 +15,131 @@ const { authenticate, authorize } = require('../middleware/auth');
  * @swagger
  * components:
  *   schemas:
- *     DoctorProfileResponse:
+ *     DoctorProfile:
  *       type: object
+ *       required:
+ *         - degree
+ *         - registrationNumber
+ *         - specialty
+ *         - yearsOfExperience
  *       properties:
  *         doctorPhoto:
  *           type: string
+ *           description: URL or Base64 encoded string of doctor's photo
  *         degree:
  *           type: string
+ *           description: Doctor's medical degree(s)
+ *           example: "MBBS, MD"
  *         registrationNumber:
  *           type: string
+ *           description: Doctor's medical registration number
+ *           example: "MCI-12345"
  *         clinicName:
  *           type: string
+ *           description: Name of the doctor's clinic
+ *           example: "HealthCare Medical Center"
  *         clinicPhotos:
  *           type: array
+ *           description: URLs or Base64 encoded strings of clinic photos
  *           items:
  *             type: string
  *         yearsOfExperience:
  *           type: integer
+ *           description: Number of years of professional experience
+ *           example: 10
  *         specialty:
  *           type: string
+ *           description: Doctor's medical specialty
+ *           example: "Cardiology"
  *         clinicContactNumber:
  *           type: string
+ *           description: Contact number for the clinic
+ *           example: "+1234567890"
  *         email:
  *           type: string
+ *           format: email
+ *           description: Professional email address
+ *           example: "doctor@example.com"
  *         address:
  *           type: string
+ *           description: Physical address of the clinic
+ *           example: "123 Medical Street, Healthcare City"
  *         locationPin:
  *           type: string
+ *           description: Geographic coordinates or location pin
+ *           example: "125"
  *         isApproved:
  *           type: boolean
- *         User:
- *           $ref: '#/components/schemas/User'
+ *           description: Approval status (set by admin)
+ *           default: false
+ *           readOnly: true
+ *     
+ *     Error:
+ *       type: object
+ *       properties:
+ *         message:
+ *           type: string
+ *           description: Error description
+ *         code:
+ *           type: string
+ *           description: Error code for client handling
+ *
+ *   responses:
+ *     Unauthorized:
+ *       description: Authentication required or token expired
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 example: "Authentication required"
+ *               code:
+ *                 type: string
+ *                 example: "UNAUTHORIZED"
+ *     
+ *     Forbidden:
+ *       description: User doesn't have required permissions
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 example: "Insufficient permissions"
+ *               code:
+ *                 type: string
+ *                 example: "FORBIDDEN"
+ *     
+ *     ServerError:
+ *       description: Internal server error
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 example: "Internal server error"
+ *               code:
+ *                 type: string
+ *                 example: "SERVER_ERROR"
+ *
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
  */
 
-// Doctor Profile Setup Route
 /**
  * @swagger
  * /doctors/profile:
  *   post:
  *     summary: Create or update doctor profile
+ *     description: Allows doctors to create or update their professional profile information
  *     tags: [Doctors]
  *     security:
  *       - bearerAuth: []
@@ -74,6 +160,8 @@ const { authenticate, authorize } = require('../middleware/auth');
  *                 message:
  *                   type: string
  *                   example: "Profile created successfully"
+ *                 doctor:
+ *                   $ref: '#/components/schemas/DoctorProfile'
  *       200:
  *         description: Doctor profile updated successfully
  *         content:
@@ -84,39 +172,40 @@ const { authenticate, authorize } = require('../middleware/auth');
  *                 message:
  *                   type: string
  *                   example: "Profile updated successfully"
+ *                 doctor:
+ *                   $ref: '#/components/schemas/DoctorProfile'
  *       400:
  *         description: Validation error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Error'
+ *                 - example:
+ *                     message: "Validation failed"
+ *                     code: "VALIDATION_ERROR"
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
- *         $ref: '#/components/responses/Forbidden'
- *       500:
- *         $ref: '#/components/responses/ServerError'
- * 
- *   get:
- *     summary: Get doctor profile information
- *     tags: [Doctors]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Successful operation
+ *         description: User is not registered as a doctor
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/DoctorProfileResponse'
- *       401:
- *         $ref: '#/components/responses/Unauthorized'
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Error'
+ *                 - example:
+ *                     message: "User is not registered as a doctor"
+ *                     code: "INVALID_USER_ROLE"
  *       404:
- *         description: Profile not found
+ *         description: User not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Error'
+ *                 - example:
+ *                     message: "User not found"
+ *                     code: "USER_NOT_FOUND"
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
