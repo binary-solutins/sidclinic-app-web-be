@@ -44,9 +44,13 @@ module.exports = {
    *             schema:
    *               type: object
    *               properties:
+   *                 status:
+   *                   type: string
+   *                 code:
+   *                   type: integer
    *                 message:
    *                   type: string
-   *                 appointment:
+   *                 data:
    *                   $ref: '#/components/schemas/Appointment'
    *       400:
    *         description: Invalid request
@@ -60,8 +64,9 @@ module.exports = {
       const user = await User.findByPk(userId);
       if (!user || user.role !== 'user') {
         return res.status(400).json({
-          message: 'Invalid user account',
-          code: 'INVALID_USER'
+          status: 'error',
+          code: 400,
+          message: 'Invalid user account'
         });
       }
 
@@ -71,8 +76,9 @@ module.exports = {
       
       if (!doctor || !doctor.isApproved || doctor.User.role !== 'doctor') {
         return res.status(400).json({
-          message: 'Doctor not available',
-          code: 'INVALID_DOCTOR'
+          status: 'error',
+          code: 400,
+          message: 'Doctor not available'
         });
       }
 
@@ -95,8 +101,9 @@ module.exports = {
 
       if (existingCount >= (doctor.maxPatientsPerSlot || 1)) {
         return res.status(400).json({
-          message: 'Time slot is full',
-          code: 'SLOT_FULL'
+          status: 'error',
+          code: 400,
+          message: 'Time slot is full'
         });
       }
 
@@ -111,14 +118,17 @@ module.exports = {
       });
 
       res.status(201).json({
+        status: 'success',
+        code: 201,
         message: 'Appointment booked successfully',
-        appointment
+        data: appointment
       });
 
     } catch (error) {
       res.status(500).json({
-        message: error.message,
-        code: 'SERVER_ERROR'
+        status: 'error',
+        code: 500,
+        message: error.message
       });
     }
   },
@@ -161,11 +171,17 @@ module.exports = {
         order: [['appointmentDateTime', 'ASC']]
       });
 
-      res.json(appointments);
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Appointments retrieved successfully',
+        data: appointments
+      });
     } catch (error) {
       res.status(500).json({
-        message: error.message,
-        code: 'SERVER_ERROR'
+        status: 'error',
+        code: 500,
+        message: error.message
       });
     }
   },
@@ -216,7 +232,11 @@ module.exports = {
   getAvailableSlots: async (req, res) => {
     try {
       const doctor = await Doctor.findByPk(req.params.doctorId);
-      if (!doctor) return res.status(404).json({ message: 'Doctor not found', code: 'DOCTOR_NOT_FOUND' });
+      if (!doctor) return res.status(404).json({ 
+        status: 'error', 
+        code: 404, 
+        message: 'Doctor not found' 
+      });
 
       const date = new Date(req.query.date);
       const startOfDay = new Date(date.setHours(0, 0, 0, 0));
@@ -253,11 +273,17 @@ module.exports = {
         currentTime = slotEnd;
       }
 
-      res.json(slots);
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Available slots retrieved successfully',
+        data: slots
+      });
     } catch (error) {
       res.status(500).json({
-        message: error.message,
-        code: 'SERVER_ERROR'
+        status: 'error',
+        code: 500,
+        message: error.message
       });
     }
   }

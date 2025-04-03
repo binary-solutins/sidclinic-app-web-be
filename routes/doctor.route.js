@@ -209,6 +209,38 @@ const { authenticate, authorize } = require('../middleware/auth');
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
+
+/**
+ * @swagger
+ * /doctors/profile:
+ *   get:
+ *     summary: Get doctor profile
+ *     description: Retrieve the profile information of the authenticated doctor
+ *     tags: [Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Doctor profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/DoctorProfile'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       404:
+ *         description: Doctor profile not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Error'
+ *                 - example:
+ *                     message: "Doctor profile not found or not associated with user"
+ *                     code: "PROFILE_NOT_FOUND"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
 router.post('/profile', authenticate(), doctorController.setupProfile);
 router.get('/profile', authenticate(), doctorController.getProfile);
 
