@@ -76,3 +76,34 @@ exports.toggleDoctorApproval = async (req, res) => {
   }
 };
 
+
+exports.getDoctorDetails = async (req, res) => {
+  try {
+    const doctor = await Doctor.findByPk(req.params.id, {
+      include: [{
+        model: User,
+        attributes: ['name', 'phone', 'createdAt']
+      }]
+    });
+    if (!doctor) {
+      return res.status(404).json({
+        status: "error",
+        statusCode: 404,
+        message: "Doctor not found"
+      });
+    }
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Doctor details retrieved successfully",
+      data: doctor
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      statusCode: 500,
+      message: "Internal Server Error",
+      error: error.message
+    });
+  }
+};
