@@ -13,16 +13,25 @@ exports.getProfile = async (req, res) => {
 
     if (!profile) {
       return res.status(404).json({ 
+        status: 'error',
+        code: 404,
         message: 'Doctor profile not found or not associated with user',
-        code: 'PROFILE_NOT_FOUND'
+        data: null
       });
     }
 
-    res.json(profile);
+    res.json({
+      status: 'success',
+      code: 200,
+      message: 'Profile retrieved successfully',
+      data: profile
+    });
   } catch (error) {
     res.status(500).json({ 
+      status: 'error',
+      code: 500,
       message: error.message,
-      code: 'SERVER_ERROR'
+      data: null
     });
   }
 };
@@ -32,15 +41,19 @@ exports.setupProfile = async (req, res) => {
     const user = await User.findByPk(req.user.id);
     if (!user) {
       return res.status(404).json({
+        status: 'error',
+        code: 404,
         message: 'User not found',
-        code: 'USER_NOT_FOUND'
+        data: null
       });
     }
 
     if (user.role !== 'doctor') {
       return res.status(403).json({
+        status: 'error',
+        code: 403,
         message: 'User is not registered as a doctor',
-        code: 'INVALID_USER_ROLE'
+        data: null
       });
     }
 
@@ -59,13 +72,17 @@ exports.setupProfile = async (req, res) => {
     }
 
     res.status(created ? 201 : 200).json({ 
+      status: 'success',
+      code: created ? 201 : 200,
       message: created ? 'Profile created successfully' : 'Profile updated successfully',
-      doctor 
+      data: doctor 
     });
   } catch (error) {
     res.status(500).json({
+      status: 'error',
+      code: 500,
       message: error.message,
-      code: 'SERVER_ERROR'
+      data: null
     });
   }
 };
