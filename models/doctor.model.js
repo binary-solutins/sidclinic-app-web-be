@@ -65,6 +65,14 @@ const Doctor = sequelize.define('Doctor', {
   isApproved: { 
     type: DataTypes.BOOLEAN, 
     defaultValue: false 
+  },
+  maxPatientsPerSlot: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1
+  },
+  slotDuration: {
+    type: DataTypes.INTEGER,
+    defaultValue: 30 // minutes
   }
 }, {
   indexes: [

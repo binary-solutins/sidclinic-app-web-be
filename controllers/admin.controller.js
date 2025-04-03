@@ -48,8 +48,6 @@ exports.listAllDoctors = async (req, res) => {
 exports.toggleDoctorApproval = async (req, res) => {
   try {
     const doctor = await Doctor.findByPk(req.params.id);
-
-    // If doctor is not found, return 404 status
     if (!doctor) {
       return res.status(404).json({ 
         status: "error",
@@ -58,7 +56,6 @@ exports.toggleDoctorApproval = async (req, res) => {
       });
     }
 
-    // Toggle approval status
     doctor.isApproved = !doctor.isApproved;
     await doctor.save();
 

@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const queryRoutes = require('./routes/query.routes');
 const doctorRoutes = require('./routes/doctor.route');
+const appoinmentRoute = require('./routes/appoinment.routes')
 require('./models/associations');
 const cors = require("cors");
 const helmet = require('helmet');
@@ -31,7 +32,7 @@ sequelize.authenticate()
   .catch(err => console.error('Unable to connect to the database:', err));
 
 
-sequelize.sync({ alter: false });
+sequelize.sync({ alter: true });
 
 // API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
@@ -41,6 +42,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/query', queryRoutes);
 app.use('/api/doctors', doctorRoutes);
+app.use('/api/appointments',appoinmentRoute );
+
 
 // Global error handler
 app.use((err, req, res, next) => {
