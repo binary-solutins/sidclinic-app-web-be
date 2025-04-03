@@ -27,8 +27,13 @@ fs
     );
   })
   .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
-    db[model.name] = model;
+    try {
+      // Simply require the model - it's already defined with sequelize
+      const model = require(path.join(__dirname, file));
+      db[model.name] = model;
+    } catch (err) {
+      console.log(`Error loading model from file ${file}:`, err.message);
+    }
   });
 
 Object.keys(db).forEach(modelName => {
