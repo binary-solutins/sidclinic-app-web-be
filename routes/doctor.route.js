@@ -349,9 +349,59 @@ router.get('/profile', authenticate(), doctorController.getProfile);
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.get('/pending',authenticate(), authorize('admin'), adminController.listPendingDoctors);
-router.get('/approved',authenticate(), authorize('admin'), adminController.listApprovedDoctors);
-router.get('/all',authenticate(), authorize('admin'), adminController.listAllDoctors);
+router.get('/pending', authenticate(), authorize('admin'), adminController.listPendingDoctors);
+router.get('/approved', authenticate(), authorize('admin'), adminController.listApprovedDoctors);
+router.get('/all', authenticate(), authorize('admin'), adminController.listAllDoctors);
 router.put('/approve/:id', authenticate(), authorize('admin'), adminController.toggleDoctorApproval);
+
+// New route for getting doctor details by admin
+/**
+ * @swagger
+ * /doctors/details/{id}:
+ *   get:
+ *     summary: Get doctor details by ID (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Doctor user ID
+ *     responses:
+ *       200:
+ *         description: Doctor details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Doctor details retrieved successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/DoctorProfile'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Doctor not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/details/:id', authenticate(), authorize('admin'), adminController.getDoctorDetails);
 
 module.exports = router;
