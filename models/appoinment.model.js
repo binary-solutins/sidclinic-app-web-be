@@ -36,6 +36,10 @@ const Appointment = sequelize.define('Appointment', {
   videoCallLink: {
     type: DataTypes.STRING,
     allowNull: true
+  },
+  roomId: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 });
 

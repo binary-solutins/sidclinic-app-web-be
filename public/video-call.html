@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Call</title>
+    <style>
+        #loginForm { display: block; padding: 20px; }
+        #videoContainer { display: none; }
+        video { width: 300px; height: 200px; margin: 10px; }
+        .container { display: flex; flex-direction: column; align-items: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loginForm">
+            <input type="text" id="phone" placeholder="Phone number" required><br>
+            <input type="password" id="password" placeholder="Password" required><br>
+            <button id="joinButton">Join Call</button>
+        </div>
+        <div id="videoContainer">
+            <video id="localVideo" autoplay muted></video>
+            <video id="remoteVideo" autoplay></video>
+        </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // DOM elements
+        const joinButton = document.getElementById('joinButton');
+        const phoneInput = document.getElementById('phone');
+        const passwordInput = document.getElementById('password');
+        const loginForm = document.getElementById('loginForm');
+        const videoContainer = document.getElementById('videoContainer');
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+
+        // WebRTC variables
+        let socket;
+        let peerConnection;
+        let isInitiator = false;
+        const roomId = window.location.pathname.split('/').pop();
+
+        // Event listeners
+        joinButton.addEventListener('click', handleLogin);
+        
+        async function handleLogin() {
+            const phone = phoneInput.value;
+            const password = passwordInput.value;
+
+            try {
+                const response = await fetch(`/video-call/${roomId}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, password })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Login failed');
+                }
+                
+                loginForm.style.display = 'none';
+                videoContainer.style.display = 'block';
+                await initializeCall();
+            } catch (error) {
+                console.error('Login error:', error);
+                alert(error.message);
+            }
+        }
+
+        async function initializeCall() {
+            try {
+                // Setup media
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: true 
+                });
+                localVideo.srcObject = stream;
+
+                // Setup WebRTC
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                // Add local stream
+                stream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, stream);
+                });
+
+                // Setup socket
+                socket = io();
+                socket.on('connect', () => {
+                    console.log('Connected to socket server');
+                    socket.emit('join-room', roomId);
+                });
+                
+                // WebRTC Handlers
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        console.log('Sending ICE candidate');
+                        socket.emit('ice-candidate', event.candidate);
+                    }
+                };
+
+                peerConnection.ontrack = (event) => {
+                    console.log('Received remote stream');
+                    remoteVideo.srcObject = event.streams[0];
+                };
+
+                // Socket Handlers
+                socket.on('room-info', ({ isInitiator: init }) => {
+                    isInitiator = init;
+                    console.log(`Is initiator: ${isInitiator}`);
+                    if (isInitiator) {
+                        createOffer();
+                    }
+                });
+
+                socket.on('offer', handleOffer);
+                socket.on('answer', handleAnswer);
+                socket.on('ice-candidate', handleIceCandidate);
+                socket.on('user-disconnected', handleDisconnect);
+
+            } catch (error) {
+                console.error('Initialization error:', error);
+                alert('Failed to initialize call: ' + error.message);
+            }
+        }
+
+        async function createOffer() {
+            try {
+                console.log('Creating offer...');
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('offer', offer);
+                console.log('Offer created and sent');
+            } catch (error) {
+                console.error('Offer creation error:', error);
+            }
+        }
+
+        async function handleOffer(offer) {
+            try {
+                if (!isInitiator) {
+                    console.log('Received offer, creating answer...');
+                    await peerConnection.setRemoteDescription(offer);
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    socket.emit('answer', answer);
+                    console.log('Answer created and sent');
+                }
+            } catch (error) {
+                console.error('Offer handling error:', error);
+            }
+        }
+
+        async function handleAnswer(answer) {
+            try {
+                console.log('Received answer');
+                await peerConnection.setRemoteDescription(answer);
+            } catch (error) {
+                console.error('Answer handling error:', error);
+            }
+        }
+
+        function handleIceCandidate(candidate) {
+            try {
+                console.log('Received ICE candidate');
+                peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (error) {
+                console.error('ICE candidate error:', error);
+            }
+        }
+
+        function handleDisconnect() {
+            console.log('Remote user disconnected');
+            if (remoteVideo.srcObject) {
+                remoteVideo.srcObject.getTracks().forEach(track => track.stop());
+                remoteVideo.srcObject = null;
+            }
+            if (peerConnection) peerConnection.close();
+        }
+
+        window.addEventListener('beforeunload', () => {
+            console.log('Page unloading, cleaning up...');
+            if (peerConnection) peerConnection.close();
+            if (socket) socket.disconnect();
+            if (localVideo.srcObject) {
+                localVideo.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>

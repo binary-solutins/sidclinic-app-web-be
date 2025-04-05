@@ -113,4 +113,33 @@ router.get('/doctors/:doctorId/appointments', controller.getDoctorAppointments);
  */
 router.get('/doctors/:doctorId/availability', controller.getAvailableSlots);
 
+/**
+ * @swagger
+ * /appointments/user/{userId}:
+ *   get:
+ *     summary: Get appointments for a specific user
+ *     tags: [Appointments]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         description: ID of the user
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of appointments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Appointment'
+ *       404:
+ *         description: User not found
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/user/:userId', controller.getUserAppointments);
+
 module.exports = router;
