@@ -22,6 +22,9 @@ const { authenticate, authorize } = require('../middleware/auth');
  *         - registrationNumber
  *         - specialty
  *         - yearsOfExperience
+ *         - country
+ *         - state
+ *         - city
  *       properties:
  *         doctorPhoto:
  *           type: string
@@ -64,6 +67,18 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           type: string
  *           description: Physical address of the clinic
  *           example: "123 Medical Street, Healthcare City"
+ *         country:
+ *           type: string
+ *           description: Country of the clinic
+ *           example: "India"
+ *         state:
+ *           type: string
+ *           description: State/province of the clinic
+ *           example: "Maharashtra"
+ *         city:
+ *           type: string
+ *           description: City of the clinic
+ *           example: "Mumbai"
  *         locationPin:
  *           type: string
  *           description: Geographic coordinates or location pin
@@ -73,6 +88,20 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           description: Approval status (set by admin)
  *           default: false
  *           readOnly: true
+ *         is_active:
+ *           type: boolean
+ *           description: Whether the doctor profile is active
+ *           default: true
+ *         startTime:
+ *           type: string
+ *           format: time
+ *           description: Start time of doctor's availability
+ *           example: "09:00:00"
+ *         endTime:
+ *           type: string
+ *           format: time
+ *           description: End time of doctor's availability
+ *           example: "18:00:00"
  *     
  *     Error:
  *       type: object
@@ -403,5 +432,108 @@ router.put('/approve/:id', authenticate(), authorize('admin'), adminController.t
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/details/:id', authenticate(), authorize('admin'), adminController.getDoctorDetails);
+
+/**
+ * @swagger
+ * /doctors/city/{city}:
+ *   get:
+ *     summary: Find doctors by city
+ *     description: Retrieves all approved and active doctors in a specific city
+ *     tags: [Doctors]
+ *     parameters:
+ *       - in: path
+ *         name: city
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: City name to search for doctors
+ *     responses:
+ *       200:
+ *         description: Doctors retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Doctors retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/DoctorProfile'
+ *       404:
+ *         description: No doctors found in the specified city
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Error'
+ *                 - example:
+ *                     message: "No doctors found in the specified city"
+ *                     code: "NOT_FOUND"
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/city/:city', doctorController.findDoctorsByCity);
+
+/**
+ * @swagger
+ * /doctors/toggle-status/{id}:
+ *   put:
+ *     summary: Toggle doctor active status (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Doctor user ID
+ *     responses:
+ *       200:
+ *         description: Doctor status toggled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Doctor status toggled successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     is_active:
+ *                       type: boolean
+ *                       example: true
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         description: Doctor not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.put('/toggle-status/:id', authenticate(), authorize('admin'), adminController.toggleDoctorStatus);
 
 module.exports = router;

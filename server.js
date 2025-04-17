@@ -15,11 +15,10 @@ const http = require("http");
 const path = require('path');
 const socketio = require('socket.io');
 const videoRoutes = require('./routes/video.routes');
-// Initialize express app and create HTTP server
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
-// Apply middlewares
+
 app.use(cors());
 app.use(
   helmet({
@@ -53,7 +52,7 @@ sequelize
   .then(() => console.log("Database connected"))
   .catch((err) => console.error("Unable to connect to the database:", err));
 
-sequelize.sync({ alter: false });
+sequelize.sync({ alter: true });
 io.on('connection', (socket) => {
   socket.on('join-room', (roomId) => {
     const room = io.sockets.adapter.rooms.get(roomId);
@@ -81,7 +80,6 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/query", queryRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
-
 app.use('/video-call', videoRoutes);
 // Global error handler
 app.use(
@@ -98,8 +96,6 @@ app.use(
   })
 );
 
-
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,

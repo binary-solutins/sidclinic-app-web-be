@@ -86,3 +86,44 @@ exports.setupProfile = async (req, res) => {
     });
   }
 };
+
+exports.findDoctorsByCity = async (req, res) => {
+  try {
+    const { city } = req.params;
+    
+    const doctors = await Doctor.findAll({
+      where: { 
+        city,
+        isApproved: true,
+        is_active: true
+      },
+      include: [{
+        model: User,
+        attributes: ['name', 'phone', 'gender']
+      }]
+    });
+
+    if (doctors.length === 0) {
+      return res.status(404).json({ 
+        status: 'error',
+        code: 404,
+        message: 'No doctors found in the specified city',
+        data: []
+      });
+    }
+
+    res.json({
+      status: 'success',
+      code: 200,
+      message: 'Doctors retrieved successfully',
+      data: doctors
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error',
+      code: 500,
+      message: error.message,
+      data: null
+    });
+  }
+};
