@@ -18,6 +18,7 @@ const videoRoutes = require('./routes/video.routes');
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
+const blogRoutes = require('./routes/blog.routes');
 
 app.use(cors());
 app.use(
@@ -81,6 +82,7 @@ app.use("/api/query", queryRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use('/video-call', videoRoutes);
+app.use('/api/blogs', blogRoutes);
 // Global error handler
 app.use(
   helmet({
