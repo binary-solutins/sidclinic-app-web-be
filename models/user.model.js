@@ -25,6 +25,14 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('user', 'doctor', 'admin'), 
     defaultValue: 'user' 
   },
+  fcmToken: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  notificationEnabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
   gender: { 
     type: DataTypes.ENUM('Male', 'Female', 'Other'), 
     allowNull: false 

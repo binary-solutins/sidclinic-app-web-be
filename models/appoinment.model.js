@@ -29,9 +29,13 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.DATE,
     allowNull: false
   },
+  type: {
+    type: DataTypes.ENUM('physical', 'virtual'),
+    defaultValue: 'physical'
+  },
   status: {
-    type: DataTypes.ENUM('booked', 'completed', 'canceled'),
-    defaultValue: 'booked'
+    type: DataTypes.ENUM('pending', 'confirmed', 'completed', 'canceled', 'rejected'),
+    defaultValue: 'pending'
   },
   videoCallLink: {
     type: DataTypes.STRING,
@@ -40,10 +44,14 @@ const Appointment = sequelize.define('Appointment', {
   roomId: {
     type: DataTypes.STRING,
     allowNull: true
+  },
+  notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
 
-// Define associations directly
+// Define associations
 User.hasMany(Appointment, { foreignKey: 'userId' });
 Appointment.belongsTo(User, { foreignKey: 'userId', as: 'patient' });
 

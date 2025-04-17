@@ -58,6 +58,18 @@ const Doctor = sequelize.define('Doctor', {
     type: DataTypes.STRING, 
     allowNull: false 
   },
+  country: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  state: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  city: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
   locationPin: { 
     type: DataTypes.STRING(6), 
     allowNull: false 
@@ -66,19 +78,26 @@ const Doctor = sequelize.define('Doctor', {
     type: DataTypes.BOOLEAN, 
     defaultValue: false 
   },
-  maxPatientsPerSlot: {
-    type: DataTypes.INTEGER,
-    defaultValue: 1
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   },
-  slotDuration: {
-    type: DataTypes.INTEGER,
-    defaultValue: 30 // minutes
+  startTime: {
+    type: DataTypes.TIME,
+    allowNull: true
+  },
+  endTime: {
+    type: DataTypes.TIME,
+    allowNull: true
   }
 }, {
   indexes: [
     {
       unique: true,
       fields: ['registrationNumber']
+    },
+    {
+      fields: ['city']
     }
   ]
 });
