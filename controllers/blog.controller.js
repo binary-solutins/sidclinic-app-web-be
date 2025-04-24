@@ -520,3 +520,57 @@ exports.getFeaturedBlogs = async (req, res) => {
     });
   }
 };
+
+
+exports.getAllBlogsAdmin = async (req, res) => {
+  try {
+    const { category, status, featured, page = 1, limit = 10 } = req.query;
+    
+    // Build query conditions
+    const where = {};
+    
+    // Add filters if provided
+    if (category) where.category = category;
+    if (status) where.status = status;
+    if (featured === 'true') where.is_featured = true;
+    
+  
+    // Calculate offset
+    const offset = (page - 1) * limit;
+    
+    // Get blogs with pagination
+    const { count, rows: blogs } = await Blog.findAndCountAll({
+      where,
+      include: [{
+        model: User,
+        attributes: ['id', 'name', 'role']
+      }],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [['createdAt', 'DESC']]
+    });
+    
+    res.status(200).json({
+      status: 'success',
+      code: 200,
+      message: 'Blogs retrieved successfully',
+      data: {
+        blogs,
+        pagination: {
+          total: count,
+          pages: Math.ceil(count / limit),
+          currentPage: parseInt(page),
+          perPage: parseInt(limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error getting all blogs:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: error.message,
+      data: null
+    });
+  }
+};

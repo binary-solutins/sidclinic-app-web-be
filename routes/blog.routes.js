@@ -390,6 +390,59 @@ router.put('/:id', authenticate(), upload.single('coverImage'), blogController.u
  */
 router.get('/', blogController.getAllBlogs);
 
+
+/**
+ * @swagger
+ * /blogsAdmin:
+ *   get:
+ *     summary: Get all blogs
+ *     description: Retrieve all blogs with pagination and optional filters
+ *     tags: [Blogs]
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter by category
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, published]
+ *         description: Filter by status (admin/doctor only)
+ *       - in: query
+ *         name: featured
+ *         schema:
+ *           type: boolean
+ *         description: Filter by featured status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: Blogs retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/BlogListResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/blogsAdmin', blogController.getAllBlogsAdmin);
+
 /**
  * @swagger
  * /blogs/{id}:
