@@ -150,8 +150,8 @@ const controller = require('../controllers/appoinment.controller');
 const { authenticate } = require('../middleware/auth');
 
 router.post('/', authenticate(), controller.bookAppointment);
-// router.get('/user/:userId', authenticate(), controller.getUserAppointments);
-// router.get('/doctor/:doctorId', authenticate(), controller.getDoctorAppointments);
+router.get('/user/:userId', authenticate(), controller.getUserAppointments);
+router.get('/doctor/:doctorId', authenticate(), controller.getDoctorAppointments);
 // router.get('/availability/:doctorId', controller.getAvailableSlots);
 router.patch('/:id/confirm', authenticate(), controller.confirmAppointment);
 router.patch('/:id/cancel', authenticate(), controller.cancelAppointment);

@@ -343,5 +343,219 @@ module.exports = {
     }
   },
 
-  // ... other appointment controller methods ...
+  /**
+ * @swagger
+ * /appointments/user/{userId}:
+ *   get:
+ *     summary: Get appointments for a specific user
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, canceled, completed]
+ *       - in: query
+ *         name: fromDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: toDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: List of appointments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Appointment'
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+  getUserAppointments: async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const { status, fromDate, toDate } = req.query;
+  
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'User not found',
+        });
+      }
+  
+      if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Unauthorized access',
+        });
+      }
+  
+      const where = { userId };
+      if (status) where.status = status;
+      
+      if (fromDate || toDate) {
+        where.appointmentDateTime = {};
+        if (fromDate) where.appointmentDateTime[Op.gte] = new Date(fromDate);
+        if (toDate) where.appointmentDateTime[Op.lte] = new Date(`${toDate}T23:59:59.999Z`);
+      }
+  
+      // Fixed include statement
+      const appointments = await Appointment.findAll({
+        where,
+        include: [
+          {
+            model: Doctor,
+            as: 'doctor',
+            include: [{ 
+              model: User, 
+              as: 'User',
+              attributes: ['id', 'name'] // Removed problematic fields
+            }]
+          }
+        ],
+        order: [['appointmentDateTime', 'DESC']]
+      });
+  
+      res.json({
+        status: 'success',
+        code: 200,
+        data: appointments,
+      });
+    } catch (error) {
+      console.error('Appointment Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+/**
+ * @swagger
+ * /appointments/doctor/{doctorId}:
+ *   get:
+ *     summary: Get appointments for a specific doctor
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, canceled, completed]
+ *       - in: query
+ *         name: fromDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: toDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: List of appointments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Appointment'
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Doctor not found
+ *       500:
+ *         description: Server error
+ */
+getDoctorAppointments: async (req, res) => {
+  try {
+    const doctorId = req.params.doctorId;
+    const { status, fromDate, toDate } = req.query;
+
+    const doctor = await Doctor.findByPk(doctorId, {
+      include: [{ model: User, as: 'User' }]
+    });
+    
+    if (!doctor) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: 'Doctor not found',
+      });
+    }
+
+    if (req.user.id !== doctor.User.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        status: 'error',
+        code: 403,
+        message: 'Unauthorized access',
+      });
+    }
+
+    const where = { doctorId };
+    if (status) where.status = status;
+    
+    if (fromDate || toDate) {
+      where.appointmentDateTime = {};
+      if (fromDate) where.appointmentDateTime[Op.gte] = new Date(fromDate);
+      if (toDate) where.appointmentDateTime[Op.lte] = new Date(`${toDate}T23:59:59.999Z`);
+    }
+
+    // Fixed include statement
+    const appointments = await Appointment.findAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'patient',
+          attributes: ['id', 'name'] // Removed problematic fields
+        }
+      ],
+      order: [['appointmentDateTime', 'DESC']]
+    });
+
+    res.json({
+      status: 'success',
+      code: 200,
+      data: appointments,
+    });
+  } catch (error) {
+    console.error('Appointment Error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: error.message,
+    });
+  }
+}
+ 
 };
