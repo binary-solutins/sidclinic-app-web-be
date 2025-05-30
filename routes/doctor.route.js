@@ -536,4 +536,56 @@ router.get('/city/:city', doctorController.findDoctorsByCity);
  */
 router.put('/toggle-status/:id', authenticate(), authorize('admin'), adminController.toggleDoctorStatus);
 
+/**
+ * @swagger
+ * /doctors/getAllDoctors:
+ *   get:
+ *     summary: Get all approved and active doctors
+ *     tags: [Doctors]
+ *     responses:
+ *       200:
+ *         description: List of all approved and active doctors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "All doctors retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/DoctorProfile'
+ *       404:
+ *         description: No doctors found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "No doctors found"
+ *                 data:
+ *                   type: array
+ *                   example: []
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/getAllDoctors', doctorController.getAllDoctors);
+
+
 module.exports = router;
