@@ -53,7 +53,7 @@ sequelize
   .then(() => console.log("Database connected"))
   .catch((err) => console.error("Unable to connect to the database:", err));
 
-sequelize.sync({ alter: true });
+sequelize.sync({ alter: false });
 io.on('connection', (socket) => {
   socket.on('join-room', (roomId) => {
     const room = io.sockets.adapter.rooms.get(roomId);
