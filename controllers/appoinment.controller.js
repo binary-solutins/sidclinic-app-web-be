@@ -556,6 +556,99 @@ getDoctorAppointments: async (req, res) => {
       message: error.message,
     });
   }
+},
+
+/**More actions
+   * @swagger
+   * /appointments/doctors/{doctorId}/available-slots:
+   *   get:
+   *     summary: Get available slots for a specific doctor
+   *     tags: [Appointments]
+   *     parameters:
+   *       - in: path
+   *         name: doctorId
+   *         required: true
+   *         description: ID of the doctor
+   *         schema:
+   *           type: integer
+   *       - in: query
+   *         name: date
+   *         required: true
+   *         description: Date to check available slots
+   *         schema:
+   *           type: string
+   *           format: date
+   *     responses:
+   *       200:
+   *         description: List of available slots
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   start:
+   *                     type: string
+   *                     format: date-time
+   *                   end:
+   *                     type: string
+   *                     format: date-time
+   *                   available:
+   *                     type: boolean
+   *       404:
+   *         description: Doctor not found
+   *       500:
+   *         $ref: '#/components/responses/ServerError'
+   */
+getAvailableSlots: async (req, res) => {
+  try {
+    const doctor = await Doctor.findByPk(req.params.doctorId);
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found', code: 'DOCTOR_NOT_FOUND' });
+
+    const date = new Date(req.query.date);
+    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+
+    const appointments = await Appointment.findAll({
+      where: {
+        doctorId: doctor.id,
+        appointmentDateTime: { [Op.between]: [startOfDay, endOfDay] }
+      }
+    });
+
+    // Generate available slots logic
+    const slotDuration = doctor.slotDuration || 30;
+    const maxPatients = doctor.maxPatientsPerSlot || 1;
+    const slots = [];
+
+    // Implementation for generating time slots
+    let currentTime = new Date(startOfDay);
+    while (currentTime < endOfDay) {
+      const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
+      
+      const existing = appointments.filter(a => 
+        a.appointmentDateTime >= currentTime && 
+        a.appointmentDateTime < slotEnd
+      ).length;
+
+      slots.push({
+        start: new Date(currentTime),
+        end: new Date(slotEnd),
+        available: existing < maxPatients
+      });
+
+      currentTime = slotEnd;
+    }
+
+    res.json(slots);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+      code: 'SERVER_ERROR'
+    });
+  }
 }
+
  
 };
