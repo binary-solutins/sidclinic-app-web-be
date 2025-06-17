@@ -20,6 +20,7 @@
 const jwt = require('jsonwebtoken');
 const twilio = require('twilio');
 const User = require('../models/user.model');
+
 const { Op } = require('sequelize');
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);

@@ -155,6 +155,6 @@ router.get('/doctor/:doctorId', authenticate(), controller.getDoctorAppointments
 router.get('/doctors/:doctorId/available-slots', controller.getAvailableSlots);
 router.patch('/:id/confirm', authenticate(), controller.confirmAppointment);
 router.patch('/:id/cancel', authenticate(), controller.cancelAppointment);
-// router.patch('/:id/reschedule', authenticate(), controller.rescheduleAppointment);
+
 
 module.exports = router;
