@@ -1,10 +1,12 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const controller = require('../controllers/notification.controller');
-const { authenticate } = require('../middleware/auth');
+const controller = require("../controllers/notification.controller");
+const { authenticate } = require("../middleware/auth");
 
-router.get('/', authenticate(), controller.getUserNotifications);
-router.patch('/:id/read', authenticate(), controller.markAsRead);
-router.patch('/read-all', authenticate(), controller.markAllAsRead);
+router.get("/", authenticate(), controller.getUserNotifications);
+router.patch("/:id/read", authenticate(), controller.markAsRead);
+router.patch("/read-all", authenticate(), controller.markAllAsRead);
+router.post("/send-notification", controller.sendNotification);
+router.post("/add-fcm-token", authenticate(), controller.updateFcmToken);
 
 module.exports = router;
