@@ -7,20 +7,19 @@ const dashboardRoutes = require("./routes/dashboard.routes");
 const queryRoutes = require("./routes/query.routes");
 const doctorRoutes = require("./routes/doctor.route");
 const appointmentRoutes = require("./routes/appoinment.routes");
+const notificationRoutes = require("./routes/notification.route");
 require("./models/associations");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const http = require("http");
-const path = require('path');
-const socketio = require('socket.io');
-const videoRoutes = require('./routes/video.routes');
+const path = require("path");
+const socketio = require("socket.io");
+const videoRoutes = require("./routes/video.routes");
 const app = express();
 const server = http.createServer(app);
 const io = socketio(server);
-const blogRoutes = require('./routes/blog.routes');
-const adminRoutes = require('./routes/admin.routes');
-const priceRoutes = require('./routes/price.route');
+const blogRoutes = require("./routes/blog.routes");
 
 app.use(cors());
 app.use(
@@ -40,7 +39,7 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, "public")));
 // Rate limiting
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -56,22 +55,24 @@ sequelize
   .catch((err) => console.error("Unable to connect to the database:", err));
 
 sequelize.sync({ alter: false });
-io.on('connection', (socket) => {
-  socket.on('join-room', (roomId) => {
+io.on("connection", (socket) => {
+  socket.on("join-room", (roomId) => {
     const room = io.sockets.adapter.rooms.get(roomId);
     const numClients = room ? room.size : 0;
-    
-    socket.join(roomId);
-    socket.emit('room-info', { isInitiator: numClients === 0 });
 
-    socket.on('disconnect', () => {
-      socket.to(roomId).emit('user-disconnected', socket.id);
+    socket.join(roomId);
+    socket.emit("room-info", { isInitiator: numClients === 0 });
+
+    socket.on("disconnect", () => {
+      socket.to(roomId).emit("user-disconnected", socket.id);
     });
 
     // WebRTC signaling relay
-    socket.on('offer', (offer) => socket.to(roomId).emit('offer', offer));
-    socket.on('answer', (answer) => socket.to(roomId).emit('answer', answer));
-    socket.on('ice-candidate', (candidate) => socket.to(roomId).emit('ice-candidate', candidate));
+    socket.on("offer", (offer) => socket.to(roomId).emit("offer", offer));
+    socket.on("answer", (answer) => socket.to(roomId).emit("answer", answer));
+    socket.on("ice-candidate", (candidate) =>
+      socket.to(roomId).emit("ice-candidate", candidate)
+    );
   });
 });
 // API Documentation
@@ -83,17 +84,20 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/query", queryRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
-app.use('/video-call', videoRoutes);
-app.use('/api/blogs', blogRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/price', priceRoutes);
+app.use("/video-call", videoRoutes);
+app.use("/api/blogs", blogRoutes);
+app.use("/api/notifications", notificationRoutes);
 // Global error handler
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        "script-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "https://cdnjs.cloudflare.com",
+        ],
         "script-src-attr": ["'self'", "'unsafe-inline'"], // Add this line
         "media-src": ["'self'", "blob:"],
         "connect-src": ["'self'", "wss:", "ws:"],
