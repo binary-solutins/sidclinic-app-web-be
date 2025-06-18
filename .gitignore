@@ -199,4 +199,8 @@ uploads/
 
 # Backup files
 *.bak
-*.backup 
+*.backup
+
+# Firebase service account credentials
+*-firebase-adminsdk-*.json
+sid-clinic-*.json 
