@@ -15,6 +15,7 @@ admin.initializeApp({
  * @returns {Promise}
  */
 const sendPushNotification = async (fcmToken, title, body, data = {}) => {
+  console.log("fcmToken ==========> ", fcmToken);
   if (!fcmToken) {
     console.warn("No FCM token provided");
     return;
