@@ -1,6 +1,11 @@
 const admin = require("firebase-admin");
 // const serviceAccount = require("../config/firebase-service-account.json");
 
+console.log(
+  "process.env.FIREBASE_SERVICE_ACCOUNT_JSON ==========> ",
+  process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+);
+
 const serviceAccount = JSON.parse(
   process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "{}"
 );
