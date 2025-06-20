@@ -38,6 +38,11 @@ module.exports = {
    */
   getUserNotifications: async (req, res) => {
     try {
+      console.log(
+        `[DEBUG] getUserNotifications - User ID: ${req.user.id}, Query params:`,
+        req.query
+      );
+
       const { limit = 20, offset = 0 } = req.query;
 
       const notifications = await Notification.findAll({
@@ -47,12 +52,20 @@ module.exports = {
         offset: parseInt(offset),
       });
 
+      console.log(
+        `[DEBUG] getUserNotifications - Found ${notifications.length} notifications for user ${req.user.id}`
+      );
+
       res.json({
         status: "success",
         code: 200,
         data: notifications,
       });
     } catch (error) {
+      console.error(
+        `[ERROR] getUserNotifications - User ID: ${req.user.id}, Error:`,
+        error.message
+      );
       res.status(500).json({
         status: "error",
         code: 500,
@@ -91,6 +104,10 @@ module.exports = {
    */
   markAsRead: async (req, res) => {
     try {
+      console.log(
+        `[DEBUG] markAsRead - User ID: ${req.user.id}, Notification ID: ${req.params.id}`
+      );
+
       const notification = await Notification.findOne({
         where: {
           id: req.params.id,
@@ -99,6 +116,9 @@ module.exports = {
       });
 
       if (!notification) {
+        console.log(
+          `[DEBUG] markAsRead - Notification not found for User ID: ${req.user.id}, Notification ID: ${req.params.id}`
+        );
         return res.status(404).json({
           status: "error",
           code: 404,
@@ -109,12 +129,20 @@ module.exports = {
       notification.isRead = true;
       await notification.save();
 
+      console.log(
+        `[DEBUG] markAsRead - Successfully marked notification ${req.params.id} as read for user ${req.user.id}`
+      );
+
       res.json({
         status: "success",
         code: 200,
         data: notification,
       });
     } catch (error) {
+      console.error(
+        `[ERROR] markAsRead - User ID: ${req.user.id}, Notification ID: ${req.params.id}, Error:`,
+        error.message
+      );
       res.status(500).json({
         status: "error",
         code: 500,
@@ -148,6 +176,8 @@ module.exports = {
    */
   markAllAsRead: async (req, res) => {
     try {
+      console.log(`[DEBUG] markAllAsRead - User ID: ${req.user.id}`);
+
       const [count] = await Notification.update(
         { isRead: true },
         {
@@ -158,12 +188,20 @@ module.exports = {
         }
       );
 
+      console.log(
+        `[DEBUG] markAllAsRead - Marked ${count} notifications as read for user ${req.user.id}`
+      );
+
       res.json({
         status: "success",
         code: 200,
         data: { count },
       });
     } catch (error) {
+      console.error(
+        `[ERROR] markAllAsRead - User ID: ${req.user.id}, Error:`,
+        error.message
+      );
       res.status(500).json({
         status: "error",
         code: 500,
@@ -176,10 +214,15 @@ module.exports = {
     try {
       const { title, body, data, type } = req.body;
 
-      console.log(" ==========> ");
+      console.log(
+        `[DEBUG] sendNotification - Type: ${type}, Title: ${title}, Body: ${body}`
+      );
 
       // Validate required fields
       if (!title || !body || !type) {
+        console.log(
+          `[DEBUG] sendNotification - Validation failed: missing required fields`
+        );
         return res.status(400).json({
           success: false,
           message: "Title, body, and type are required",
@@ -197,6 +240,9 @@ module.exports = {
           attributes: ["fcmToken"],
         });
         fcmTokens = users.map((user) => user.fcmToken);
+        console.log(
+          `[DEBUG] sendNotification - Found ${fcmTokens.length} users with FCM tokens`
+        );
       } else {
         const doctors = await User.findAll({
           where: {
@@ -207,9 +253,15 @@ module.exports = {
           attributes: ["fcmToken"],
         });
         fcmTokens = doctors.map((doctor) => doctor.fcmToken);
+        console.log(
+          `[DEBUG] sendNotification - Found ${fcmTokens.length} doctors with FCM tokens`
+        );
       }
 
       if (fcmTokens.length === 0) {
+        console.log(
+          `[DEBUG] sendNotification - No ${type}s found with FCM tokens`
+        );
         return res.status(404).json({
           success: false,
           message: `No ${type}s found with FCM tokens`,
@@ -222,8 +274,21 @@ module.exports = {
       let successfulSends = 0;
       let failedSends = 0;
 
+      console.log(
+        `[DEBUG] sendNotification - Starting to send notifications in ${Math.ceil(
+          fcmTokens.length / CHUNK_SIZE
+        )} chunks`
+      );
+
       for (let i = 0; i < fcmTokens.length; i += CHUNK_SIZE) {
         const chunk = fcmTokens.slice(i, i + CHUNK_SIZE);
+        console.log(
+          `[DEBUG] sendNotification - Processing chunk ${
+            Math.floor(i / CHUNK_SIZE) + 1
+          }/${Math.ceil(fcmTokens.length / CHUNK_SIZE)} with ${
+            chunk.length
+          } tokens`
+        );
 
         // Process chunk in parallel
         const chunkPromises = chunk.map(async (fcmToken) => {
@@ -254,14 +319,26 @@ module.exports = {
         results.push(...chunkResults);
 
         // Update counters
-        successfulSends += chunkResults.filter((r) => r.success).length;
-        failedSends += chunkResults.filter((r) => !r.success).length;
+        const chunkSuccessful = chunkResults.filter((r) => r.success).length;
+        const chunkFailed = chunkResults.filter((r) => !r.success).length;
+        successfulSends += chunkSuccessful;
+        failedSends += chunkFailed;
+
+        console.log(
+          `[DEBUG] sendNotification - Chunk ${
+            Math.floor(i / CHUNK_SIZE) + 1
+          } completed: ${chunkSuccessful} successful, ${chunkFailed} failed`
+        );
 
         // Optional: Add a small delay between chunks to prevent rate limiting
         if (i + CHUNK_SIZE < fcmTokens.length) {
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
+
+      console.log(
+        `[DEBUG] sendNotification - Completed: ${successfulSends} successful, ${failedSends} failed out of ${fcmTokens.length} total`
+      );
 
       res.json({
         success: true,
@@ -275,7 +352,7 @@ module.exports = {
         },
       });
     } catch (error) {
-      console.error("Error sending notification:", error);
+      console.error(`[ERROR] sendNotification - Error:`, error.message);
       res.status(500).json({
         success: false,
         message: "Internal server error",
@@ -334,7 +411,16 @@ module.exports = {
     try {
       const { fcmToken } = req.body;
 
+      console.log(
+        `[DEBUG] updateFcmToken - User ID: ${
+          req.user.id
+        }, FCM Token provided: ${fcmToken ? "Yes" : "No"}`
+      );
+
       if (!fcmToken) {
+        console.log(
+          `[DEBUG] updateFcmToken - Validation failed: FCM token is missing`
+        );
         return res.status(400).json({
           status: "error",
           code: 400,
@@ -346,6 +432,7 @@ module.exports = {
       const user = await User.findByPk(req.user.id);
 
       if (!user) {
+        console.log(`[DEBUG] updateFcmToken - User not found: ${req.user.id}`);
         return res.status(404).json({
           status: "error",
           code: 404,
@@ -357,6 +444,10 @@ module.exports = {
       user.fcmToken = fcmToken;
       await user.save();
 
+      console.log(
+        `[DEBUG] updateFcmToken - Successfully updated FCM token for user ${req.user.id}`
+      );
+
       res.json({
         status: "success",
         code: 200,
@@ -367,7 +458,10 @@ module.exports = {
         },
       });
     } catch (error) {
-      console.error("Error updating FCM token:", error);
+      console.error(
+        `[ERROR] updateFcmToken - User ID: ${req.user.id}, Error:`,
+        error.message
+      );
       res.status(500).json({
         status: "error",
         code: 500,
