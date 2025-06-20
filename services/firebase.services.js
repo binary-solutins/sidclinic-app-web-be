@@ -1,57 +1,57 @@
-const admin = require('firebase-admin');
-const serviceAccount = require('../config/firebase-service-account.json');
+const admin = require("firebase-admin");
+const serviceAccount = require("../config/firebase-service-account.json");
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.cert(serviceAccount),
 });
 
 /**
  * Send push notification via FCM
- * @param {string} fcmToken 
- * @param {string} title 
- * @param {string} body 
- * @param {object} data 
+ * @param {string} fcmToken
+ * @param {string} title
+ * @param {string} body
+ * @param {object} data
  * @returns {Promise}
  */
 const sendPushNotification = async (fcmToken, title, body, data = {}) => {
   if (!fcmToken) {
-    console.warn('No FCM token provided');
+    console.warn("No FCM token provided");
     return;
   }
 
   const message = {
     notification: {
       title,
-      body
+      body,
     },
     data: {
       ...data,
-      click_action: 'FLUTTER_NOTIFICATION_CLICK'
+      click_action: "FLUTTER_NOTIFICATION_CLICK",
     },
-    token: fcmToken
+    token: fcmToken,
   };
 
   try {
     const response = await admin.messaging().send(message);
-    console.log('Notification sent successfully:', response);
+    console.log("Notification sent successfully:", response);
     return response;
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error("Error sending notification:", error);
     throw error;
   }
 };
 
 /**
  * Send notification to user and store in database
- * @param {number} userId 
- * @param {string} title 
- * @param {string} message 
- * @param {object} options 
+ * @param {number} userId
+ * @param {string} title
+ * @param {string} message
+ * @param {object} options
  * @returns {Promise}
  */
 const sendUserNotification = async (userId, title, message, options = {}) => {
-  const { User, Notification } = require('../models');
-  
+  const { User, Notification } = require("../models");
+
   try {
     // Get user with FCM token
     const user = await User.findByPk(userId);
@@ -65,32 +65,27 @@ const sendUserNotification = async (userId, title, message, options = {}) => {
       userId,
       title,
       message,
-      type: options.type || 'appointment',
+      type: options.type || "appointment",
       relatedId: options.relatedId,
-      data: options.data
+      data: options.data,
     });
 
     // Send push notification if enabled and token exists
     if (user.notificationEnabled && user.fcmToken) {
-      await sendPushNotification(
-        user.fcmToken,
-        title,
-        message,
-        {
-          notificationId: notification.id.toString(),
-          ...options.data
-        }
-      );
+      await sendPushNotification(user.fcmToken, title, message, {
+        notificationId: notification.id.toString(),
+        ...options.data,
+      });
     }
 
     return notification;
   } catch (error) {
-    console.error('Error in sendUserNotification:', error);
+    console.error("Error in sendUserNotification:", error);
     throw error;
   }
 };
 
 module.exports = {
   sendPushNotification,
-  sendUserNotification
+  sendUserNotification,
 };

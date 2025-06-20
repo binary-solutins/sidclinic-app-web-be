@@ -234,6 +234,7 @@ module.exports = {
       if (type === "user") {
         const users = await User.findAll({
           where: {
+            role: "user",
             fcmToken: { [Op.ne]: null },
           },
           attributes: ["fcmToken"],
