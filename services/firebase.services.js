@@ -1,11 +1,13 @@
 const admin = require("firebase-admin");
 const serviceAccount = require("../config/firebase-service-account.json");
 
-console.log("called ==========> ");
+const serviceAccount = JSON.parse(
+  process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "{}"
+);
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-
 /**
  * Send push notification via FCM
  * @param {string} fcmToken
@@ -15,7 +17,6 @@ admin.initializeApp({
  * @returns {Promise}
  */
 const sendPushNotification = async (fcmToken, title, body, data = {}) => {
-  console.log("fcmToken ==========> ", fcmToken);
   if (!fcmToken) {
     console.warn("No FCM token provided");
     return;
