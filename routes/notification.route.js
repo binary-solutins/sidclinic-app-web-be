@@ -7,6 +7,6 @@ router.get("/", authenticate(), controller.getUserNotifications);
 router.patch("/:id/read", authenticate(), controller.markAsRead);
 router.patch("/read-all", authenticate(), controller.markAllAsRead);
 router.post("/send-notification", controller.sendNotification);
-router.post("/add-fcm-token", authenticate(), controller.updateFcmToken);
+router.post("/add-fcm-token", controller.updateFcmToken);
 
 module.exports = router;
