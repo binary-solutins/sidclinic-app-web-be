@@ -459,7 +459,7 @@ module.exports = {
       });
     } catch (error) {
       console.error(
-        `[ERROR] updateFcmToken - User ID: ${req.user}, Error:`,
+        `[ERROR] updateFcmToken - User ID: ${req.user.id}, Error:`,
         error.message
       );
       res.status(500).json({
