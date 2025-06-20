@@ -235,7 +235,6 @@ module.exports = {
         const users = await User.findAll({
           where: {
             fcmToken: { [Op.ne]: null },
-            notificationEnabled: true,
           },
           attributes: ["fcmToken"],
         });
@@ -248,7 +247,6 @@ module.exports = {
           where: {
             role: "doctor",
             fcmToken: { [Op.ne]: null },
-            notificationEnabled: true,
           },
           attributes: ["fcmToken"],
         });
