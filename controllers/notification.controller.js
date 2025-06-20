@@ -278,6 +278,8 @@ module.exports = {
         )} chunks`
       );
 
+      console.log("fcmTokens ==========> ", fcmTokens);
+
       for (let i = 0; i < fcmTokens.length; i += CHUNK_SIZE) {
         const chunk = fcmTokens.slice(i, i + CHUNK_SIZE);
         console.log(
