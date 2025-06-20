@@ -202,11 +202,11 @@ uploads/
 *.backup
 
 # Firebase service account credentials
-# *-firebase-adminsdk-*.json
-# sid-clinic-*.json
-# config/firebase-service-account.json
-# config/config.json
+*-firebase-adminsdk-*.json
+sid-clinic-*.json
+config/firebase-service-account.json
+config/config.json
 
 # Environment files
 .env*
-!.env.example 
+!.env.example config/firebase-service-account.json
