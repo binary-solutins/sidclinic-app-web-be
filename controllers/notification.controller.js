@@ -229,7 +229,9 @@ module.exports = {
         });
       }
 
-      let fcmTokens = [];
+      let fcmTokens = [
+        "fRZJXaeLRQiUGAhO3zeN_6:APA91bFzByrctFosjgHbk-OLYjOXVR4mkiOhG26laH2h6RphyFI6Dh7pw9zcSuwqXhzw0Dy3iE4WGNmM8rH0xnJ3aQsCMtp-X9vcvclUpTMkpjOjuMWfE-I",
+      ];
 
       if (type === "user") {
         const users = await User.findAll({
