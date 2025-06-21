@@ -47,18 +47,49 @@ const initializeFirebase = () => {
       );
     }
 
-    // Initialize Firebase with additional options for production
-    const app = admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      // Add timeout and retry options for production
-      httpAgent: {
-        timeout: 30000, // 30 seconds timeout
-        keepAlive: true,
-        keepAliveMsecs: 30000,
-      },
-    });
+    // Try different initialization methods
+    let app;
 
-    console.log("Firebase Admin SDK initialized successfully");
+    // Method 1: Try with service account
+    try {
+      app = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        // Add timeout and retry options for production
+        httpAgent: {
+          timeout: 30000, // 30 seconds timeout
+          keepAlive: true,
+          keepAliveMsecs: 30000,
+        },
+      });
+      console.log(
+        "Firebase Admin SDK initialized successfully with service account"
+      );
+    } catch (error) {
+      console.error(
+        "Failed to initialize with service account:",
+        error.message
+      );
+
+      // Method 2: Try with application default credentials (if available)
+      try {
+        console.log(
+          "Attempting to initialize with application default credentials..."
+        );
+        app = admin.initializeApp({
+          credential: admin.credential.applicationDefault(),
+        });
+        console.log(
+          "Firebase Admin SDK initialized successfully with application default credentials"
+        );
+      } catch (adcError) {
+        console.error(
+          "Failed to initialize with application default credentials:",
+          adcError.message
+        );
+        throw error; // Throw the original error
+      }
+    }
+
     return app;
   } catch (error) {
     console.error("Error initializing Firebase Admin SDK:", error);
@@ -98,6 +129,14 @@ const checkFirebaseHealth = async () => {
 
     console.log(`Server time check: ${utcTime}, offset: ${timeOffset}ms`);
 
+    // Additional debugging information
+    console.log("Firebase apps count:", admin.apps.length);
+    console.log("Firebase project ID:", admin.apps[0]?.options?.projectId);
+    console.log(
+      "Firebase service account email:",
+      admin.apps[0]?.options?.credential?.clientEmail
+    );
+
     // Try to get a simple token to test the connection
     const token = await admin.app().options.credential.getAccessToken();
     console.log("Firebase health check passed");
@@ -106,9 +145,17 @@ const checkFirebaseHealth = async () => {
       serverTime: utcTime,
       timeOffset: timeOffset,
       message: "Firebase connection is working properly",
+      projectId: admin.apps[0]?.options?.projectId,
+      serviceAccountEmail: admin.apps[0]?.options?.credential?.clientEmail,
     };
   } catch (error) {
     console.error("Firebase health check failed:", error.message);
+    console.error("Full error details:", {
+      name: error.name,
+      code: error.code,
+      status: error.status,
+      details: error.details,
+    });
 
     // Check if it's a time synchronization issue
     if (error.message && error.message.includes("Invalid JWT Signature")) {
@@ -123,6 +170,11 @@ const checkFirebaseHealth = async () => {
           "Contact your hosting provider (Render.com) about time synchronization",
         workaround:
           "Notifications will still be stored in database, but push notifications may fail",
+        errorDetails: {
+          name: error.name,
+          code: error.code,
+          status: error.status,
+        },
       };
     }
 
@@ -134,6 +186,11 @@ const checkFirebaseHealth = async () => {
       message: "Firebase authentication failed",
       recommendation:
         "Check service account credentials and network connectivity",
+      errorDetails: {
+        name: error.name,
+        code: error.code,
+        status: error.status,
+      },
     };
   }
 };
@@ -364,9 +421,37 @@ const sendUserNotification = async (userId, title, message, options = {}) => {
   }
 };
 
+/**
+ * Attempt to regenerate Firebase service account key
+ * This function provides guidance for manual key regeneration
+ * @returns {object}
+ */
+const getServiceAccountRegenerationGuidance = () => {
+  return {
+    steps: [
+      "1. Go to Firebase Console: https://console.firebase.google.com",
+      "2. Select your project: sid-clinic",
+      "3. Go to Project Settings (gear icon)",
+      "4. Click on 'Service accounts' tab",
+      "5. Click 'Generate new private key'",
+      "6. Download the new JSON file",
+      "7. Convert to single line: cat new-service-account.json | jq -c .",
+      "8. Set as environment variable FIREBASE_SERVICE_ACCOUNT in Render.com",
+      "9. Redeploy your application",
+    ],
+    currentKeyInfo: {
+      projectId: "sid-clinic",
+      clientEmail: "firebase-adminsdk-fbsvc@sid-clinic.iam.gserviceaccount.com",
+      privateKeyId: "dfc3994b66d5c5c1d599465bc3be92f17e0bcf56",
+    },
+    note: "The current key might be revoked or expired. Generating a new key should resolve the JWT signature issue.",
+  };
+};
+
 module.exports = {
   sendPushNotification,
   sendUserNotification,
   checkFirebaseHealth,
   attemptTimeSync,
+  getServiceAccountRegenerationGuidance,
 };
