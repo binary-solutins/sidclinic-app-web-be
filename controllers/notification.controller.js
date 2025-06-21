@@ -229,16 +229,11 @@ module.exports = {
         });
       }
 
-      let fcmTokens = [
-        "fRZJXaeLRQiUGAhO3zeN_6:APA91bFzByrctFosjgHbk-OLYjOXVR4mkiOhG26laH2h6RphyFI6Dh7pw9zcSuwqXhzw0Dy3iE4WGNmM8rH0xnJ3aQsCMtp-X9vcvclUpTMkpjOjuMWfE-I",
-      ];
+      let fcmTokens = [];
 
       if (type === "user") {
         const users = await User.findAll({
-          where: {
-            role: "user",
-            fcmToken: { [Op.ne]: null },
-          },
+          where: { role: "user" },
           attributes: ["fcmToken"],
         });
         fcmTokens = users.map((user) => user.fcmToken);
@@ -247,9 +242,7 @@ module.exports = {
         );
       } else {
         const doctors = await User.findAll({
-          where: {
-            role: "doctor",
-          },
+          where: { role: "doctor" },
           attributes: ["fcmToken"],
         });
         fcmTokens = doctors.map((doctor) => doctor.fcmToken);
@@ -268,7 +261,6 @@ module.exports = {
         });
       }
 
-      // Send notifications in chunks of 50
       const CHUNK_SIZE = 50;
       const results = [];
       let successfulSends = 0;
@@ -279,8 +271,6 @@ module.exports = {
           fcmTokens.length / CHUNK_SIZE
         )} chunks`
       );
-
-      console.log("fcmTokens ==========> ", fcmTokens);
 
       for (let i = 0; i < fcmTokens.length; i += CHUNK_SIZE) {
         const chunk = fcmTokens.slice(i, i + CHUNK_SIZE);
@@ -316,11 +306,9 @@ module.exports = {
           }
         });
 
-        // Wait for all notifications in the chunk to complete
         const chunkResults = await Promise.all(chunkPromises);
         results.push(...chunkResults);
 
-        // Update counters
         const chunkSuccessful = chunkResults.filter((r) => r.success).length;
         const chunkFailed = chunkResults.filter((r) => !r.success).length;
         successfulSends += chunkSuccessful;
