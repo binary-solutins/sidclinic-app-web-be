@@ -18,12 +18,13 @@ router.post("/add-fcm-token", authenticate(), controller.updateFcmToken);
 // Health check endpoint for Firebase
 router.get("/health", async (req, res) => {
   try {
-    const isHealthy = await checkFirebaseHealth();
+    const healthStatus = await checkFirebaseHealth();
     res.json({
       status: "success",
-      firebase: isHealthy ? "healthy" : "unhealthy",
+      firebase: healthStatus.healthy ? "healthy" : "unhealthy",
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
+      details: healthStatus,
     });
   } catch (error) {
     res.status(500).json({
@@ -31,6 +32,11 @@ router.get("/health", async (req, res) => {
       firebase: "unhealthy",
       error: error.message,
       timestamp: new Date().toISOString(),
+      details: {
+        healthy: false,
+        error: error.message,
+        message: "Health check failed to execute",
+      },
     });
   }
 });

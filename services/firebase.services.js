@@ -87,17 +87,54 @@ const initializeFirebase = () => {
 
 /**
  * Health check for Firebase connection
- * @returns {Promise<boolean>}
+ * @returns {Promise<object>}
  */
 const checkFirebaseHealth = async () => {
   try {
+    // Check server time first
+    const serverTime = new Date();
+    const utcTime = serverTime.toISOString();
+    const timeOffset = Math.abs(serverTime.getTime() - Date.now());
+
+    console.log(`Server time check: ${utcTime}, offset: ${timeOffset}ms`);
+
     // Try to get a simple token to test the connection
     const token = await admin.app().options.credential.getAccessToken();
     console.log("Firebase health check passed");
-    return true;
+    return {
+      healthy: true,
+      serverTime: utcTime,
+      timeOffset: timeOffset,
+      message: "Firebase connection is working properly",
+    };
   } catch (error) {
     console.error("Firebase health check failed:", error.message);
-    return false;
+
+    // Check if it's a time synchronization issue
+    if (error.message && error.message.includes("Invalid JWT Signature")) {
+      return {
+        healthy: false,
+        serverTime: new Date().toISOString(),
+        timeOffset: 0,
+        error: "Time synchronization issue detected",
+        message:
+          "Server clock may not be properly synchronized with NTP servers",
+        recommendation:
+          "Contact your hosting provider (Render.com) about time synchronization",
+        workaround:
+          "Notifications will still be stored in database, but push notifications may fail",
+      };
+    }
+
+    return {
+      healthy: false,
+      serverTime: new Date().toISOString(),
+      timeOffset: 0,
+      error: error.message,
+      message: "Firebase authentication failed",
+      recommendation:
+        "Check service account credentials and network connectivity",
+    };
   }
 };
 
@@ -114,6 +151,42 @@ console.log(
   !!process.env.FIREBASE_SERVICE_ACCOUNT
 );
 console.log("===================================");
+
+/**
+ * Attempt to sync server time with external time server
+ * @returns {Promise<boolean>}
+ */
+const attemptTimeSync = async () => {
+  try {
+    // Try to get time from multiple sources
+    const timeSources = [
+      "https://worldtimeapi.org/api/timezone/UTC",
+      "https://timeapi.io/api/Time/current/zone?timeZone=UTC",
+      "https://httpbin.org/delay/0", // Simple ping to check connectivity
+    ];
+
+    for (const source of timeSources) {
+      try {
+        const response = await fetch(source, {
+          method: "GET",
+          timeout: 5000,
+        });
+
+        if (response.ok) {
+          console.log(`Time sync check successful with ${source}`);
+          return true;
+        }
+      } catch (error) {
+        console.log(`Time sync check failed with ${source}:`, error.message);
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error("Time sync attempt failed:", error.message);
+    return false;
+  }
+};
 
 /**
  * Send push notification via FCM with retry logic
@@ -209,6 +282,12 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
           }
         }
 
+        // On second attempt, try time sync
+        if (attempt === 2) {
+          console.log("Attempting time synchronization...");
+          await attemptTimeSync();
+        }
+
         // Wait before retrying
         console.log(`Waiting ${retryDelay}ms before retry...`);
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
@@ -289,4 +368,5 @@ module.exports = {
   sendPushNotification,
   sendUserNotification,
   checkFirebaseHealth,
+  attemptTimeSync,
 };
