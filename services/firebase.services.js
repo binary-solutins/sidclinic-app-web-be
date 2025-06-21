@@ -71,9 +71,33 @@ const initializeFirebase = () => {
       console.error(
         "On Render.com, you may need to contact support or use a different deployment strategy."
       );
+
+      // In production, we might want to continue without Firebase
+      if (process.env.NODE_ENV === "production") {
+        console.warn(
+          "Continuing without Firebase initialization due to time synchronization issues"
+        );
+        return null;
+      }
     }
 
     throw error;
+  }
+};
+
+/**
+ * Health check for Firebase connection
+ * @returns {Promise<boolean>}
+ */
+const checkFirebaseHealth = async () => {
+  try {
+    // Try to get a simple token to test the connection
+    const token = await admin.app().options.credential.getAccessToken();
+    console.log("Firebase health check passed");
+    return true;
+  } catch (error) {
+    console.error("Firebase health check failed:", error.message);
+    return false;
   }
 };
 
@@ -119,7 +143,7 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
 
   // Retry configuration
   const maxRetries = 3;
-  const retryDelay = 1000; // 1 second
+  const retryDelay = 2000; // Increased to 2 seconds
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -148,9 +172,41 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
           console.error(
             "Please check your server's clock synchronization or contact your hosting provider."
           );
+
+          // In production, we might want to continue without failing the entire request
+          if (process.env.NODE_ENV === "production") {
+            console.warn(
+              "Continuing without push notification due to Firebase authentication issues"
+            );
+            return {
+              success: false,
+              error:
+                "Firebase authentication failed due to time synchronization issues",
+              skipped: true,
+            };
+          }
+
           throw new Error(
             "Firebase authentication failed due to time synchronization issues. Please ensure server clock is properly synchronized."
           );
+        }
+
+        // Try to reinitialize Firebase before retrying
+        if (attempt === 1) {
+          try {
+            console.log("Attempting to reinitialize Firebase...");
+            // Delete existing apps and reinitialize
+            admin.apps.forEach((app) => {
+              if (app) app.delete();
+            });
+            initializeFirebase();
+            console.log("Firebase reinitialized successfully");
+          } catch (reinitError) {
+            console.error(
+              "Failed to reinitialize Firebase:",
+              reinitError.message
+            );
+          }
         }
 
         // Wait before retrying
@@ -196,10 +252,30 @@ const sendUserNotification = async (userId, title, message, options = {}) => {
 
     // Send push notification if enabled and token exists
     if (user.notificationEnabled && user.fcmToken) {
-      await sendPushNotification(user.fcmToken, title, message, {
-        notificationId: notification.id.toString(),
-        ...options.data,
-      });
+      try {
+        const pushResult = await sendPushNotification(
+          user.fcmToken,
+          title,
+          message,
+          {
+            notificationId: notification.id.toString(),
+            ...options.data,
+          }
+        );
+
+        // If push notification was skipped due to Firebase issues, log it
+        if (pushResult && pushResult.skipped) {
+          console.warn(
+            `Push notification skipped for user ${userId} due to Firebase issues`
+          );
+        }
+      } catch (pushError) {
+        console.error(
+          `Failed to send push notification to user ${userId}:`,
+          pushError.message
+        );
+        // Don't fail the entire notification process if push fails
+      }
     }
 
     return notification;
@@ -212,4 +288,5 @@ const sendUserNotification = async (userId, title, message, options = {}) => {
 module.exports = {
   sendPushNotification,
   sendUserNotification,
+  checkFirebaseHealth,
 };

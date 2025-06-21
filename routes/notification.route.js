@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const controller = require("../controllers/notification.controller");
 const { authenticate, authorize } = require("../middleware/auth");
+const { checkFirebaseHealth } = require("../services/firebase.services");
 
 router.get("/", authenticate(), controller.getUserNotifications);
 router.patch("/:id/read", authenticate(), controller.markAsRead);
@@ -13,5 +14,25 @@ router.post(
   controller.sendNotification
 );
 router.post("/add-fcm-token", authenticate(), controller.updateFcmToken);
+
+// Health check endpoint for Firebase
+router.get("/health", async (req, res) => {
+  try {
+    const isHealthy = await checkFirebaseHealth();
+    res.json({
+      status: "success",
+      firebase: isHealthy ? "healthy" : "unhealthy",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      firebase: "unhealthy",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 module.exports = router;
