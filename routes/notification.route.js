@@ -2,10 +2,6 @@ const express = require("express");
 const router = express.Router();
 const controller = require("../controllers/notification.controller");
 const { authenticate, authorize } = require("../middleware/auth");
-const {
-  checkFirebaseHealth,
-  getServiceAccountRegenerationGuidance,
-} = require("../services/firebase.services");
 
 router.get("/", authenticate(), controller.getUserNotifications);
 router.patch("/:id/read", authenticate(), controller.markAsRead);
@@ -17,48 +13,5 @@ router.post(
   controller.sendNotification
 );
 router.post("/add-fcm-token", authenticate(), controller.updateFcmToken);
-
-// Health check endpoint for Firebase
-router.get("/health", async (req, res) => {
-  try {
-    const healthStatus = await checkFirebaseHealth();
-    res.json({
-      status: "success",
-      firebase: healthStatus.healthy ? "healthy" : "unhealthy",
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV,
-      details: healthStatus,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      firebase: "unhealthy",
-      error: error.message,
-      timestamp: new Date().toISOString(),
-      details: {
-        healthy: false,
-        error: error.message,
-        message: "Health check failed to execute",
-      },
-    });
-  }
-});
-
-// Service account regeneration guidance endpoint
-router.get("/firebase/regenerate-guidance", (req, res) => {
-  try {
-    const guidance = getServiceAccountRegenerationGuidance();
-    res.json({
-      status: "success",
-      message: "Service account regeneration guidance",
-      guidance: guidance,
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "error",
-      error: error.message,
-    });
-  }
-});
 
 module.exports = router;
