@@ -942,7 +942,7 @@ module.exports = {
             include: [{ 
               model: User, 
               as: 'User',
-              attributes: ['id', 'name', 'email']
+              attributes: ['id', 'name']
             }]
           }
         ],
