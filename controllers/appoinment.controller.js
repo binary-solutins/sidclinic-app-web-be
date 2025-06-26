@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { Appointment, User, Doctor, Notification } = require('../models');
 const { sendUserNotification } = require('../services/firebase.services');
 const { sendAppointmentEmail } = require('../services/email.services');
+const Patient = require('../models/patient.model');
 
 module.exports = {
 
@@ -22,9 +23,9 @@ module.exports = {
           message: 'Appointment must be scheduled at least 1 hour in advance',
         });
       }
-
       // Validate user
       const user = await User.findByPk(userId);
+      const patient = await Patient.findOne({ where: { userId: userId } });
       if (!user || user.role !== 'user') {
         return res.status(400).json({
           status: 'error',
@@ -150,7 +151,7 @@ module.exports = {
 
       // Send confirmation email to patient
       await sendAppointmentEmail(
-        user.email,
+        patient.email,
         'appointment_requested',
         {
           patientName: user.name,
@@ -164,7 +165,7 @@ module.exports = {
 
       // Send notification email to doctor
       await sendAppointmentEmail(
-        doctor.User.email,
+        doctor.email,
         'new_appointment_request',
         {
           doctorName: doctor.User.name,

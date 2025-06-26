@@ -35,6 +35,41 @@ class EmailService {
     });
   }
 
+  // Helper method to get user email based on role and user data
+  getUserEmail(user, role = null) {
+    // If user object has email directly
+    if (user.email) {
+      return user.email;
+    }
+
+    // If user has nested structure with Patient or Doctor
+    if (user.Patient && user.Patient.email) {
+      return user.Patient.email;
+    }
+
+    if (user.Doctor && user.Doctor.email) {
+      return user.Doctor.email;
+    }
+
+    // If role is specified, try to get from associated model
+    if (role === 'patient' && user.patient && user.patient.email) {
+      return user.patient.email;
+    }
+
+    if (role === 'doctor' && user.doctor && user.doctor.email) {
+      return user.doctor.email;
+    }
+
+    // If it's a direct doctor or patient object
+    if (user.User && user.User.email) {
+      return user.User.email;
+    }
+
+    // Fallback - this shouldn't happen in a properly structured system
+    console.warn('Could not determine email for user:', user.id || 'unknown');
+    return null;
+  }
+
   // Load and compile email template
   async getTemplate(templateName) {
     if (this.templates.has(templateName)) {
@@ -287,6 +322,26 @@ class EmailService {
           <p>Thank you for choosing our healthcare services. We hope you had a positive experience.</p>
           <p>If you have any questions about your consultation or prescription, please contact us.</p>
         </div>
+      `),
+
+      appointment_reminder: handlebars.compile(`
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2c5aa0;">Appointment Reminder</h2>
+          <p>Dear {{patientName}},</p>
+          <p>This is a friendly reminder about your upcoming appointment.</p>
+          <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <h3>Appointment Details:</h3>
+            <p><strong>Doctor:</strong> {{doctorName}}</p>
+            <p><strong>Date:</strong> {{appointmentDate}}</p>
+            <p><strong>Time:</strong> {{appointmentTime}}</p>
+            <p><strong>Type:</strong> {{appointmentType}}</p>
+            {{#if videoCallLink}}
+            <p><strong>Video Call Link:</strong> <a href="{{videoCallLink}}">Join Call</a></p>
+            {{/if}}
+          </div>
+          <p>Please arrive 15 minutes early for your appointment.</p>
+          <p>If you need to reschedule or cancel, please do so as soon as possible.</p>
+        </div>
       `)
     };
 
@@ -322,16 +377,30 @@ class EmailService {
       appointment_canceled_by_doctor: `Appointment Canceled - ${data.appointmentDate}`,
       cancellation_confirmation_patient: `Cancellation Confirmed - ${data.appointmentDate}`,
       cancellation_confirmation_doctor: `Cancellation Confirmed - ${data.appointmentDate}`,
-      appointment_completed: `Appointment Completed - ${data.appointmentDate}`
+      appointment_completed: `Appointment Completed - ${data.appointmentDate}`,
+      appointment_reminder: `Appointment Reminder - ${data.appointmentDate}`
     };
 
     return subjects[templateType] || 'Healthcare Notification';
   }
 
-  // Send appointment email
-  async sendAppointmentEmail(to, templateType, data) {
+  // Send appointment email - Enhanced version
+  async sendAppointmentEmail(to, templateType, data, userObj = null) {
     try {
-      if (!to || !templateType) {
+      let emailAddress = to;
+
+      // If 'to' is not a string email, try to extract email from user object
+      if (typeof to === 'object' && to !== null) {
+        userObj = to;
+        emailAddress = this.getUserEmail(userObj);
+      }
+
+      // If we still don't have an email, try to get it from the userObj
+      if (!emailAddress && userObj) {
+        emailAddress = this.getUserEmail(userObj);
+      }
+
+      if (!emailAddress || !templateType) {
         throw new Error('Email address and template type are required');
       }
 
@@ -341,7 +410,7 @@ class EmailService {
 
       const mailOptions = {
         from: `"${process.env.APP_NAME || 'Healthcare Platform'}" <${process.env.SMTP_USER}>`,
-        to: to,
+        to: emailAddress,
         subject: subject,
         html: htmlContent,
         // Optional: Add text version
@@ -349,10 +418,11 @@ class EmailService {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
-      console.log(`Email sent successfully to ${to}:`, result.messageId);
+      console.log(`Email sent successfully to ${emailAddress}:`, result.messageId);
       return {
         success: true,
-        messageId: result.messageId
+        messageId: result.messageId,
+        recipient: emailAddress
       };
     } catch (error) {
       console.error('Failed to send email:', error);
@@ -369,17 +439,22 @@ class EmailService {
     
     for (const recipient of recipients) {
       try {
-        const result = await this.sendAppointmentEmail(recipient.email, templateType, {
-          ...data,
-          ...recipient.data // Allow per-recipient data override
-        });
+        const result = await this.sendAppointmentEmail(
+          recipient.email || recipient, 
+          templateType, 
+          {
+            ...data,
+            ...recipient.data // Allow per-recipient data override
+          },
+          recipient.userObj // Pass user object if available
+        );
         results.push({
-          email: recipient.email,
+          email: result.recipient || recipient.email || recipient,
           ...result
         });
       } catch (error) {
         results.push({
-          email: recipient.email,
+          email: recipient.email || recipient,
           success: false,
           error: error.message
         });
@@ -392,7 +467,13 @@ class EmailService {
   // Send reminder emails (can be called by a scheduler)
   async sendAppointmentReminders() {
     try {
-      const { Appointment, User, Doctor } = require('../models');
+      // Import models here to avoid circular dependency
+      const User = require('../models/user.model');
+      const Doctor = require('../models/doctor.model');
+      const Patient = require('../models/patient.model');
+      
+      // You'll need to create an Appointment model
+      const { Appointment } = require('../models');
       const { Op } = require('sequelize');
       
       // Get appointments for tomorrow
@@ -407,46 +488,45 @@ class EmailService {
           status: 'confirmed'
         },
         include: [
-          { model: User, as: 'patient', attributes: ['name', 'email'] },
-          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User', attributes: ['name'] }] }
+          { 
+            model: User, 
+            as: 'patient', 
+            include: [{ 
+              model: Patient, 
+              attributes: ['email'] 
+            }] 
+          },
+          { 
+            model: Doctor, 
+            as: 'doctor', 
+            include: [{ 
+              model: User, 
+              attributes: ['name'] 
+            }] 
+          }
         ]
       });
 
-      const reminderTemplate = handlebars.compile(`
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2c5aa0;">Appointment Reminder</h2>
-          <p>Dear {{patientName}},</p>
-          <p>This is a friendly reminder about your upcoming appointment.</p>
-          <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
-            <h3>Appointment Details:</h3>
-            <p><strong>Doctor:</strong> {{doctorName}}</p>
-            <p><strong>Date:</strong> {{appointmentDate}}</p>
-            <p><strong>Time:</strong> {{appointmentTime}}</p>
-            <p><strong>Type:</strong> {{appointmentType}}</p>
-            {{#if videoCallLink}}
-            <p><strong>Video Call Link:</strong> <a href="{{videoCallLink}}">Join Call</a></p>
-            {{/if}}
-          </div>
-          <p>Please arrive 15 minutes early for your appointment.</p>
-          <p>If you need to reschedule or cancel, please do so as soon as possible.</p>
-        </div>
-      `);
-
       const results = [];
       for (const appointment of upcomingAppointments) {
-        const result = await this.sendAppointmentEmail(
-          appointment.patient.email,
-          'appointment_reminder',
-          {
-            patientName: appointment.patient.name,
-            doctorName: appointment.doctor.User.name,
-            appointmentDate: appointment.appointmentDateTime.toLocaleDateString(),
-            appointmentTime: appointment.appointmentDateTime.toLocaleTimeString(),
-            appointmentType: appointment.type,
-            videoCallLink: appointment.videoCallLink
-          }
-        );
-        results.push(result);
+        // Get patient email from either User or Patient model
+        const patientEmail = appointment.patient.Patient?.email || appointment.patient.email;
+        
+        if (patientEmail) {
+          const result = await this.sendAppointmentEmail(
+            patientEmail,
+            'appointment_reminder',
+            {
+              patientName: appointment.patient.name,
+              doctorName: appointment.doctor.User.name,
+              appointmentDate: appointment.appointmentDateTime.toLocaleDateString(),
+              appointmentTime: appointment.appointmentDateTime.toLocaleTimeString(),
+              appointmentType: appointment.type,
+              videoCallLink: appointment.videoCallLink
+            }
+          );
+          results.push(result);
+        }
       }
 
       console.log(`Sent ${results.filter(r => r.success).length} reminder emails`);
@@ -455,6 +535,24 @@ class EmailService {
       console.error('Failed to send appointment reminders:', error);
       return [];
     }
+  }
+
+  // Method to send email to patient
+  async sendPatientEmail(patient, templateType, data) {
+    const patientEmail = this.getUserEmail(patient, 'patient');
+    if (!patientEmail) {
+      throw new Error('Patient email not found');
+    }
+    return this.sendAppointmentEmail(patientEmail, templateType, data, patient);
+  }
+
+  // Method to send email to doctor
+  async sendDoctorEmail(doctor, templateType, data) {
+    const doctorEmail = this.getUserEmail(doctor, 'doctor');
+    if (!doctorEmail) {
+      throw new Error('Doctor email not found');
+    }
+    return this.sendAppointmentEmail(doctorEmail, templateType, data, doctor);
   }
 
   // Convert HTML to plain text (basic implementation)
@@ -485,11 +583,13 @@ class EmailService {
 // Create singleton instance
 const emailService = new EmailService();
 
-// Export the service and the sendAppointmentEmail function for backward compatibility
+// Export the service and functions for backward compatibility
 module.exports = {
   emailService,
-  sendAppointmentEmail: (to, templateType, data) => emailService.sendAppointmentEmail(to, templateType, data),
+  sendAppointmentEmail: (to, templateType, data, userObj) => emailService.sendAppointmentEmail(to, templateType, data, userObj),
   sendBulkEmails: (recipients, templateType, data) => emailService.sendBulkEmails(recipients, templateType, data),
   sendAppointmentReminders: () => emailService.sendAppointmentReminders(),
+  sendPatientEmail: (patient, templateType, data) => emailService.sendPatientEmail(patient, templateType, data),
+  sendDoctorEmail: (doctor, templateType, data) => emailService.sendDoctorEmail(doctor, templateType, data),
   testEmailConfiguration: () => emailService.testEmailConfiguration()
 };
