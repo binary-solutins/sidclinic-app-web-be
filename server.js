@@ -21,6 +21,7 @@ const server = http.createServer(app);
 const io = socketio(server);
 const blogRoutes = require("./routes/blog.routes");
 const patientRoutes = require("./routes/patient.routes");
+const priceRoutes = require("./routes/price.route");
 
 app.use(cors());
 app.use(
@@ -55,7 +56,7 @@ sequelize
   .then(() => console.log("Database connected"))
   .catch((err) => console.error("Unable to connect to the database:", err));
 
-sequelize.sync({ alter: false });
+sequelize.sync({ alter: true });
 io.on("connection", (socket) => {
   socket.on("join-room", (roomId) => {
     const room = io.sockets.adapter.rooms.get(roomId);
@@ -89,6 +90,7 @@ app.use("/video-call", videoRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/patients", patientRoutes);
+app.use("/api/price", priceRoutes);
 // Global error handler
 app.use(
   helmet({
@@ -114,6 +116,9 @@ app.use((req, res) => {
     message: "Route not found",
   });
 });
+
+app.set('trust proxy', 1); // or true
+
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

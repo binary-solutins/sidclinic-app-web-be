@@ -12,17 +12,17 @@ const Appointment = sequelize.define('Appointment', {
   userId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { 
-      model: User, 
-      key: 'id' 
+    references: {
+      model: User,
+      key: 'id'
     }
   },
   doctorId: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references: { 
-      model: Doctor, 
-      key: 'id' 
+    references: {
+      model: Doctor,
+      key: 'id'
     }
   },
   appointmentDateTime: {
@@ -35,16 +35,16 @@ const Appointment = sequelize.define('Appointment', {
   },
   status: {
     type: DataTypes.ENUM(
-      'pending', 
-      'confirmed', 
-      'completed', 
-      'canceled', 
-      'rejected', 
+      'pending',
+      'confirmed',
+      'completed',
+      'canceled',
+      'rejected',
       'reschedule_requested'
     ),
     defaultValue: 'pending'
   },
-  
+
   videoCallLink: {
     type: DataTypes.STRING,
     allowNull: true
@@ -53,7 +53,7 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.STRING,
     allowNull: true
   },
-  
+
   notes: {
     type: DataTypes.TEXT,
     allowNull: true
@@ -66,7 +66,7 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  
+
   cancelReason: {
     type: DataTypes.TEXT,
     allowNull: true
@@ -79,7 +79,7 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.DATE,
     allowNull: true
   },
-  
+
   rejectionReason: {
     type: DataTypes.TEXT,
     allowNull: true
@@ -88,7 +88,7 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.DATE,
     allowNull: true
   },
-  
+
   originalDateTime: {
     type: DataTypes.DATE,
     allowNull: true,
@@ -119,7 +119,7 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  
+
   bookingDate: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -133,7 +133,30 @@ const Appointment = sequelize.define('Appointment', {
     type: DataTypes.DATE,
     allowNull: true
   },
-  
+  azurePatientUserId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  azurePatientToken: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  azurePatientTokenExpiry: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  azureDoctorUserId: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  azureDoctorToken: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  azureDoctorTokenExpiry: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   priority: {
     type: DataTypes.ENUM('low', 'medium', 'high', 'urgent'),
     defaultValue: 'medium'
@@ -164,25 +187,25 @@ const Appointment = sequelize.define('Appointment', {
   ]
 });
 
-User.hasMany(Appointment, { 
+User.hasMany(Appointment, {
   foreignKey: 'userId',
   onDelete: 'CASCADE'
 });
-Appointment.belongsTo(User, { 
-  foreignKey: 'userId', 
-  as: 'patient' 
+Appointment.belongsTo(User, {
+  foreignKey: 'userId',
+  as: 'patient'
 });
 
-Doctor.hasMany(Appointment, { 
+Doctor.hasMany(Appointment, {
   foreignKey: 'doctorId',
   onDelete: 'CASCADE'
 });
-Appointment.belongsTo(Doctor, { 
-  foreignKey: 'doctorId', 
-  as: 'doctor' 
+Appointment.belongsTo(Doctor, {
+  foreignKey: 'doctorId',
+  as: 'doctor'
 });
 
-Appointment.prototype.canBeRescheduled = function() {
+Appointment.prototype.canBeRescheduled = function () {
   const now = new Date();
   const appointmentTime = new Date(this.appointmentDateTime);
   const timeDifference = appointmentTime.getTime() - now.getTime();
@@ -191,50 +214,50 @@ Appointment.prototype.canBeRescheduled = function() {
   return hoursUntilAppointment >= 24 && ['pending', 'confirmed'].includes(this.status);
 };
 
-Appointment.prototype.canBeCanceled = function() {
+Appointment.prototype.canBeCanceled = function () {
   return !['canceled', 'completed'].includes(this.status);
 };
 
-Appointment.prototype.isUpcoming = function() {
+Appointment.prototype.isUpcoming = function () {
   const now = new Date();
   const appointmentTime = new Date(this.appointmentDateTime);
   return appointmentTime > now && ['confirmed', 'reschedule_requested'].includes(this.status);
 };
 
-Appointment.prototype.isPast = function() {
+Appointment.prototype.isPast = function () {
   const now = new Date();
   const appointmentTime = new Date(this.appointmentDateTime);
   return appointmentTime < now;
 };
 
 // Class methods
-Appointment.getStatusCounts = async function(whereCondition = {}) {
+Appointment.getStatusCounts = async function (whereCondition = {}) {
   const statuses = ['pending', 'confirmed', 'completed', 'canceled', 'rejected', 'reschedule_requested'];
   const counts = {};
-  
+
   for (const status of statuses) {
     counts[status] = await this.count({
       where: { ...whereCondition, status }
     });
   }
-  
+
   return counts;
 };
 
-Appointment.getTodaysAppointments = async function(doctorId = null) {
+Appointment.getTodaysAppointments = async function (doctorId = null) {
   const today = new Date();
   const startOfDay = new Date(today.setHours(0, 0, 0, 0));
   const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-  
+
   const whereCondition = {
     appointmentDateTime: { [Op.between]: [startOfDay, endOfDay] },
     status: { [Op.notIn]: ['canceled', 'rejected'] }
   };
-  
+
   if (doctorId) {
     whereCondition.doctorId = doctorId;
   }
-  
+
   return await this.findAll({
     where: whereCondition,
     include: [

@@ -257,8 +257,7 @@ exports.getBlogById = async (req, res) => {
     }
     
     // Check if blog is published or user is admin/author
-    if (blog.status !== 'published' && 
-        (!req.user || (req.user.role !== 'admin' && blog.userId !== req.user.id))) {
+    if ((!req.user || (req.user.role !== 'admin' && blog.userId !== req.user.id))) {
       return res.status(403).json({
         status: 'error',
         code: 403,

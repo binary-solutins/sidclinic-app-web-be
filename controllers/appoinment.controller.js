@@ -3,7 +3,30 @@ const { v4: uuidv4 } = require('uuid');
 const { Appointment, User, Doctor, Notification } = require('../models');
 const { sendUserNotification } = require('../services/firebase.services');
 const { sendAppointmentEmail } = require('../services/email.services');
+const { CommunicationIdentityClient } = require('@azure/communication-identity');
 const Patient = require('../models/patient.model');
+
+
+const communicationIdentityClient = new CommunicationIdentityClient(
+  process.env.AZURE_COMMUNICATION_CONNECTION_STRING
+);
+
+// Helper function to create Azure Communication user and token
+const createAzureCommUser = async () => {
+  try {
+    const user = await communicationIdentityClient.createUser();
+    const tokenResponse = await communicationIdentityClient.getToken(user, ["voip"]);
+
+    return {
+      userId: user.communicationUserId,
+      token: tokenResponse.token,
+      expiresOn: tokenResponse.expiresOn
+    };
+  } catch (error) {
+    console.error('Error creating Azure Communication user:', error);
+    throw error;
+  }
+};
 
 module.exports = {
 
@@ -127,9 +150,29 @@ module.exports = {
       };
 
       if (type === 'virtual') {
-        const roomId = uuidv4();
-        appointmentData.videoCallLink = `/video-call/${roomId}`;
-        appointmentData.roomId = roomId;
+        try {
+          const roomId = uuidv4();
+
+          // Create Azure Communication users for both patient and doctor
+          const patientCommUser = await createAzureCommUser();
+          const doctorCommUser = await createAzureCommUser();
+
+          appointmentData.videoCallLink = `/video-call/${roomId}`;
+          appointmentData.roomId = roomId;
+          appointmentData.azurePatientUserId = patientCommUser.userId;
+          appointmentData.azurePatientToken = patientCommUser.token;
+          appointmentData.azurePatientTokenExpiry = patientCommUser.expiresOn;
+          appointmentData.azureDoctorUserId = doctorCommUser.userId;
+          appointmentData.azureDoctorToken = doctorCommUser.token;
+          appointmentData.azureDoctorTokenExpiry = doctorCommUser.expiresOn;
+        } catch (azureError) {
+          console.error('Azure Communication Services error:', azureError);
+          return res.status(500).json({
+            status: 'error',
+            code: 500,
+            message: 'Failed to setup video call service. Please try again.',
+          });
+        }
       }
 
       const appointment = await Appointment.create(appointmentData);
@@ -194,7 +237,105 @@ module.exports = {
     }
   },
 
- 
+  getVideoCallCredentials: async (req, res) => {
+    try {
+      const appointmentId = req.params.id;
+      const appointment = await Appointment.findByPk(appointmentId, {
+        include: [
+          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: User, as: 'patient' }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This is not a virtual appointment',
+        });
+      }
+
+      if (appointment.status !== 'confirmed') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Appointment must be confirmed to access video call',
+        });
+      }
+
+      // Check if user is authorized (patient or doctor)
+      const isPatient = req.user.id === appointment.userId;
+      const isDoctor = req.user.id === appointment.doctor.User.id;
+
+      if (!isPatient && !isDoctor) {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Unauthorized access to video call',
+        });
+      }
+
+      // Check if tokens are expired and refresh if needed
+      const now = new Date();
+      let patientToken = appointment.azurePatientToken;
+      let doctorToken = appointment.azureDoctorToken;
+
+      if (new Date(appointment.azurePatientTokenExpiry) <= now) {
+        const newPatientToken = await communicationIdentityClient.getToken(
+          { communicationUserId: appointment.azurePatientUserId },
+          ["voip"]
+        );
+        patientToken = newPatientToken.token;
+        appointment.azurePatientToken = newPatientToken.token;
+        appointment.azurePatientTokenExpiry = newPatientToken.expiresOn;
+      }
+
+      if (new Date(appointment.azureDoctorTokenExpiry) <= now) {
+        const newDoctorToken = await communicationIdentityClient.getToken(
+          { communicationUserId: appointment.azureDoctorUserId },
+          ["voip"]
+        );
+        doctorToken = newDoctorToken.token;
+        appointment.azureDoctorToken = newDoctorToken.token;
+        appointment.azureDoctorTokenExpiry = newDoctorToken.expiresOn;
+      }
+
+      await appointment.save();
+
+      // Return appropriate credentials based on user role
+      const credentials = {
+        roomId: appointment.roomId,
+        userId: isPatient ? appointment.azurePatientUserId : appointment.azureDoctorUserId,
+        token: isPatient ? patientToken : doctorToken,
+        userRole: isPatient ? 'patient' : 'doctor',
+        appointmentId: appointment.id,
+        participantName: isPatient ? appointment.patient.name : appointment.doctor.User.name
+      };
+
+      res.json({
+        status: 'success',
+        code: 200,
+        data: credentials,
+      });
+    } catch (error) {
+      console.error('Get Video Call Credentials Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+
   confirmAppointment: async (req, res) => {
     try {
       const appointment = await Appointment.findByPk(req.params.id, {
@@ -783,7 +924,7 @@ module.exports = {
       // Send confirmation email to the canceler
       const confirmationTemplate = isPatient ? 'cancellation_confirmation_patient' : 'cancellation_confirmation_doctor';
       const cancelerEmail = isPatient ? appointment.patient.email : appointment.doctor.User.email;
-      
+
       await sendAppointmentEmail(
         cancelerEmail,
         confirmationTemplate,
@@ -904,7 +1045,7 @@ module.exports = {
     try {
       const userId = req.params.userId;
       const { status, fromDate, toDate, page = 1, limit = 10 } = req.query;
-  
+
       const user = await User.findByPk(userId);
       if (!user) {
         return res.status(404).json({
@@ -913,7 +1054,7 @@ module.exports = {
           message: 'User not found',
         });
       }
-  
+
       if (req.user.id !== parseInt(userId) && req.user.role !== 'admin') {
         return res.status(403).json({
           status: 'error',
@@ -921,10 +1062,10 @@ module.exports = {
           message: 'Unauthorized access',
         });
       }
-  
+
       const where = { userId };
       if (status) where.status = status;
-      
+
       if (fromDate || toDate) {
         where.appointmentDateTime = {};
         if (fromDate) where.appointmentDateTime[Op.gte] = new Date(fromDate);
@@ -932,15 +1073,15 @@ module.exports = {
       }
 
       const offset = (page - 1) * limit;
-  
+
       const { count, rows: appointments } = await Appointment.findAndCountAll({
         where,
         include: [
           {
             model: Doctor,
             as: 'doctor',
-            include: [{ 
-              model: User, 
+            include: [{
+              model: User,
               as: 'User',
               attributes: ['id', 'name']
             }]
@@ -950,7 +1091,7 @@ module.exports = {
         limit: parseInt(limit),
         offset: parseInt(offset)
       });
-  
+
       res.json({
         status: 'success',
         code: 200,
@@ -982,7 +1123,7 @@ module.exports = {
       const doctor = await Doctor.findByPk(doctorId, {
         include: [{ model: User, as: 'User' }]
       });
-      
+
       if (!doctor) {
         return res.status(404).json({
           status: 'error',
@@ -1001,7 +1142,7 @@ module.exports = {
 
       const where = { doctorId };
       if (status) where.status = status;
-      
+
       if (fromDate || toDate) {
         where.appointmentDateTime = {};
         if (fromDate) where.appointmentDateTime[Op.gte] = new Date(fromDate);
@@ -1118,7 +1259,7 @@ module.exports = {
       let currentTime = new Date(startOfDay);
       while (currentTime < endOfDay) {
         const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
-        
+
         // Count existing appointments in this slot
         const existingCount = existingAppointments.filter(appointment => {
           const appointmentTime = new Date(appointment.appointmentDateTime);
@@ -1126,7 +1267,7 @@ module.exports = {
         }).length;
 
         const isAvailable = existingCount < maxAppointments;
-        
+
         // If it's today, only show slots that are at least 1 hour from now
         let showSlot = true;
         if (requestedDate.toDateString() === today.toDateString()) {
@@ -1138,10 +1279,10 @@ module.exports = {
           slots.push({
             start: new Date(currentTime).toISOString(),
             end: new Date(slotEnd).toISOString(),
-            time: currentTime.toLocaleTimeString('en-US', { 
-              hour: '2-digit', 
+            time: currentTime.toLocaleTimeString('en-US', {
+              hour: '2-digit',
               minute: '2-digit',
-              hour12: true 
+              hour12: true
             }),
             available: isAvailable,
             bookedCount: existingCount,
@@ -1179,8 +1320,8 @@ module.exports = {
           {
             model: Doctor,
             as: 'doctor',
-            include: [{ 
-              model: User, 
+            include: [{
+              model: User,
               as: 'User',
               attributes: ['id', 'name', 'email']
             }]
@@ -1253,17 +1394,17 @@ module.exports = {
 
       const stats = {
         total: await Appointment.count({ where: whereCondition }),
-        pending: await Appointment.count({ 
-          where: { ...whereCondition, status: 'pending' } 
+        pending: await Appointment.count({
+          where: { ...whereCondition, status: 'pending' }
         }),
-        confirmed: await Appointment.count({ 
-          where: { ...whereCondition, status: 'confirmed' } 
+        confirmed: await Appointment.count({
+          where: { ...whereCondition, status: 'confirmed' }
         }),
-        completed: await Appointment.count({ 
-          where: { ...whereCondition, status: 'completed' } 
+        completed: await Appointment.count({
+          where: { ...whereCondition, status: 'completed' }
         }),
-        canceled: await Appointment.count({ 
-          where: { ...whereCondition, status: 'canceled' } 
+        canceled: await Appointment.count({
+          where: { ...whereCondition, status: 'canceled' }
         }),
         today: await Appointment.count({
           where: {
@@ -1295,6 +1436,46 @@ module.exports = {
       });
     } catch (error) {
       console.error('Get Appointment Stats Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  joinVideoCall: async (req, res) => {
+    try {
+      const appointmentId = req.params.id;
+      const appointment = await Appointment.findByPk(appointmentId);
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Log the join event
+      const isPatient = req.user.id === appointment.userId;
+      const joinEvent = {
+        appointmentId: appointment.id,
+        userId: req.user.id,
+        userType: isPatient ? 'patient' : 'doctor',
+        joinedAt: new Date()
+      };
+
+      // You can store this in a separate table or add fields to appointment
+      console.log('Video call joined:', joinEvent);
+
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Video call join logged successfully',
+      });
+    } catch (error) {
+      console.error('Join Video Call Error:', error);
       res.status(500).json({
         status: 'error',
         code: 500,

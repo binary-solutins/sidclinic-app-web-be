@@ -57,7 +57,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /price/initialize:
+ * /api/price/initialize:
  *   post:
  *     summary: Initialize predefined services
  *     description: Creates predefined services in the database (run once for setup)
@@ -97,7 +97,7 @@ router.post('/initialize', authenticate(), priceController.initializeServices);
 
 /**
  * @swagger
- * /price:
+ * /api/price:
  *   get:
  *     summary: Get all services with their prices
  *     description: Retrieve all services with optional filtering
@@ -147,7 +147,7 @@ router.get('/', authenticate(),authorize('admin'), priceController.getAllPrices)
 
 /**
  * @swagger
- * /price/services:
+ * /api/price/services:
  *   get:
  *     summary: Get available services list
  *     description: Get list of all predefined services
@@ -189,7 +189,7 @@ router.get('/services', authenticate(),authorize('admin'), priceController.getAv
 
 /**
  * @swagger
- * /price/{id}:
+ * /api/price/{id}:
  *   get:
  *     summary: Get service by ID
  *     description: Retrieve a specific service by its ID
@@ -235,7 +235,7 @@ router.get('/:id', authenticate(),authorize('admin'), priceController.getPriceBy
 
 /**
  * @swagger
- * /price:
+ * /api/price:
  *   post:
  *     summary: Add or update price for a service
  *     description: Add price for a new service or update existing service price
@@ -296,7 +296,7 @@ router.post('/', authenticate(),authorize('admin'), priceController.addOrUpdateP
 
 /**
  * @swagger
- * /price/{id}:
+ * /api/price/{id}:
  *   put:
  *     summary: Edit price by ID
  *     description: Update price for a specific service by its ID
@@ -348,7 +348,7 @@ router.put('/:id', authenticate(),authorize('admin'), priceController.editPrice)
 
 /**
  * @swagger
- * /price/{id}:
+ * /api/price/{id}:
  *   delete:
  *     summary: Remove price from service
  *     description: Remove price from a service (sets price to null but keeps service active)

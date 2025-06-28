@@ -1290,4 +1290,14 @@ router.get('/:id', authenticate(), controller.getAppointmentById);
  */
 router.get('/stats/dashboard', authenticate(), controller.getAppointmentStats);
 
+router.get('/video-credentials/:id', 
+    authenticate(), 
+    controller.getVideoCallCredentials
+  );
+  
+  router.post('/video-join/:id', 
+    authenticate(), 
+    controller.joinVideoCall
+  );
+
 module.exports = router;
