@@ -31,7 +31,7 @@ const { authenticate } = require('../middleware/auth');
  *           type: string
  *           format: date-time
  *           description: Appointment date and time (ISO 8601 format)
- *           example: "2024-12-25T10:30:00.000Z"
+ *           example: "2025-07-04T11:00:00.000"
  *         type:
  *           type: string
  *           enum: [physical, virtual]
