@@ -1472,7 +1472,7 @@ module.exports = {
           {
             model: User,
             as: 'patient',
-            attributes: ['id', 'name', 'email', 'phone']
+            attributes: ['id', 'name']
           }
         ]
       });
