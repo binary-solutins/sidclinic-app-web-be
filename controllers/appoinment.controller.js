@@ -1466,13 +1466,13 @@ module.exports = {
             include: [{
               model: User,
               as: 'User',
-              attributes: ['id', 'name', 'email']
+              attributes: ['id', 'name']
             }]
           },
           {
             model: User,
             as: 'patient',
-            attributes: ['id', 'name']
+            attributes: ['id', 'name', 'phone']
           }
         ]
       });
