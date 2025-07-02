@@ -32,7 +32,7 @@ module.exports = {
   bookAppointment: async (req, res) => {
     try {
       const { userId, doctorId, appointmentDateTime, type = 'physical', notes } = req.body;
-  
+
       // Always interpret incoming appointmentDateTime as IST, regardless of format
       let requestedTime;
       if (appointmentDateTime.includes('T')) {
@@ -44,14 +44,14 @@ module.exports = {
           zone: 'Asia/Kolkata'
         });
       }
-      
+
       // If parsing failed, try alternative format
       if (!requestedTime.isValid) {
         requestedTime = DateTime.fromFormat(appointmentDateTime, "yyyy-MM-dd'T'HH:mm:ss.SSS", {
           zone: 'Asia/Kolkata'
         });
       }
-  
+
       if (!requestedTime.isValid) {
         return res.status(400).json({
           status: 'error',
@@ -59,10 +59,10 @@ module.exports = {
           message: 'Invalid appointment date/time format',
         });
       }
-      
+
       const now = DateTime.now().setZone('Asia/Kolkata');
       const oneHourFromNow = now.plus({ hours: 1 });
-  
+
       if (requestedTime < oneHourFromNow) {
         return res.status(400).json({
           status: 'error',
@@ -70,11 +70,11 @@ module.exports = {
           message: 'Appointment must be scheduled at least 1 hour in advance',
         });
       }
-  
+
       // Validate user
       const user = await User.findByPk(userId);
       const patient = await Patient.findOne({ where: { userId: userId } });
-  
+
       if (!user || user.role !== 'user') {
         return res.status(400).json({
           status: 'error',
@@ -82,12 +82,12 @@ module.exports = {
           message: 'Invalid user account',
         });
       }
-  
+
       // Validate doctor
       const doctor = await Doctor.findByPk(doctorId, {
         include: [{ model: User, as: 'User' }],
       });
-  
+
       if (!doctor || !doctor.isApproved || doctor.User.role !== 'doctor') {
         return res.status(400).json({
           status: 'error',
@@ -95,11 +95,11 @@ module.exports = {
           message: 'Doctor not available',
         });
       }
-  
+
       // Check if appointment is during working days (Mon-Fri) and hours (9 AM - 6 PM IST)
       const appointmentHour = requestedTime.hour;
       const appointmentDay = requestedTime.weekday; // 1 = Monday, 7 = Sunday
-  
+
       if (appointmentDay === 6 || appointmentDay === 7) {
         return res.status(400).json({
           status: 'error',
@@ -107,7 +107,7 @@ module.exports = {
           message: 'Appointments are not available on weekends',
         });
       }
-  
+
       if (appointmentHour < 9 || appointmentHour >= 18) {
         return res.status(400).json({
           status: 'error',
@@ -115,11 +115,11 @@ module.exports = {
           message: 'Appointments are only available between 9:00 AM and 6:00 PM',
         });
       }
-  
+
       // Check time slot availability (30-minute blocks) - all in IST
       const slotStart = requestedTime.set({ minute: Math.floor(requestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
       const slotEnd = slotStart.plus({ minutes: 30 });
-  
+
       const existingCount = await Appointment.count({
         where: {
           doctorId,
@@ -129,9 +129,9 @@ module.exports = {
           status: { [Op.notIn]: ['canceled', 'completed', 'rejected'] }
         }
       });
-  
+
       const maxAppointments = type === 'physical' ? 1 : 3;
-  
+
       if (existingCount >= maxAppointments) {
         return res.status(400).json({
           status: 'error',
@@ -139,11 +139,11 @@ module.exports = {
           message: 'Time slot is full. Please choose another time.',
         });
       }
-  
+
       // Check if user already has an appointment with the same doctor on same date (IST)
       const dayStart = requestedTime.startOf('day');
       const dayEnd = requestedTime.endOf('day');
-  
+
       const existingUserAppointment = await Appointment.findOne({
         where: {
           userId,
@@ -154,7 +154,7 @@ module.exports = {
           status: { [Op.notIn]: ['canceled', 'rejected'] }
         }
       });
-  
+
       if (existingUserAppointment) {
         return res.status(400).json({
           status: 'error',
@@ -162,7 +162,7 @@ module.exports = {
           message: 'You already have an appointment with this doctor on the selected date',
         });
       }
-  
+
       // Build appointment data - convert IST DateTime to JS Date for DB storage
       const appointmentData = {
         userId,
@@ -173,13 +173,13 @@ module.exports = {
         notes,
         bookingDate: new Date(), // UTC Date for DB
       };
-  
+
       if (type === 'virtual') {
         try {
           const roomId = uuidv4();
           const patientCommUser = await createAzureCommUser();
           const doctorCommUser = await createAzureCommUser();
-  
+
           appointmentData.videoCallLink = `/video-call/${roomId}`;
           appointmentData.roomId = roomId;
           appointmentData.azurePatientUserId = patientCommUser.userId;
@@ -197,10 +197,10 @@ module.exports = {
           });
         }
       }
-  
+
       // Save appointment
       const appointment = await Appointment.create(appointmentData);
-  
+
       // Notify doctor
       await sendUserNotification(
         doctor.User.id,
@@ -215,7 +215,7 @@ module.exports = {
           }
         }
       );
-  
+
       // Send emails with IST formatted times
       await sendAppointmentEmail(
         patient.email,
@@ -229,7 +229,7 @@ module.exports = {
           appointmentId: appointment.id
         }
       );
-  
+
       await sendAppointmentEmail(
         doctor.email,
         'new_appointment_request',
@@ -243,7 +243,7 @@ module.exports = {
           notes: notes || 'No additional notes'
         }
       );
-  
+
       // Format response data with IST times
       const responseData = {
         ...appointment.toJSON(),
@@ -260,14 +260,14 @@ module.exports = {
           .setZone('Asia/Kolkata')
           .toFormat('yyyy-MM-dd hh:mm a')
       };
-  
+
       return res.status(201).json({
         status: 'success',
         code: 201,
         message: 'Appointment request submitted successfully. You will be notified once the doctor confirms.',
         data: responseData,
       });
-  
+
     } catch (error) {
       console.error('Book Appointment Error:', error);
       return res.status(500).json({
@@ -437,13 +437,18 @@ module.exports = {
         {
           patientName: appointment.patient.name,
           doctorName: appointment.doctor.User.name,
-          appointmentDate: appointment.appointmentDateTime.toLocaleDateString(),
-          appointmentTime: appointment.appointmentDateTime.toLocaleTimeString(),
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
           appointmentType: appointment.type,
           appointmentId: appointment.id,
           videoCallLink: appointment.videoCallLink || null
         }
       );
+
 
       res.json({
         status: 'success',
@@ -518,15 +523,18 @@ module.exports = {
         }
       );
 
-      // Send rejection email to patient
       await sendAppointmentEmail(
         appointment.patient.email,
         'appointment_rejected',
         {
           patientName: appointment.patient.name,
           doctorName: appointment.doctor.User.name,
-          appointmentDate: appointment.appointmentDateTime.toLocaleDateString(),
-          appointmentTime: appointment.appointmentDateTime.toLocaleTimeString(),
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
           rejectionReason: rejectionReason || 'No reason provided',
           appointmentId: appointment.id
         }
@@ -575,13 +583,12 @@ module.exports = {
         });
       }
 
-      // Check if appointment can be rescheduled (must be at least 24 hours before)
-      const now = new Date();
-      const appointmentTime = new Date(appointment.appointmentDateTime);
-      const timeDifference = appointmentTime.getTime() - now.getTime();
-      const hoursUntilAppointment = timeDifference / (1000 * 60 * 60);
+      // Check if appointment can be rescheduled (must be at least 24 hours before) - using IST
+      const now = DateTime.now().setZone('Asia/Kolkata');
+      const appointmentTime = DateTime.fromJSDate(appointment.appointmentDateTime).setZone('Asia/Kolkata');
+      const timeDifference = appointmentTime.diff(now, 'hours').hours;
 
-      if (hoursUntilAppointment < 24) {
+      if (timeDifference < 24) {
         return res.status(400).json({
           status: 'error',
           code: 400,
@@ -598,11 +605,33 @@ module.exports = {
         });
       }
 
-      // Validate new appointment time
-      const newAppointmentTime = new Date(newDateTime);
-      const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+      // Parse and validate new appointment time in IST
+      let newRequestedTime;
+      if (newDateTime.includes('T')) {
+        newRequestedTime = DateTime.fromISO(newDateTime, { zone: 'Asia/Kolkata' });
+      } else {
+        newRequestedTime = DateTime.fromFormat(newDateTime, "yyyy-MM-dd HH:mm:ss", {
+          zone: 'Asia/Kolkata'
+        });
+      }
 
-      if (newAppointmentTime < oneHourFromNow) {
+      if (!newRequestedTime.isValid) {
+        newRequestedTime = DateTime.fromFormat(newDateTime, "yyyy-MM-dd'T'HH:mm:ss.SSS", {
+          zone: 'Asia/Kolkata'
+        });
+      }
+
+      if (!newRequestedTime.isValid) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Invalid new appointment date/time format',
+        });
+      }
+
+      const oneHourFromNow = now.plus({ hours: 1 });
+
+      if (newRequestedTime < oneHourFromNow) {
         return res.status(400).json({
           status: 'error',
           code: 400,
@@ -610,18 +639,36 @@ module.exports = {
         });
       }
 
+      // Check working hours and days
+      const appointmentHour = newRequestedTime.hour;
+      const appointmentDay = newRequestedTime.weekday;
+
+      if (appointmentDay === 6 || appointmentDay === 7) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Appointments are not available on weekends',
+        });
+      }
+
+      if (appointmentHour < 9 || appointmentHour >= 18) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Appointments are only available between 9:00 AM and 6:00 PM',
+        });
+      }
+
       // Check availability for new time slot
-      const slotStart = new Date(newAppointmentTime);
-      slotStart.setMinutes(Math.floor(slotStart.getMinutes() / 30) * 30);
-      slotStart.setSeconds(0, 0);
-      const slotEnd = new Date(slotStart.getTime() + 30 * 60000);
+      const slotStart = newRequestedTime.set({ minute: Math.floor(newRequestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
+      const slotEnd = slotStart.plus({ minutes: 30 });
 
       const existingCount = await Appointment.count({
         where: {
           doctorId: appointment.doctorId,
-          appointmentDateTime: { [Op.between]: [slotStart, slotEnd] },
+          appointmentDateTime: { [Op.between]: [slotStart.toJSDate(), slotEnd.toJSDate()] },
           status: { [Op.notIn]: ['canceled', 'completed', 'rejected'] },
-          id: { [Op.ne]: appointment.id } // Exclude current appointment
+          id: { [Op.ne]: appointment.id }
         }
       });
 
@@ -636,7 +683,7 @@ module.exports = {
 
       // Store original appointment time and update with new details
       appointment.originalDateTime = appointment.appointmentDateTime;
-      appointment.requestedDateTime = newAppointmentTime;
+      appointment.requestedDateTime = newRequestedTime.toJSDate();
       appointment.rescheduleReason = rescheduleReason;
       appointment.status = 'reschedule_requested';
       appointment.rescheduleRequestedAt = new Date();
@@ -657,33 +704,35 @@ module.exports = {
         }
       );
 
-      // Send reschedule request email to doctor
+      // Send reschedule request emails with IST formatting
+      const originalIST = DateTime.fromJSDate(appointment.originalDateTime).setZone('Asia/Kolkata');
+      const newIST = newRequestedTime;
+
       await sendAppointmentEmail(
         appointment.doctor.User.email,
         'reschedule_request_doctor',
         {
           doctorName: appointment.doctor.User.name,
           patientName: appointment.patient.name,
-          originalDate: appointment.originalDateTime.toLocaleDateString(),
-          originalTime: appointment.originalDateTime.toLocaleTimeString(),
-          newDate: newAppointmentTime.toLocaleDateString(),
-          newTime: newAppointmentTime.toLocaleTimeString(),
+          originalDate: originalIST.toFormat('dd LLL yyyy'),
+          originalTime: originalIST.toFormat('hh:mm a'),
+          newDate: newIST.toFormat('dd LLL yyyy'),
+          newTime: newIST.toFormat('hh:mm a'),
           rescheduleReason: rescheduleReason || 'No reason provided',
           appointmentId: appointment.id
         }
       );
 
-      // Send confirmation email to patient
       await sendAppointmentEmail(
         appointment.patient.email,
         'reschedule_request_patient',
         {
           patientName: appointment.patient.name,
           doctorName: appointment.doctor.User.name,
-          originalDate: appointment.originalDateTime.toLocaleDateString(),
-          originalTime: appointment.originalDateTime.toLocaleTimeString(),
-          newDate: newAppointmentTime.toLocaleDateString(),
-          newTime: newAppointmentTime.toLocaleTimeString(),
+          originalDate: originalIST.toFormat('dd LLL yyyy'),
+          originalTime: originalIST.toFormat('hh:mm a'),
+          newDate: newIST.toFormat('dd LLL yyyy'),
+          newTime: newIST.toFormat('hh:mm a'),
           appointmentId: appointment.id
         }
       );
@@ -703,6 +752,7 @@ module.exports = {
       });
     }
   },
+
 
   approveReschedule: async (req, res) => {
     try {
@@ -766,8 +816,12 @@ module.exports = {
         {
           patientName: appointment.patient.name,
           doctorName: appointment.doctor.User.name,
-          newDate: appointment.appointmentDateTime.toLocaleDateString(),
-          newTime: appointment.appointmentDateTime.toLocaleTimeString(),
+          newDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          newTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
           appointmentType: appointment.type,
           appointmentId: appointment.id,
           videoCallLink: appointment.videoCallLink || null
@@ -849,19 +903,23 @@ module.exports = {
         }
       );
 
-      // Send rejection email to patient
       await sendAppointmentEmail(
         appointment.patient.email,
         'reschedule_rejected',
         {
           patientName: appointment.patient.name,
           doctorName: appointment.doctor.User.name,
-          originalDate: appointment.appointmentDateTime.toLocaleDateString(),
-          originalTime: appointment.appointmentDateTime.toLocaleTimeString(),
+          originalDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          originalTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
           rejectionReason: rejectionReason || 'No reason provided',
           appointmentId: appointment.id
         }
       );
+
 
       res.json({
         status: 'success',
@@ -954,13 +1012,16 @@ module.exports = {
         {
           recipientName,
           cancelerName,
-          appointmentDate: appointment.appointmentDateTime.toLocaleDateString(),
-          appointmentTime: appointment.appointmentDateTime.toLocaleTimeString(),
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
           cancelReason: cancelReason || 'No reason provided',
           appointmentId: appointment.id
         }
       );
-
       // Send confirmation email to the canceler
       const confirmationTemplate = isPatient ? 'cancellation_confirmation_patient' : 'cancellation_confirmation_doctor';
       const cancelerEmail = isPatient ? appointment.patient.email : appointment.doctor.User.email;
@@ -971,8 +1032,12 @@ module.exports = {
         {
           cancelerName,
           otherPartyName: isPatient ? `Dr. ${appointment.doctor.User.name}` : appointment.patient.name,
-          appointmentDate: appointment.appointmentDateTime.toLocaleDateString(),
-          appointmentTime: appointment.appointmentDateTime.toLocaleTimeString(),
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
           appointmentId: appointment.id
         }
       );
@@ -1050,15 +1115,18 @@ module.exports = {
         }
       );
 
-      // Send completion email to patient
       await sendAppointmentEmail(
         appointment.patient.email,
         'appointment_completed',
         {
           patientName: appointment.patient.name,
           doctorName: appointment.doctor.User.name,
-          appointmentDate: appointment.appointmentDateTime.toLocaleDateString(),
-          appointmentTime: appointment.appointmentDateTime.toLocaleTimeString(),
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
           consultationNotes: consultationNotes || 'No notes provided',
           prescription: prescription || 'No prescription provided',
           appointmentId: appointment.id
@@ -1250,9 +1318,8 @@ module.exports = {
         });
       }
 
-      const requestedDate = new Date(date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const requestedDate = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: 'Asia/Kolkata' });
+      const today = DateTime.now().setZone('Asia/Kolkata').startOf('day');
 
       // Don't allow booking for past dates
       if (requestedDate < today) {
@@ -1264,8 +1331,8 @@ module.exports = {
       }
 
       // Don't allow booking for weekends
-      const dayOfWeek = requestedDate.getDay();
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
+      const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
+      if (dayOfWeek === 6 || dayOfWeek === 7) {
         return res.json({
           status: 'success',
           code: 200,
@@ -1277,16 +1344,14 @@ module.exports = {
         });
       }
 
-      const startOfDay = new Date(requestedDate);
-      startOfDay.setHours(9, 0, 0, 0); // 9 AM
-      const endOfDay = new Date(requestedDate);
-      endOfDay.setHours(18, 0, 0, 0); // 6 PM
+      const startOfDay = requestedDate.set({ hour: 9, minute: 0, second: 0, millisecond: 0 });
+      const endOfDay = requestedDate.set({ hour: 18, minute: 0, second: 0, millisecond: 0 });
 
       // Get existing appointments for the day
       const existingAppointments = await Appointment.findAll({
         where: {
           doctorId: doctorId,
-          appointmentDateTime: { [Op.between]: [startOfDay, endOfDay] },
+          appointmentDateTime: { [Op.between]: [startOfDay.toJSDate(), endOfDay.toJSDate()] },
           status: { [Op.notIn]: ['canceled', 'rejected'] }
         }
       });
@@ -1295,44 +1360,39 @@ module.exports = {
       const slotDuration = 30; // 30 minutes
       const maxAppointments = type === 'physical' ? 1 : 3;
 
-      // Generate time slots
-      let currentTime = new Date(startOfDay);
+      // Generate time slots using IST
+      let currentTime = startOfDay;
       while (currentTime < endOfDay) {
-        const slotEnd = new Date(currentTime.getTime() + slotDuration * 60000);
+        const slotEnd = currentTime.plus({ minutes: slotDuration });
 
         // Count existing appointments in this slot
         const existingCount = existingAppointments.filter(appointment => {
-          const appointmentTime = new Date(appointment.appointmentDateTime);
-          return appointmentTime >= currentTime && appointmentTime < slotEnd;
+          const appointmentIST = DateTime.fromJSDate(appointment.appointmentDateTime).setZone('Asia/Kolkata');
+          return appointmentIST >= currentTime && appointmentIST < slotEnd;
         }).length;
 
         const isAvailable = existingCount < maxAppointments;
 
         // If it's today, only show slots that are at least 1 hour from now
         let showSlot = true;
-        if (requestedDate.toDateString() === today.toDateString()) {
-          const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
+        if (requestedDate.hasSame(today, 'day')) {
+          const oneHourFromNow = DateTime.now().setZone('Asia/Kolkata').plus({ hours: 1 });
           showSlot = currentTime >= oneHourFromNow;
         }
 
         if (showSlot) {
           slots.push({
-            start: new Date(currentTime).toISOString(),
-            end: new Date(slotEnd).toISOString(),
-            time: currentTime.toLocaleTimeString('en-US', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: true
-            }),
+            start: currentTime.toISO(),
+            end: slotEnd.toISO(),
+            time: currentTime.toFormat('hh:mm a'),
             available: isAvailable,
             bookedCount: existingCount,
             maxCapacity: maxAppointments
           });
         }
 
-        currentTime = new Date(slotEnd);
+        currentTime = slotEnd;
       }
-
       res.json({
         status: 'success',
         code: 200,
@@ -1426,11 +1486,11 @@ module.exports = {
         }
       }
 
-      const today = new Date();
-      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-      const endOfToday = new Date(today.setHours(23, 59, 59, 999));
-      const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const today = DateTime.now().setZone('Asia/Kolkata');
+      const startOfToday = today.startOf('day');
+      const endOfToday = today.endOf('day');
+      const startOfWeek = today.startOf('week');
+      const startOfMonth = today.startOf('month');
 
       const stats = {
         total: await Appointment.count({ where: whereCondition }),
@@ -1449,26 +1509,25 @@ module.exports = {
         today: await Appointment.count({
           where: {
             ...whereCondition,
-            appointmentDateTime: { [Op.between]: [startOfToday, endOfToday] }
+            appointmentDateTime: { [Op.between]: [startOfToday.toJSDate(), endOfToday.toJSDate()] }
           }
         }),
         thisWeek: await Appointment.count({
           where: {
             ...whereCondition,
-            appointmentDateTime: { [Op.gte]: startOfWeek }
+            appointmentDateTime: { [Op.gte]: startOfWeek.toJSDate() }
           }
         }),
         thisMonth: await Appointment.count({
           where: {
             ...whereCondition,
-            appointmentDateTime: { [Op.gte]: startOfMonth }
+            appointmentDateTime: { [Op.gte]: startOfMonth.toJSDate() }
           }
         }),
         rescheduleRequests: await Appointment.count({
           where: { ...whereCondition, status: 'reschedule_requested' }
         })
       };
-
       res.json({
         status: 'success',
         code: 200,
