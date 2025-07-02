@@ -794,37 +794,37 @@ module.exports = {
       appointment.rescheduleApprovedAt = new Date();
       await appointment.save();
 
-      // Send notification to patient
       await sendUserNotification(
         appointment.userId,
         'Reschedule Approved',
         `Dr. ${appointment.doctor.User.name} has approved your reschedule request`,
         {
           type: 'appointment',
-          relatedId: appointment.id,
+          relatedId: String(appointment.id),
           data: {
-            appointmentId: appointment.id,
+            appointmentId: String(appointment.id),
             type: 'reschedule_approved'
           }
         }
       );
+
 
       // Send approval email to patient
       await sendAppointmentEmail(
         appointment.patient.email,
         'reschedule_approved',
         {
-          patientName: appointment.patient.name,
-          doctorName: appointment.doctor.User.name,
+          patientName: String(appointment.patient.name),
+          doctorName: String(appointment.doctor.User.name),
           newDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
           newTime: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('hh:mm a'),
-          appointmentType: appointment.type,
-          appointmentId: appointment.id,
-          videoCallLink: appointment.videoCallLink || null
+          appointmentType: String(appointment.type),
+          appointmentId: String(appointment.id),
+          videoCallLink: appointment.videoCallLink ? String(appointment.videoCallLink) : ''
         }
       );
 
@@ -894,32 +894,33 @@ module.exports = {
         `Dr. ${appointment.doctor.User.name} has rejected your reschedule request`,
         {
           type: 'appointment',
-          relatedId: appointment.id,
+          relatedId: String(appointment.id),
           data: {
-            appointmentId: appointment.id,
+            appointmentId: String(appointment.id),
             type: 'reschedule_rejected',
-            rejectionReason
+            rejectionReason: String(rejectionReason || 'No reason provided')
           }
         }
       );
+      
 
       await sendAppointmentEmail(
         appointment.patient.email,
         'reschedule_rejected',
         {
-          patientName: appointment.patient.name,
-          doctorName: appointment.doctor.User.name,
+          patientName: String(appointment.patient.name),
+          doctorName: String(appointment.doctor.User.name),
           originalDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
           originalTime: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('hh:mm a'),
-          rejectionReason: rejectionReason || 'No reason provided',
-          appointmentId: appointment.id
+          rejectionReason: String(rejectionReason || 'No reason provided'),
+          appointmentId: String(appointment.id)
         }
       );
-
+      
 
       res.json({
         status: 'success',
@@ -1300,7 +1301,7 @@ module.exports = {
     try {
       const doctorId = req.params.doctorId;
       const { date, type = 'physical' } = req.query;
-  
+
       if (!date) {
         return res.status(400).json({
           status: 'error',
@@ -1308,7 +1309,7 @@ module.exports = {
           message: 'Date parameter is required',
         });
       }
-  
+
       const doctor = await Doctor.findByPk(doctorId);
       if (!doctor) {
         return res.status(404).json({
@@ -1317,7 +1318,7 @@ module.exports = {
           message: 'Doctor not found',
         });
       }
-  
+
       // Check if doctor has configured working hours
       if (!doctor.startTime || !doctor.endTime) {
         return res.status(400).json({
@@ -1326,10 +1327,10 @@ module.exports = {
           message: 'Doctor working hours not configured',
         });
       }
-  
+
       const requestedDate = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: 'Asia/Kolkata' });
       const today = DateTime.now().setZone('Asia/Kolkata').startOf('day');
-  
+
       // Don't allow booking for past dates
       if (requestedDate < today) {
         return res.status(400).json({
@@ -1338,7 +1339,7 @@ module.exports = {
           message: 'Cannot book appointments for past dates',
         });
       }
-  
+
       // Don't allow booking for weekends
       const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
       if (dayOfWeek === 6 || dayOfWeek === 7) {
@@ -1352,25 +1353,25 @@ module.exports = {
           }
         });
       }
-  
+
       // Parse doctor's working hours and create DateTime objects for the requested date
       const [startHour, startMinute] = doctor.startTime.split(':').map(Number);
       const [endHour, endMinute] = doctor.endTime.split(':').map(Number);
-  
-      const startOfDay = requestedDate.set({ 
-        hour: startHour, 
-        minute: startMinute, 
-        second: 0, 
-        millisecond: 0 
+
+      const startOfDay = requestedDate.set({
+        hour: startHour,
+        minute: startMinute,
+        second: 0,
+        millisecond: 0
       });
-      
-      const endOfDay = requestedDate.set({ 
-        hour: endHour, 
-        minute: endMinute, 
-        second: 0, 
-        millisecond: 0 
+
+      const endOfDay = requestedDate.set({
+        hour: endHour,
+        minute: endMinute,
+        second: 0,
+        millisecond: 0
       });
-  
+
       // Validate that end time is after start time
       if (endOfDay <= startOfDay) {
         return res.status(400).json({
@@ -1379,7 +1380,7 @@ module.exports = {
           message: 'Invalid doctor working hours configuration',
         });
       }
-  
+
       // Get existing appointments for the day
       const existingAppointments = await Appointment.findAll({
         where: {
@@ -1388,36 +1389,36 @@ module.exports = {
           status: { [Op.notIn]: ['canceled', 'rejected'] }
         }
       });
-  
+
       const slots = [];
       const slotDuration = 30; // 30 minutes
       const maxAppointments = type === 'physical' ? 1 : 3;
-  
+
       // Generate time slots using IST based on doctor's working hours
       let currentTime = startOfDay;
       while (currentTime < endOfDay) {
         const slotEnd = currentTime.plus({ minutes: slotDuration });
-  
+
         // Don't create a slot if it would extend beyond doctor's end time
         if (slotEnd > endOfDay) {
           break;
         }
-  
+
         // Count existing appointments in this slot
         const existingCount = existingAppointments.filter(appointment => {
           const appointmentIST = DateTime.fromJSDate(appointment.appointmentDateTime).setZone('Asia/Kolkata');
           return appointmentIST >= currentTime && appointmentIST < slotEnd;
         }).length;
-  
+
         const isAvailable = existingCount < maxAppointments;
-  
+
         // If it's today, only show slots that are at least 1 hour from now
         let showSlot = true;
         if (requestedDate.hasSame(today, 'day')) {
           const oneHourFromNow = DateTime.now().setZone('Asia/Kolkata').plus({ hours: 1 });
           showSlot = currentTime >= oneHourFromNow;
         }
-  
+
         if (showSlot) {
           slots.push({
             start: currentTime.toISO(),
@@ -1428,10 +1429,10 @@ module.exports = {
             maxCapacity: maxAppointments
           });
         }
-  
+
         currentTime = slotEnd;
       }
-  
+
       res.json({
         status: 'success',
         code: 200,
