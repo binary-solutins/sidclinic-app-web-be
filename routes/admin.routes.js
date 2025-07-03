@@ -47,6 +47,36 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           default: true
  *           example: true
  *     
+ *     UserSummary:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: User's unique identifier
+ *           example: 1
+ *         name:
+ *           type: string
+ *           description: User's full name
+ *           example: "John Doe"
+ *         phone:
+ *           type: string
+ *           description: User's phone number
+ *           example: "+1234567890"
+ *         gender:
+ *           type: string
+ *           enum: [Male, Female, Other]
+ *           description: User's gender
+ *           example: "Male"
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           description: User creation timestamp
+ *           example: "2024-01-15T10:30:00.000Z"
+ *         notificationEnabled:
+ *           type: boolean
+ *           description: Whether notifications are enabled
+ *           example: true
+ *     
  *     DoctorCreate:
  *       type: object
  *       required:
@@ -156,6 +186,43 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           description: Whether the doctor profile is active
  *           default: true
  *           example: true
+ */
+
+/**
+ * @swagger
+ * /admin/users:
+ *   get:
+ *     summary: Get all users (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Users retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Users retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/UserSummary'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
  */
 
 /**
@@ -462,7 +529,8 @@ const { authenticate, authorize } = require('../middleware/auth');
  *         $ref: '#/components/responses/ServerError'
  */
 
-
+// Routes
+router.get('/users', authenticate(), authorize('admin'), adminController.listAllUsers);
 router.post('/user', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
 router.put('/user/:id', authenticate(), authorize('admin'), adminController.createOrUpdateUser); 
 router.post('/doctor', authenticate(), authorize('admin'), adminController.createOrUpdateDoctor);

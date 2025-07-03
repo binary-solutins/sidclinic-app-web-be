@@ -456,3 +456,27 @@ exports.createOrUpdateDoctor = async (req, res) => {
     });
   }
 };
+
+
+exports.listAllUsers = async (req, res) => {
+  try {
+    const users = await User.findAll({
+      where: { role: 'user' },
+      attributes: ["id", "name", "phone", "gender", "createdAt", "notificationEnabled"]
+    });
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Users retrieved successfully",
+      data: users
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
