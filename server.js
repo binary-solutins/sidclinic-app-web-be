@@ -22,7 +22,7 @@ const io = socketio(server);
 const blogRoutes = require("./routes/blog.routes");
 const patientRoutes = require("./routes/patient.routes");
 const priceRoutes = require("./routes/price.route");
-
+const adminRoutes = require('./routes/admin.routes');
 app.use(cors());
 app.use(
   helmet({
@@ -90,6 +90,7 @@ app.use("/video-call", videoRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/patients", patientRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/price", priceRoutes);
 // Global error handler
 app.use(
