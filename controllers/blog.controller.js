@@ -256,15 +256,7 @@ exports.getBlogById = async (req, res) => {
       });
     }
     
-    // Check if blog is published or user is admin/author
-    if ((!req.user && (req.user.role !== 'admin'))) {
-      return res.status(403).json({
-        status: 'error',
-        code: 403,
-        message: 'Unauthorized: This blog is not published yet',
-        data: null
-      });
-    }
+  
     
     // Increment view count for published blogs
     if (blog.status === 'published') {
