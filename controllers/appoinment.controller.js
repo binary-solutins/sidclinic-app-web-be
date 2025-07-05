@@ -201,7 +201,6 @@ module.exports = {
       // Save appointment
       const appointment = await Appointment.create(appointmentData);
 
-      // Notify doctor
       await sendUserNotification(
         doctor.User.id,
         'New Appointment Request',
@@ -210,23 +209,23 @@ module.exports = {
           type: 'appointment',
           relatedId: appointment.id,
           data: {
-            appointmentId: appointment.id,
+            appointmentId: appointment.id.toString(),  // 🔒 ensure it's a string
             type: 'new_appointment'
           }
         }
       );
 
-      // Send emails with IST formatted times
+
       await sendAppointmentEmail(
         patient.email,
         'appointment_requested',
         {
-          patientName: user.name,
-          doctorName: doctor.User.name,
+          patientName: String(user.name || ''),
+          doctorName: String(doctor.User.name || ''),
           appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
           appointmentTime: requestedTime.toFormat('hh:mm a'),
-          appointmentType: type,
-          appointmentId: appointment.id
+          appointmentType: String(type),
+          appointmentId: appointment.id.toString()
         }
       );
 
@@ -234,15 +233,16 @@ module.exports = {
         doctor.email,
         'new_appointment_request',
         {
-          doctorName: doctor.User.name,
-          patientName: user.name,
+          doctorName: String(doctor.User.name || ''),
+          patientName: String(user.name || ''),
           appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
           appointmentTime: requestedTime.toFormat('hh:mm a'),
-          appointmentType: type,
-          appointmentId: appointment.id,
-          notes: notes || 'No additional notes'
+          appointmentType: String(type),
+          appointmentId: appointment.id.toString(),
+          notes: String(notes || 'No additional notes')
         }
       );
+
 
       // Format response data with IST times
       const responseData = {
@@ -902,7 +902,7 @@ module.exports = {
           }
         }
       );
-      
+
 
       await sendAppointmentEmail(
         appointment.patient.email,
@@ -920,7 +920,7 @@ module.exports = {
           appointmentId: String(appointment.id)
         }
       );
-      
+
 
       res.json({
         status: 'success',
