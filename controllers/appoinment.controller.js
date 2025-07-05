@@ -201,19 +201,19 @@ module.exports = {
       // Save appointment
       const appointment = await Appointment.create(appointmentData);
 
-      await sendUserNotification(
-        doctor.User.id,
-        'New Appointment Request',
-        `You have a new appointment request from ${user.name}`,
-        {
-          type: 'appointment',
-          relatedId: appointment.id,
-          data: {
-            appointmentId: appointment.id.toString(),  // 🔒 ensure it's a string
-            type: 'new_appointment'
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   doctor.User.id,
+      //   'New Appointment Request',
+      //   `You have a new appointment request from ${user.name}`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: appointment.id,
+      //     data: {
+      //       appointmentId: appointment.id.toString(),  // 🔒 ensure it's a string
+      //       type: 'new_appointment'
+      //     }
+      //   }
+      // );
 
 
       await sendAppointmentEmail(
@@ -416,19 +416,19 @@ module.exports = {
       await appointment.save();
 
       // Send notification to patient
-      await sendUserNotification(
-        appointment.userId,
-        'Appointment Confirmed',
-        `Your appointment with Dr. ${appointment.doctor.User.name} has been confirmed`,
-        {
-          type: 'appointment',
-          relatedId: appointment.id,
-          data: {
-            appointmentId: appointment.id,
-            type: 'appointment_confirmed'
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   appointment.userId,
+      //   'Appointment Confirmed',
+      //   `Your appointment with Dr. ${appointment.doctor.User.name} has been confirmed`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: appointment.id,
+      //     data: {
+      //       appointmentId: appointment.id,
+      //       type: 'appointment_confirmed'
+      //     }
+      //   }
+      // );
 
       // Send confirmation email to patient
       await sendAppointmentEmail(
@@ -508,20 +508,20 @@ module.exports = {
       await appointment.save();
 
       // Send notification to patient
-      await sendUserNotification(
-        appointment.userId,
-        'Appointment Rejected',
-        `Your appointment request with Dr. ${appointment.doctor.User.name} has been rejected`,
-        {
-          type: 'appointment',
-          relatedId: appointment.id,
-          data: {
-            appointmentId: appointment.id,
-            type: 'appointment_rejected',
-            rejectionReason
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   appointment.userId,
+      //   'Appointment Rejected',
+      //   `Your appointment request with Dr. ${appointment.doctor.User.name} has been rejected`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: appointment.id,
+      //     data: {
+      //       appointmentId: appointment.id,
+      //       type: 'appointment_rejected',
+      //       rejectionReason
+      //     }
+      //   }
+      // );
 
       await sendAppointmentEmail(
         appointment.patient.email,
@@ -690,19 +690,19 @@ module.exports = {
       await appointment.save();
 
       // Send notification to doctor
-      await sendUserNotification(
-        appointment.doctor.User.id,
-        'Reschedule Request',
-        `${appointment.patient.name} has requested to reschedule their appointment`,
-        {
-          type: 'appointment',
-          relatedId: appointment.id,
-          data: {
-            appointmentId: appointment.id,
-            type: 'reschedule_requested'
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   appointment.doctor.User.id,
+      //   'Reschedule Request',
+      //   `${appointment.patient.name} has requested to reschedule their appointment`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: appointment.id,
+      //     data: {
+      //       appointmentId: appointment.id,
+      //       type: 'reschedule_requested'
+      //     }
+      //   }
+      // );
 
       // Send reschedule request emails with IST formatting
       const originalIST = DateTime.fromJSDate(appointment.originalDateTime).setZone('Asia/Kolkata');
@@ -794,19 +794,19 @@ module.exports = {
       appointment.rescheduleApprovedAt = new Date();
       await appointment.save();
 
-      await sendUserNotification(
-        appointment.userId,
-        'Reschedule Approved',
-        `Dr. ${appointment.doctor.User.name} has approved your reschedule request`,
-        {
-          type: 'appointment',
-          relatedId: String(appointment.id),
-          data: {
-            appointmentId: String(appointment.id),
-            type: 'reschedule_approved'
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   appointment.userId,
+      //   'Reschedule Approved',
+      //   `Dr. ${appointment.doctor.User.name} has approved your reschedule request`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: String(appointment.id),
+      //     data: {
+      //       appointmentId: String(appointment.id),
+      //       type: 'reschedule_approved'
+      //     }
+      //   }
+      // );
 
 
       // Send approval email to patient
@@ -888,20 +888,20 @@ module.exports = {
       await appointment.save();
 
       // Send notification to patient
-      await sendUserNotification(
-        appointment.userId,
-        'Reschedule Request Rejected',
-        `Dr. ${appointment.doctor.User.name} has rejected your reschedule request`,
-        {
-          type: 'appointment',
-          relatedId: String(appointment.id),
-          data: {
-            appointmentId: String(appointment.id),
-            type: 'reschedule_rejected',
-            rejectionReason: String(rejectionReason || 'No reason provided')
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   appointment.userId,
+      //   'Reschedule Request Rejected',
+      //   `Dr. ${appointment.doctor.User.name} has rejected your reschedule request`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: String(appointment.id),
+      //     data: {
+      //       appointmentId: String(appointment.id),
+      //       type: 'reschedule_rejected',
+      //       rejectionReason: String(rejectionReason || 'No reason provided')
+      //     }
+      //   }
+      // );
 
 
       await sendAppointmentEmail(
@@ -990,20 +990,20 @@ module.exports = {
       const recipientEmail = isPatient ? appointment.doctor.User.email : appointment.patient.email;
       const recipientName = isPatient ? appointment.doctor.User.name : appointment.patient.name;
 
-      await sendUserNotification(
-        recipientId,
-        'Appointment Canceled',
-        `${cancelerName} has canceled the appointment`,
-        {
-          type: 'appointment',
-          relatedId: appointment.id,
-          data: {
-            appointmentId: appointment.id,
-            type: 'appointment_canceled',
-            cancelReason
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   recipientId,
+      //   'Appointment Canceled',
+      //   `${cancelerName} has canceled the appointment`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: appointment.id,
+      //     data: {
+      //       appointmentId: appointment.id,
+      //       type: 'appointment_canceled',
+      //       cancelReason
+      //     }
+      //   }
+      // );
 
       // Send cancellation email to the other party
       const emailTemplate = isPatient ? 'appointment_canceled_by_patient' : 'appointment_canceled_by_doctor';
@@ -1102,19 +1102,19 @@ module.exports = {
       await appointment.save();
 
       // Send notification to patient
-      await sendUserNotification(
-        appointment.userId,
-        'Appointment Completed',
-        `Your appointment with Dr. ${appointment.doctor.User.name} has been completed`,
-        {
-          type: 'appointment',
-          relatedId: appointment.id,
-          data: {
-            appointmentId: appointment.id,
-            type: 'appointment_completed'
-          }
-        }
-      );
+      // await sendUserNotification(
+      //   appointment.userId,
+      //   'Appointment Completed',
+      //   `Your appointment with Dr. ${appointment.doctor.User.name} has been completed`,
+      //   {
+      //     type: 'appointment',
+      //     relatedId: appointment.id,
+      //     data: {
+      //       appointmentId: appointment.id,
+      //       type: 'appointment_completed'
+      //     }
+      //   }
+      // );
 
       await sendAppointmentEmail(
         appointment.patient.email,
