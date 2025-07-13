@@ -231,7 +231,12 @@ module.exports = {
 
       let fcmTokens = [];
 
-      if (type === "user") {
+      if (type === "both") {
+        const users = await User.findAll({
+          attributes: ["fcmToken"],
+        });
+        fcmTokens = users.map((user) => user.fcmToken);
+      } else if (type === "user") {
         const users = await User.findAll({
           where: { role: "user" },
           attributes: ["fcmToken"],
