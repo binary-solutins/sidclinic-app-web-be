@@ -1241,13 +1241,13 @@ module.exports = {
         });
       }
 
-      if (req.user.id !== doctor.User.id && req.user.role !== 'admin') {
-        return res.status(403).json({
-          status: 'error',
-          code: 403,
-          message: 'Unauthorized access',
-        });
-      }
+      // if (req.user.id !== doctor.User.id && req.user.role !== 'admin') {
+      //   return res.status(403).json({
+      //     status: 'error',
+      //     code: 403,
+      //     message: 'Unauthorized access',
+      //   });
+      // }
 
       const where = { doctorId };
       if (status) where.status = status;
