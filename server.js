@@ -22,7 +22,7 @@ const io = socketio(server);
 const blogRoutes = require("./routes/blog.routes");
 const patientRoutes = require("./routes/patient.routes");
 const priceRoutes = require("./routes/price.route");
-const adminRoutes = require('./routes/admin.routes');
+const adminRoutes = require("./routes/admin.routes");
 app.use(cors());
 app.use(
   helmet({
@@ -41,6 +41,7 @@ app.use(
   })
 );
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 // Rate limiting
 const authLimiter = rateLimit({
@@ -118,8 +119,7 @@ app.use((req, res) => {
   });
 });
 
-app.set('trust proxy', 1); // or true
-
+app.set("trust proxy", 1); // or true
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

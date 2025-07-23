@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/admin.controller');
 const { authenticate, authorize } = require('../middleware/auth');
+const multer = require('multer');
+
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+});
 
 /**
  * @swagger
@@ -532,8 +541,16 @@ const { authenticate, authorize } = require('../middleware/auth');
 // Routes
 router.get('/users', authenticate(), authorize('admin'), adminController.listAllUsers);
 router.post('/user', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
-router.put('/user/:id', authenticate(), authorize('admin'), adminController.createOrUpdateUser); 
-router.post('/doctor', authenticate(), authorize('admin'), adminController.createOrUpdateDoctor);
-router.put('/doctor/:id', authenticate(), authorize('admin'), adminController.createOrUpdateDoctor);
+router.put('/user/:id', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
+router.post('/doctor', authenticate(), authorize('admin'), upload.fields([
+    { name: 'doctorPhoto', maxCount: 1 },
+    { name: 'degreeCertificate', maxCount: 1 },
+    { name: 'clinicPhotos', maxCount: 5 }
+]), adminController.createOrUpdateDoctor);
+router.put('/doctor/:id', authenticate(), authorize('admin'), upload.fields([
+    { name: 'doctorPhoto', maxCount: 1 },
+    { name: 'degreeCertificate', maxCount: 1 },
+    { name: 'clinicPhotos', maxCount: 5 }
+]), adminController.createOrUpdateDoctor);
 
 module.exports = router;
