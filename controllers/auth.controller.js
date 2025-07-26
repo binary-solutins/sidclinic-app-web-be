@@ -16,14 +16,22 @@
  *             $ref: '#/components/schemas/Error'
  */
 
-
 const jwt = require('jsonwebtoken');
 const twilio = require('twilio');
+const nodemailer = require('nodemailer');
 const User = require('../models/user.model');
-
 const { Op } = require('sequelize');
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+// Nodemailer setup
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -46,9 +54,30 @@ exports.sendOtp = async (req, res) => {
       });
     }
 
-    await twilioClient.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
-      .verifications
-      .create({ to: phone, channel: 'sms' });
+    const otp = Math.floor(100000 + Math.random() * 900000);
+
+    if (process.env.USE_PHONE_EMAIL === 'true') {
+      // Send OTP via email-to-sms
+      const smsEmail = `${phone}@phone.email`;
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: smsEmail,
+        subject: '',
+        text: `Your OTP is: ${otp}`
+      };
+
+      await transporter.sendMail(mailOptions);
+    } else {
+      // Send OTP via Twilio
+      await twilioClient.verify.v2.services(process.env.TWILIO_VERIFY_SERVICE_SID)
+        .verifications
+        .create({ to: phone, channel: 'sms' });
+    }
+
+    // Store OTP temporarily (in-memory)
+    global.otpCache = global.otpCache || {};
+    global.otpCache[phone] = otp;
 
     res.status(200).json({
       status: 'success',
@@ -68,7 +97,7 @@ exports.sendOtp = async (req, res) => {
 
 exports.register = async (req, res) => {
   try {
-    const { phone, name, password, gender, role = 'user' } = req.body;
+    const { phone, name, password, gender, role = 'user', otp } = req.body;
 
     const existingUser = await User.findOne({ where: { phone } });
     if (existingUser) {
@@ -80,9 +109,22 @@ exports.register = async (req, res) => {
       });
     }
 
+    // Validate OTP (if using phone.email fallback)
+    if (process.env.USE_PHONE_EMAIL === 'true') {
+      if (!global.otpCache || global.otpCache[phone] !== Number(otp)) {
+        return res.status(401).json({
+          status: 'error',
+          code: 401,
+          message: 'Invalid or expired OTP',
+          data: null
+        });
+      }
+      delete global.otpCache[phone]; // clear it after use
+    }
+
     const user = await User.create({ name, phone, password, gender, role });
     const token = generateToken(user);
-    
+
     res.status(201).json({
       status: 'success',
       code: 201,
@@ -120,7 +162,7 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(user);
-    
+
     res.json({
       status: 'success',
       code: 200,

@@ -23,6 +23,7 @@ const blogRoutes = require("./routes/blog.routes");
 const patientRoutes = require("./routes/patient.routes");
 const priceRoutes = require("./routes/price.route");
 const adminRoutes = require('./routes/admin.routes');
+const locationRoutes = require('./routes/location.routes');
 app.use(cors());
 app.use(
   helmet({
@@ -57,6 +58,7 @@ sequelize
   .catch((err) => console.error("Unable to connect to the database:", err));
 
 sequelize.sync({ alter: false });
+
 io.on("connection", (socket) => {
   socket.on("join-room", (roomId) => {
     const room = io.sockets.adapter.rooms.get(roomId);
@@ -92,6 +94,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/price", priceRoutes);
+app.use("/api/location", locationRoutes);
 // Global error handler
 app.use(
   helmet({
