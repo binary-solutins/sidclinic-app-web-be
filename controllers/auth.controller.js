@@ -19,6 +19,7 @@
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/user.model');
+const Doctor = require('../models/doctor.model');
 const { Op } = require('sequelize');
 
 // Use only the approved template exactly as provided
@@ -405,14 +406,62 @@ exports.login = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
+    // Defensive: check req.user and req.user.id
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        status: 'error',
+        code: 401,
+        message: 'Unauthorized: User not authenticated',
+        data: null
+      });
+    }
+
+    // Find user by id
     const user = await User.findByPk(req.user.id, {
-      attributes: ['id', 'name', 'phone', 'role', 'gender']
+      attributes: ['id', 'name', 'phone', 'role', 'gender'],
+      include: [
+        {
+          model: Doctor,
+          as: 'Doctor',
+          attributes: [
+            'id', 'doctorPhoto', 'degree', 'registrationNumber', 'clinicName', 
+            'clinicPhotos', 'yearsOfExperience', 'specialty', 'clinicContactNumber', 
+            'email', 'address', 'country', 'state', 'city', 'locationPin', 
+            'isApproved', 'is_active', 'startTime', 'endTime'
+          ],
+          required: false
+        }
+      ]
     });
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: 'User not found',
+        data: null
+      });
+    }
+
+    // Format the response
+    const profileData = {
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      gender: user.gender
+    };
+
+    // Add doctor information if user is a doctor and has doctor data
+    if (user.role === 'doctor' && user.Doctor) {
+      profileData.doctorInfo = user.Doctor;
+    }
+
     res.json({
       status: 'success',
       code: 200,
       message: 'Profile retrieved successfully',
-      data: user
+      data: profileData
     });
   } catch (error) {
     res.status(500).json({

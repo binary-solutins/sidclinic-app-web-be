@@ -81,6 +81,7 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
+const { authenticate } = require('../middleware/auth');
 
 /**
  * @swagger
@@ -219,6 +220,6 @@ router.post('/login', authController.login);
  *       500:
  *         $ref: '#/components/responses/Error'
  */
-router.get('/profile', authController.getProfile);
+router.get('/profile', authenticate(), authController.getProfile);
 
 module.exports = router;
