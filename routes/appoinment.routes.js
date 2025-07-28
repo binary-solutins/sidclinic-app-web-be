@@ -1062,6 +1062,7 @@ router.get('/user/:userId', authenticate(), controller.getUserAppointments);
  */
 router.get('/doctor/:doctorId', authenticate(), controller.getDoctorAppointments);
 
+
 /**
  * @swagger
  * /appointments/doctors/{doctorId}/available-slots:
