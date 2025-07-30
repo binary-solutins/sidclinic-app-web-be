@@ -236,6 +236,9 @@ exports.verifyOtp = async (req, res) => {
 
 exports.register = async (req, res) => {
   try {
+    // Log the request body for debugging
+    console.log('Register request body:', req.body);
+
     const { phone, name, password, gender, role = 'user', otp } = req.body;
 
     const existingUser = await User.findOne({ where: { phone } });
@@ -370,31 +373,75 @@ exports.login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
+    // Debug log: incoming login request
+    console.debug(`[LOGIN] Attempting login for phone: ${phone}, password entered: "${password}"`);
+
+    // Find user by phone
     const user = await User.findOne({ where: { phone } });
-    if (!user || !(await user.comparePassword(password))) {
+
+    // Debug log: user lookup result
+    if (!user) {
+      console.debug(`[LOGIN] No user found for phone: ${phone}. Entered password: "${password}"`);
       return res.status(401).json({
         status: 'error',
         code: 401,
-        message: 'Invalid credentials',
+        message: 'Invalid credentials (user not found)',
         data: null
       });
+    } else {
+      console.debug(`[LOGIN] User found for phone: ${phone}, userId: ${user.id}`);
+      // For debugging only: log the real password hash and entered password
+      // WARNING: Never log real passwords in production!
+      console.debug(`[LOGIN] User's password hash: ${user.password}`);
+      // If you want to log the result of password comparison:
+      const isPasswordMatch = await user.comparePassword(password);
+      if (!isPasswordMatch) {
+        console.debug(`[LOGIN] Password mismatch for phone: ${phone}. Entered: "${password}", Expected hash: "${user.password}"`);
+        return res.status(401).json({
+          status: 'error',
+          code: 401,
+          message: 'Invalid credentials (password mismatch)',
+          data: null
+        });
+      }
     }
 
     const token = generateToken(user);
+
+    // Debug log: successful login
+    console.debug(`[LOGIN] Login successful for userId: ${user.id}, phone: ${phone}`);
+
+    // If user is a doctor, fetch doctor id
+    let doctorId = null;
+    if (user.role === 'doctor') {
+      // Lazy require to avoid circular dependency if any
+      const Doctor = require('../models/doctor.model');
+      const doctor = await Doctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
+      if (doctor) {
+        doctorId = doctor.id;
+      }
+    }
+
+    // Build response data
+    const responseData = {
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      token
+    };
+    if (doctorId) {
+      responseData.doctorId = doctorId;
+    }
 
     res.json({
       status: 'success',
       code: 200,
       message: 'Login successful',
-      data: {
-        id: user.id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        token
-      }
+      data: responseData
     });
   } catch (error) {
+    console.error('[LOGIN] Error during login:', error);
     res.status(500).json({
       status: 'error',
       code: 500,

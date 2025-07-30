@@ -3,12 +3,20 @@ const router = express.Router();
 const doctorController = require('../controllers/doctor.controller');
 const adminController = require('../controllers/admin.controller');
 const { authenticate, authorize } = require('../middleware/auth');
+const multer = require('multer');
+
+// Configure multer for file upload
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 /**
  * @swagger
  * tags:
- *   name: Doctors
- *   description: Doctor profile management
+ *   - name: Doctors
+ *     description: Doctor profile management
  */
 
 /**
@@ -20,15 +28,20 @@ const { authenticate, authorize } = require('../middleware/auth');
  *       required:
  *         - degree
  *         - registrationNumber
- *         - specialty
+ *         - clinicName
  *         - yearsOfExperience
+ *         - clinicContactNumber
+ *         - email
+ *         - address
  *         - country
  *         - state
  *         - city
+ *         - locationPin
  *       properties:
  *         doctorPhoto:
  *           type: string
- *           description: URL or Base64 encoded string of doctor's photo
+ *           description: URL of the doctor's profile photo
+ *           example: "https://example.com/doctor-photo.jpg"
  *         degree:
  *           type: string
  *           description: Doctor's medical degree(s)
@@ -43,9 +56,10 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           example: "HealthCare Medical Center"
  *         clinicPhotos:
  *           type: array
- *           description: URLs or Base64 encoded strings of clinic photos
  *           items:
  *             type: string
+ *           description: Array of clinic photo URLs
+ *           example: ["https://example.com/clinic1.jpg", "https://example.com/clinic2.jpg"]
  *         yearsOfExperience:
  *           type: integer
  *           description: Number of years of professional experience
@@ -82,7 +96,7 @@ const { authenticate, authorize } = require('../middleware/auth');
  *         locationPin:
  *           type: string
  *           description: Geographic coordinates or location pin
- *           example: "125"
+ *           example: "19.0760,72.8777"
  *         isApproved:
  *           type: boolean
  *           description: Approval status (set by admin)
@@ -102,60 +116,25 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           format: time
  *           description: End time of doctor's availability
  *           example: "18:00:00"
- *     
- *     Error:
- *       type: object
- *       properties:
- *         message:
- *           type: string
- *           description: Error description
- *         code:
- *           type: string
- *           description: Error code for client handling
- *
  *   responses:
  *     Unauthorized:
- *       description: Authentication required or token expired
+ *       description: Invalid or missing authentication token
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               message:
- *                 type: string
- *                 example: "Authentication required"
- *               code:
- *                 type: string
- *                 example: "UNAUTHORIZED"
- *     
+ *             $ref: '#/components/schemas/Error'
  *     Forbidden:
- *       description: User doesn't have required permissions
+ *       description: Insufficient permissions
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               message:
- *                 type: string
- *                 example: "Insufficient permissions"
- *               code:
- *                 type: string
- *                 example: "FORBIDDEN"
- *     
+ *             $ref: '#/components/schemas/Error'
  *     ServerError:
  *       description: Internal server error
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               message:
- *                 type: string
- *                 example: "Internal server error"
- *               code:
- *                 type: string
- *                 example: "SERVER_ERROR"
- *
+ *             $ref: '#/components/schemas/Error'
  *   securitySchemes:
  *     bearerAuth:
  *       type: http
@@ -168,16 +147,84 @@ const { authenticate, authorize } = require('../middleware/auth');
  * /doctors/profile:
  *   post:
  *     summary: Create or update doctor profile
- *     description: Allows doctors to create or update their professional profile information
+ *     description: Comprehensive API to create or update doctor profile with all text fields and image uploads. Supports profile photo and multiple clinic photos upload via multipart/form-data.
  *     tags: [Doctors]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/DoctorProfile'
+ *             type: object
+ *             required:
+ *               - degree
+ *               - registrationNumber
+ *               - clinicName
+ *               - yearsOfExperience
+ *               - clinicContactNumber
+ *               - email
+ *               - address
+ *               - country
+ *               - state
+ *               - city
+ *               - locationPin
+ *             properties:
+ *               doctorPhoto:
+ *                 type: string
+ *                 format: binary
+ *                 description: Doctor's profile photo file (optional)
+ *               clinicPhotos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of clinic photo files (optional, max 5 files)
+ *               degree:
+ *                 type: string
+ *                 example: "MBBS, MD"
+ *               registrationNumber:
+ *                 type: string
+ *                 example: "MCI-12345"
+ *               clinicName:
+ *                 type: string
+ *                 example: "HealthCare Medical Center"
+ *               yearsOfExperience:
+ *                 type: integer
+ *                 example: 10
+ *               specialty:
+ *                 type: string
+ *                 example: "Cardiology"
+ *               clinicContactNumber:
+ *                 type: string
+ *                 example: "+1234567890"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "doctor@example.com"
+ *               address:
+ *                 type: string
+ *                 example: "123 Medical Street, Healthcare City"
+ *               country:
+ *                 type: string
+ *                 example: "India"
+ *               state:
+ *                 type: string
+ *                 example: "Maharashtra"
+ *               city:
+ *                 type: string
+ *                 example: "Mumbai"
+ *               locationPin:
+ *                 type: string
+ *                 example: "19.0760,72.8777"
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *                 example: "09:00:00"
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *                 example: "18:00:00"
  *     responses:
  *       201:
  *         description: Doctor profile created successfully
@@ -186,10 +233,16 @@ const { authenticate, authorize } = require('../middleware/auth');
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 201
  *                 message:
  *                   type: string
  *                   example: "Profile created successfully"
- *                 doctor:
+ *                 data:
  *                   $ref: '#/components/schemas/DoctorProfile'
  *       200:
  *         description: Doctor profile updated successfully
@@ -198,21 +251,23 @@ const { authenticate, authorize } = require('../middleware/auth');
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
  *                 message:
  *                   type: string
  *                   example: "Profile updated successfully"
- *                 doctor:
+ *                 data:
  *                   $ref: '#/components/schemas/DoctorProfile'
  *       400:
  *         description: Validation error
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Error'
- *                 - example:
- *                     message: "Validation failed"
- *                     code: "VALIDATION_ERROR"
+ *               $ref: '#/components/schemas/Error'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -220,21 +275,13 @@ const { authenticate, authorize } = require('../middleware/auth');
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Error'
- *                 - example:
- *                     message: "User is not registered as a doctor"
- *                     code: "INVALID_USER_ROLE"
+ *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: User not found
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Error'
- *                 - example:
- *                     message: "User not found"
- *                     code: "USER_NOT_FOUND"
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
@@ -244,7 +291,7 @@ const { authenticate, authorize } = require('../middleware/auth');
  * /doctors/profile:
  *   get:
  *     summary: Get doctor profile
- *     description: Retrieve the profile information of the authenticated doctor
+ *     description: Retrieve the profile information of the authenticated doctor.
  *     tags: [Doctors]
  *     security:
  *       - bearerAuth: []
@@ -254,7 +301,19 @@ const { authenticate, authorize } = require('../middleware/auth');
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/DoctorProfile'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Profile retrieved successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/DoctorProfile'
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       404:
@@ -262,15 +321,16 @@ const { authenticate, authorize } = require('../middleware/auth');
  *         content:
  *           application/json:
  *             schema:
- *               allOf:
- *                 - $ref: '#/components/schemas/Error'
- *                 - example:
- *                     message: "Doctor profile not found or not associated with user"
- *                     code: "PROFILE_NOT_FOUND"
+ *               $ref: '#/components/schemas/Error'
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */
-router.post('/profile', authenticate(), doctorController.setupProfile);
+
+// Profile routes
+router.post('/profile', authenticate(), upload.fields([
+  { name: 'doctorPhoto', maxCount: 1 },
+  { name: 'clinicPhotos', maxCount: 5 }
+]), doctorController.setupProfile);
 router.get('/profile', authenticate(), doctorController.getProfile);
 
 // Admin Approval Routes
@@ -586,6 +646,5 @@ router.put('/toggle-status/:id', authenticate(), authorize('admin'), adminContro
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/getAllDoctors', doctorController.getAllDoctors);
-
 
 module.exports = router;
