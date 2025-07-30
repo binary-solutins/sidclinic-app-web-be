@@ -4,7 +4,7 @@ const swaggerUi = require("swagger-ui-express");
 const specs = require("./swagger");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
-const queryRoutes = require("./routes/query.routes");
+
 const doctorRoutes = require("./routes/doctor.route");
 const appointmentRoutes = require("./routes/appoinment.routes");
 const notificationRoutes = require("./routes/notification.route");
@@ -24,6 +24,7 @@ const patientRoutes = require("./routes/patient.routes");
 const priceRoutes = require("./routes/price.route");
 const adminRoutes = require('./routes/admin.routes');
 const locationRoutes = require('./routes/location.routes');
+const queryRoutes = require('./routes/query.routes');
 app.use(cors());
 app.use(
   helmet({
@@ -85,7 +86,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/query", queryRoutes);
+
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/video-call", videoRoutes);
@@ -95,6 +96,7 @@ app.use("/api/patients", patientRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/price", priceRoutes);
 app.use("/api/location", locationRoutes);
+app.use("/api/queries", queryRoutes);
 // Global error handler
 app.use(
   helmet({

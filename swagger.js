@@ -56,6 +56,206 @@ const options = {
             }
           }
         },
+        Query: {
+          type: 'object',
+          required: ['title', 'description', 'category', 'priority'],
+          properties: {
+            id: {
+              type: 'integer',
+              example: 1
+            },
+            title: {
+              type: 'string',
+              example: 'Appointment booking issue',
+              maxLength: 200
+            },
+            description: {
+              type: 'string',
+              example: 'I\'m unable to book an appointment for tomorrow',
+              maxLength: 2000
+            },
+            category: {
+              type: 'string',
+              enum: ['General', 'Technical', 'Billing', 'Appointment', 'Medical', 'Other'],
+              example: 'Appointment'
+            },
+            priority: {
+              type: 'string',
+              enum: ['Low', 'Medium', 'High', 'Urgent'],
+              example: 'Medium'
+            },
+            status: {
+              type: 'string',
+              enum: ['Open', 'In Progress', 'Resolved', 'Closed'],
+              example: 'Open'
+            },
+            raisedBy: {
+              type: 'integer',
+              example: 1
+            },
+            raisedByRole: {
+              type: 'string',
+              enum: ['user', 'doctor'],
+              example: 'user'
+            },
+            assignedTo: {
+              type: 'integer',
+              nullable: true,
+              example: 2
+            },
+            attachments: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              example: ['https://example.com/file1.jpg']
+            },
+            resolvedAt: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true
+            },
+            resolution: {
+              type: 'string',
+              nullable: true,
+              example: 'Issue resolved by updating the booking system'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time'
+            }
+          }
+        },
+        CreateQueryRequest: {
+          type: 'object',
+          required: ['title', 'description', 'category', 'priority'],
+          properties: {
+            title: {
+              type: 'string',
+              example: 'Appointment booking issue'
+            },
+            description: {
+              type: 'string',
+              example: 'I\'m unable to book an appointment for tomorrow'
+            },
+            category: {
+              type: 'string',
+              enum: ['General', 'Technical', 'Billing', 'Appointment', 'Medical', 'Other'],
+              example: 'Appointment'
+            },
+            priority: {
+              type: 'string',
+              enum: ['Low', 'Medium', 'High', 'Urgent'],
+              example: 'Medium'
+            },
+            attachments: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              example: ['https://example.com/file1.jpg']
+            }
+          }
+        },
+        UpdateQueryRequest: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              example: 'Updated appointment booking issue'
+            },
+            description: {
+              type: 'string',
+              example: 'Updated description of the issue'
+            },
+            category: {
+              type: 'string',
+              enum: ['General', 'Technical', 'Billing', 'Appointment', 'Medical', 'Other']
+            },
+            priority: {
+              type: 'string',
+              enum: ['Low', 'Medium', 'High', 'Urgent']
+            },
+            status: {
+              type: 'string',
+              enum: ['Open', 'In Progress', 'Resolved', 'Closed']
+            },
+            assignedTo: {
+              type: 'integer',
+              example: 2
+            },
+            resolution: {
+              type: 'string',
+              example: 'Issue resolved by updating the booking system'
+            },
+            attachments: {
+              type: 'array',
+              items: {
+                type: 'string'
+              }
+            }
+          }
+        },
+        QueryResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: true
+            },
+            message: {
+              type: 'string',
+              example: 'Query created successfully'
+            },
+            data: {
+              $ref: '#/components/schemas/Query'
+            }
+          }
+        },
+        QueryListResponse: {
+          type: 'object',
+          properties: {
+            success: {
+              type: 'boolean',
+              example: true
+            },
+            message: {
+              type: 'string',
+              example: 'Queries retrieved successfully'
+            },
+            data: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/Query'
+              }
+            },
+            pagination: {
+              type: 'object',
+              properties: {
+                page: {
+                  type: 'integer',
+                  example: 1
+                },
+                limit: {
+                  type: 'integer',
+                  example: 10
+                },
+                total: {
+                  type: 'integer',
+                  example: 25
+                },
+                totalPages: {
+                  type: 'integer',
+                  example: 3
+                }
+              }
+            }
+          }
+        },
         Error: {
           type: 'object',
           properties: {
