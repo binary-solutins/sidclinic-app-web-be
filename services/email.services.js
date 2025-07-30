@@ -342,6 +342,96 @@ class EmailService {
           <p>Please arrive 15 minutes early for your appointment.</p>
           <p>If you need to reschedule or cancel, please do so as soon as possible.</p>
         </div>
+      `),
+
+      doctor_activated: handlebars.compile(`
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #28a745;">Account Activated</h2>
+          <p>Dear Dr. {{doctorName}},</p>
+          <p>We are pleased to inform you that your account has been successfully activated on our healthcare platform.</p>
+          <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <h3>What this means for you:</h3>
+            <ul>
+              <li>You can now receive new appointment requests from patients</li>
+              <li>Your profile is visible to patients searching for healthcare providers</li>
+              <li>You can manage your appointments through your dashboard</li>
+              <li>You can update your availability and schedule</li>
+            </ul>
+          </div>
+          <p>Your professional services are now available to patients in need. We appreciate your commitment to providing quality healthcare.</p>
+          <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+        </div>
+      `),
+
+      doctor_suspended: handlebars.compile(`
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc3545;">Account Suspended</h2>
+          <p>Dear Dr. {{doctorName}},</p>
+          <p>We regret to inform you that your account has been temporarily suspended on our healthcare platform.</p>
+          <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <h3>What this means:</h3>
+            <ul>
+              <li>You will not receive new appointment requests from patients</li>
+              <li>Your profile is temporarily hidden from patient searches</li>
+              <li>You cannot access your dashboard or manage appointments</li>
+              <li>Existing appointments may be affected</li>
+            </ul>
+          </div>
+          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+            <h3>Important Information:</h3>
+            <p><strong>Reason for suspension:</strong> {{suspensionReason}}</p>
+            <p><strong>Effective date:</strong> {{suspensionDate}}</p>
+            {{#if reviewDate}}
+            <p><strong>Review date:</strong> {{reviewDate}}</p>
+            {{/if}}
+          </div>
+          <p>We understand this may be concerning, and we want to assure you that this is a temporary measure. Our team is committed to working with you to resolve any issues and restore your account access.</p>
+          <p>If you believe this suspension is in error or have already addressed the concerns, please contact our support team immediately.</p>
+        </div>
+      `),
+
+      doctor_approved: handlebars.compile(`
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #28a745;">Account Approved</h2>
+          <p>Dear Dr. {{doctorName}},</p>
+          <p>Congratulations! Your account has been successfully approved on our healthcare platform.</p>
+          <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <h3>What this means for you:</h3>
+            <ul>
+              <li>You can now start receiving appointment requests from patients</li>
+              <li>Your profile is visible to patients searching for healthcare providers</li>
+              <li>You can set up your availability and schedule</li>
+              <li>You can manage your appointments through your dashboard</li>
+              <li>You can update your profile and clinic information</li>
+            </ul>
+          </div>
+          <p>We are excited to have you join our community of healthcare professionals. Your expertise will help provide quality care to patients in need.</p>
+          <p>If you have any questions or need assistance with setting up your account, please don't hesitate to contact our support team.</p>
+        </div>
+      `),
+
+      doctor_disapproved: handlebars.compile(`
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc3545;">Account Disapproved</h2>
+          <p>Dear Dr. {{doctorName}},</p>
+          <p>We regret to inform you that your account application has been disapproved on our healthcare platform.</p>
+          <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <h3>What this means:</h3>
+            <ul>
+              <li>Your account is currently not active on our platform</li>
+              <li>You cannot receive appointment requests from patients</li>
+              <li>Your profile is not visible to patients</li>
+              <li>You cannot access the doctor dashboard</li>
+            </ul>
+          </div>
+          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+            <h3>Important Information:</h3>
+            <p><strong>Reason for disapproval:</strong> {{approvalReason}}</p>
+            <p><strong>Effective date:</strong> {{approvalDate}}</p>
+          </div>
+          <p>We understand this may be disappointing, and we want to assure you that this decision was made after careful review of your application and supporting documentation.</p>
+          <p>If you believe this decision is in error or have additional information to provide, please contact our support team immediately.</p>
+        </div>
       `)
     };
 
@@ -378,7 +468,11 @@ class EmailService {
       cancellation_confirmation_patient: `Cancellation Confirmed - ${data.appointmentDate}`,
       cancellation_confirmation_doctor: `Cancellation Confirmed - ${data.appointmentDate}`,
       appointment_completed: `Appointment Completed - ${data.appointmentDate}`,
-      appointment_reminder: `Appointment Reminder - ${data.appointmentDate}`
+      appointment_reminder: `Appointment Reminder - ${data.appointmentDate}`,
+      doctor_activated: `Account Activated - Welcome Back Dr. ${data.doctorName}`,
+      doctor_suspended: `Account Suspended - Important Notice`,
+      doctor_approved: `Account Approved - Welcome Dr. ${data.doctorName}`,
+      doctor_disapproved: `Account Disapproved - Important Notice`
     };
 
     return subjects[templateType] || 'Healthcare Notification';

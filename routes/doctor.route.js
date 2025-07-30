@@ -701,6 +701,22 @@ router.get('/city/:city', doctorController.findDoctorsByCity);
  *         schema:
  *           type: integer
  *         description: Doctor user ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               suspensionReason:
+ *                 type: string
+ *                 description: Reason for suspension (only used when deactivating)
+ *                 example: "Administrative review"
+ *               reviewDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Date when account will be reviewed (only used when deactivating)
+ *                 example: "2024-01-15"
  *     responses:
  *       200:
  *         description: Doctor status toggled successfully
@@ -805,6 +821,17 @@ router.get('/getAllDoctors', doctorController.getAllDoctors);
  *         schema:
  *           type: integer
  *         description: Doctor user ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               approvalReason:
+ *                 type: string
+ *                 description: Reason for disapproval (only used when disapproving)
+ *                 example: "Incomplete documentation"
  *     responses:
  *       200:
  *         description: Doctor approved successfully

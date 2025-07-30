@@ -1,6 +1,7 @@
 const Doctor = require("../models/doctor.model");
 const User = require("../models/user.model");
 const { Op } = require('sequelize');
+const { emailService } = require('../services/email.services');
 
 exports.listPendingDoctors = async (req, res) => {
   try {
@@ -225,7 +226,16 @@ exports.listAllDoctors = async (req, res) => {
 
 exports.toggleDoctorApproval = async (req, res) => {
   try {
-    const doctor = await Doctor.findByPk(req.params.id);
+    const doctor = await Doctor.findOne({
+      where: { id: req.params.id },
+      include: [
+        {
+          model: User,
+          attributes: ["name"],
+        },
+      ],
+    });
+    
     if (!doctor) {
       return res.status(404).json({
         status: "error",
@@ -236,6 +246,34 @@ exports.toggleDoctorApproval = async (req, res) => {
 
     doctor.isApproved = !doctor.isApproved;
     await doctor.save();
+
+    // Send email notification to doctor
+    try {
+      const emailData = {
+        doctorName: doctor.User.name,
+        platformName: process.env.APP_NAME || 'Healthcare Platform',
+        dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/doctor/dashboard`,
+        approvalReason: req.body.approvalReason || 'Administrative review',
+        approvalDate: new Date().toLocaleDateString()
+      };
+
+      const templateType = doctor.isApproved ? 'doctor_approved' : 'doctor_disapproved';
+      
+      const emailResult = await emailService.sendAppointmentEmail(
+        doctor.email,
+        templateType,
+        emailData
+      );
+
+      if (emailResult.success) {
+        console.log(`Approval status email sent successfully to Dr. ${doctor.User.name}`);
+      } else {
+        console.error('Failed to send approval status email:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Error sending approval status email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     res.status(200).json({
       status: "success",
@@ -313,6 +351,36 @@ exports.toggleDoctorStatus = async (req, res) => {
     // Toggle the is_active status
     const newStatus = !doctor.is_active;
     await doctor.update({ is_active: newStatus });
+
+    // Send email notification to doctor
+    try {
+      const emailData = {
+        doctorName: doctor.User.name,
+        platformName: process.env.APP_NAME || 'Healthcare Platform',
+        dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/doctor/dashboard`,
+        supportUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/support`,
+        suspensionReason: req.body.suspensionReason || 'Administrative review',
+        suspensionDate: new Date().toLocaleDateString(),
+        reviewDate: req.body.reviewDate || null
+      };
+
+      const templateType = newStatus ? 'doctor_activated' : 'doctor_suspended';
+      
+      const emailResult = await emailService.sendAppointmentEmail(
+        doctor.email,
+        templateType,
+        emailData
+      );
+
+      if (emailResult.success) {
+        console.log(`Status change email sent successfully to Dr. ${doctor.User.name}`);
+      } else {
+        console.error('Failed to send status change email:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Error sending status change email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     res.json({
       status: "success",
