@@ -1,53 +1,225 @@
 const Doctor = require("../models/doctor.model");
 const User = require("../models/user.model");
+const { Op } = require('sequelize');
 
 exports.listPendingDoctors = async (req, res) => {
   try {
-    const doctors = await Doctor.findAll({
-      where: { isApproved: false },
+    // Pagination
+    let { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
+
+    // Searching (by doctor name, phone, or clinic name)
+    const userWhere = {};
+    const doctorWhere = { isApproved: false };
+    
+    if (search) {
+      userWhere[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+      doctorWhere[Op.or] = [
+        { clinicName: { [Op.iLike]: `%${search}%` } },
+        { specialty: { [Op.iLike]: `%${search}%` } },
+        { degree: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    // Sorting
+    let order = [];
+    if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
+      order.push([{ model: User }, sortBy, sortOrder.toUpperCase()]);
+    } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || sortBy === 'yearsOfExperience') {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+
+    // Count total for pagination
+    const { count, rows: doctors } = await Doctor.findAndCountAll({
+      where: doctorWhere,
       include: [
         {
           model: User,
           attributes: ["name", "phone", "createdAt"],
+          where: Object.keys(userWhere).length ? userWhere : undefined,
         },
       ],
+      order,
+      limit,
+      offset,
     });
-    res.json(doctors);
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Pending doctors retrieved successfully",
+      data: doctors,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
   }
 };
 
 exports.listApprovedDoctors = async (req, res) => {
   try {
-    const doctors = await Doctor.findAll({
-      where: { isApproved: true },
+    // Pagination
+    let { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
+
+    // Searching (by doctor name, phone, or clinic name)
+    const userWhere = {};
+    const doctorWhere = { isApproved: true };
+    
+    if (search) {
+      userWhere[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+      doctorWhere[Op.or] = [
+        { clinicName: { [Op.iLike]: `%${search}%` } },
+        { specialty: { [Op.iLike]: `%${search}%` } },
+        { degree: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    // Sorting
+    let order = [];
+    if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
+      order.push([{ model: User }, sortBy, sortOrder.toUpperCase()]);
+    } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || sortBy === 'yearsOfExperience') {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+
+    // Count total for pagination
+    const { count, rows: doctors } = await Doctor.findAndCountAll({
+      where: doctorWhere,
       include: [
         {
           model: User,
           attributes: ["name", "phone", "createdAt"],
+          where: Object.keys(userWhere).length ? userWhere : undefined,
         },
       ],
+      order,
+      limit,
+      offset,
     });
-    res.json(doctors);
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Approved doctors retrieved successfully",
+      data: doctors,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
   }
 };
 
 exports.listAllDoctors = async (req, res) => {
   try {
-    const doctors = await Doctor.findAll({
+    // Pagination
+    let { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
+
+    // Searching (by doctor name, phone, clinic name, specialty, degree, city, state)
+    const userWhere = {};
+    const doctorWhere = {};
+    
+    if (search) {
+      userWhere[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+      doctorWhere[Op.or] = [
+        { clinicName: { [Op.iLike]: `%${search}%` } },
+        { specialty: { [Op.iLike]: `%${search}%` } },
+        { degree: { [Op.iLike]: `%${search}%` } },
+        { city: { [Op.iLike]: `%${search}%` } },
+        { state: { [Op.iLike]: `%${search}%` } },
+        { registrationNumber: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    // Sorting
+    let order = [];
+    if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
+      order.push([{ model: User }, sortBy, sortOrder.toUpperCase()]);
+    } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || 
+               sortBy === 'yearsOfExperience' || sortBy === 'city' || sortBy === 'state' || 
+               sortBy === 'isApproved' || sortBy === 'is_active') {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+
+    // Count total for pagination
+    const { count, rows: doctors } = await Doctor.findAndCountAll({
+      where: Object.keys(doctorWhere).length ? doctorWhere : undefined,
       include: [
         {
           model: User,
           attributes: ["name", "phone", "createdAt"],
+          where: Object.keys(userWhere).length ? userWhere : undefined,
         },
       ],
+      order,
+      limit,
+      offset,
     });
-    res.json(doctors);
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Doctors retrieved successfully",
+      data: doctors,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
   }
 };
 
@@ -460,15 +632,51 @@ exports.createOrUpdateDoctor = async (req, res) => {
 
 exports.listAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll({
-      where: { role: 'user' },
-      attributes: ["id", "name", "phone", "gender", "createdAt", "notificationEnabled"]
+    // Pagination
+    let { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
+
+    // Searching (by user name, phone, gender)
+    const where = { role: 'user' };
+    
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } },
+        { gender: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    // Sorting
+    let order = [];
+    if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'gender' || sortBy === 'createdAt') {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+
+    // Count total for pagination
+    const { count, rows: users } = await User.findAndCountAll({
+      where,
+      attributes: ["id", "name", "phone", "gender", "createdAt", "notificationEnabled"],
+      order,
+      limit,
+      offset,
     });
+
     res.status(200).json({
       status: "success",
       code: 200,
       message: "Users retrieved successfully",
-      data: users
+      data: users,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
     });
   } catch (error) {
     res.status(500).json({

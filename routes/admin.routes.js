@@ -192,13 +192,46 @@ const { authenticate, authorize } = require('../middleware/auth');
  * @swagger
  * /admin/users:
  *   get:
- *     summary: Get all users (Admin only)
+ *     summary: Get list of all users (Admin only)
+ *     description: Retrieve paginated list of all users with search and sort capabilities
  *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for user name, phone, or gender
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, phone, gender, createdAt]
+ *           default: createdAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order
  *     responses:
  *       200:
- *         description: Users retrieved successfully
+ *         description: Successful operation
  *         content:
  *           application/json:
  *             schema:
@@ -216,7 +249,42 @@ const { authenticate, authorize } = require('../middleware/auth');
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/UserSummary'
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       name:
+ *                         type: string
+ *                         example: "John Doe"
+ *                       phone:
+ *                         type: string
+ *                         example: "+1234567890"
+ *                       gender:
+ *                         type: string
+ *                         example: "male"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2023-01-15T10:30:00Z"
+ *                       notificationEnabled:
+ *                         type: boolean
+ *                         example: true
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:

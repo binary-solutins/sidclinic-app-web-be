@@ -6,6 +6,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const FormData = require('form-data');
+const { Op } = require('sequelize'); // Added Op for search functionality
 // Configure Appwrite
 const client = new Client();
 client
@@ -179,7 +180,7 @@ exports.updateBlog = async (req, res) => {
 // Get all blogs (with filters)
 exports.getAllBlogs = async (req, res) => {
   try {
-    const { category, status, featured, page = 1, limit = 10 } = req.query;
+    const { category, status, featured, page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
     
     // Build query conditions
     const where = {};
@@ -188,6 +189,17 @@ exports.getAllBlogs = async (req, res) => {
     if (category) where.category = category;
     if (status) where.status = status;
     if (featured === 'true') where.is_featured = true;
+    
+    // Search functionality
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { content: { [Op.iLike]: `%${search}%` } },
+        { category: { [Op.iLike]: `%${search}%` } },
+        { meta_title: { [Op.iLike]: `%${search}%` } },
+        { meta_description: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
     
     // Only published blogs are visible to public
     if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'doctor')) {
@@ -198,6 +210,16 @@ exports.getAllBlogs = async (req, res) => {
     // Calculate offset
     const offset = (page - 1) * limit;
     
+    // Sorting
+    let order = [];
+    if (sortBy === 'title' || sortBy === 'category' || sortBy === 'status' || 
+        sortBy === 'is_featured' || sortBy === 'view_count' || sortBy === 'published_at' || 
+        sortBy === 'createdAt' || sortBy === 'updatedAt') {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+    
     // Get blogs with pagination
     const { count, rows: blogs } = await Blog.findAndCountAll({
       where,
@@ -207,7 +229,7 @@ exports.getAllBlogs = async (req, res) => {
       }],
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
+      order
     });
     
     res.status(200).json({
@@ -329,10 +351,19 @@ exports.deleteBlog = async (req, res) => {
 exports.getBlogsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
+    const { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
     
     // Build query conditions
     const where = { userId };
+    
+    // Search functionality
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { content: { [Op.iLike]: `%${search}%` } },
+        { category: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
     
     // Only published blogs are visible to public
     if (!req.user || (req.user.role !== 'admin' && req.user.id !== parseInt(userId))) {
@@ -343,6 +374,16 @@ exports.getBlogsByUser = async (req, res) => {
     // Calculate offset
     const offset = (page - 1) * limit;
     
+    // Sorting
+    let order = [];
+    if (sortBy === 'title' || sortBy === 'category' || sortBy === 'status' || 
+        sortBy === 'is_featured' || sortBy === 'view_count' || sortBy === 'published_at' || 
+        sortBy === 'createdAt' || sortBy === 'updatedAt') {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+    
     // Get blogs with pagination
     const { count, rows: blogs } = await Blog.findAndCountAll({
       where,
@@ -352,7 +393,7 @@ exports.getBlogsByUser = async (req, res) => {
       }],
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
+      order
     });
     
     res.status(200).json({
@@ -515,7 +556,7 @@ exports.getFeaturedBlogs = async (req, res) => {
 
 exports.getAllBlogsAdmin = async (req, res) => {
   try {
-    const { category, status, featured, page = 1, limit = 10 } = req.query;
+    const { category, status, featured, page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
     
     // Build query conditions
     const where = {};
@@ -525,9 +566,29 @@ exports.getAllBlogsAdmin = async (req, res) => {
     if (status) where.status = status;
     if (featured === 'true') where.is_featured = true;
     
+    // Search functionality
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { content: { [Op.iLike]: `%${search}%` } },
+        { category: { [Op.iLike]: `%${search}%` } },
+        { meta_title: { [Op.iLike]: `%${search}%` } },
+        { meta_description: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
   
     // Calculate offset
     const offset = (page - 1) * limit;
+    
+    // Sorting
+    let order = [];
+    if (sortBy === 'title' || sortBy === 'category' || sortBy === 'status' || 
+        sortBy === 'is_featured' || sortBy === 'view_count' || sortBy === 'published_at' || 
+        sortBy === 'createdAt' || sortBy === 'updatedAt') {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
     
     // Get blogs with pagination
     const { count, rows: blogs } = await Blog.findAndCountAll({
@@ -538,7 +599,7 @@ exports.getAllBlogsAdmin = async (req, res) => {
       }],
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']]
+      order
     });
     
     res.status(200).json({

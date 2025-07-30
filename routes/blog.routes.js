@@ -343,7 +343,7 @@ router.put('/:id', authenticate(), upload.single('coverImage'), blogController.u
  * /blogs:
  *   get:
  *     summary: Get all blogs
- *     description: Retrieve all blogs with pagination and optional filters
+ *     description: Retrieve all blogs with pagination, search, and optional filters
  *     tags: [Blogs]
  *     parameters:
  *       - in: query
@@ -374,6 +374,25 @@ router.put('/:id', authenticate(), upload.single('coverImage'), blogController.u
  *           type: integer
  *           default: 10
  *         description: Items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for title, content, category, meta_title, or meta_description
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [title, category, status, is_featured, view_count, published_at, createdAt, updatedAt]
+ *           default: createdAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order
  *     responses:
  *       200:
  *         description: Blogs retrieved successfully
@@ -395,8 +414,8 @@ router.get('/', blogController.getAllBlogs);
  * @swagger
  * /blogsAdmin:
  *   get:
- *     summary: Get all blogs
- *     description: Retrieve all blogs with pagination and optional filters
+ *     summary: Get all blogs (Admin only)
+ *     description: Retrieve all blogs with pagination, search, and optional filters (Admin access)
  *     tags: [Blogs]
  *     parameters:
  *       - in: query
@@ -409,7 +428,7 @@ router.get('/', blogController.getAllBlogs);
  *         schema:
  *           type: string
  *           enum: [draft, published]
- *         description: Filter by status (admin/doctor only)
+ *         description: Filter by status
  *       - in: query
  *         name: featured
  *         schema:
@@ -427,6 +446,25 @@ router.get('/', blogController.getAllBlogs);
  *           type: integer
  *           default: 10
  *         description: Items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for title, content, category, meta_title, or meta_description
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [title, category, status, is_featured, view_count, published_at, createdAt, updatedAt]
+ *           default: createdAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order
  *     responses:
  *       200:
  *         description: Blogs retrieved successfully
@@ -553,7 +591,7 @@ router.delete('/:id', authenticate(), blogController.deleteBlog);
  * /blogs/user/{userId}:
  *   get:
  *     summary: Get blogs by user
- *     description: Retrieve all blogs created by a specific user
+ *     description: Retrieve all blogs created by a specific user with pagination, search, and sort capabilities
  *     tags: [Blogs]
  *     parameters:
  *       - in: path
@@ -574,6 +612,25 @@ router.delete('/:id', authenticate(), blogController.deleteBlog);
  *           type: integer
  *           default: 10
  *         description: Items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for title, content, or category
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [title, category, status, is_featured, view_count, published_at, createdAt, updatedAt]
+ *           default: createdAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order
  *     responses:
  *       200:
  *         description: User blogs retrieved successfully
