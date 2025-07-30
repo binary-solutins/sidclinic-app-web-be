@@ -48,13 +48,18 @@ const uploadImage = async (file) => {
 
 exports.getProfile = async (req, res) => {
   try {
+    console.log(`[DEBUG] getProfile - User ID: ${req.user.id}`);
+
     const profile = await Doctor.findOne({
       where: { userId: req.user.id },
       include: [{
         model: User,
+        as: 'User',
         attributes: ['name', 'phone', 'gender']
       }]
     });
+
+    console.log(`[DEBUG] getProfile - Profile found:`, profile ? 'Yes' : 'No');
 
     if (!profile) {
       return res.status(404).json({ 
@@ -72,6 +77,7 @@ exports.getProfile = async (req, res) => {
       data: profile
     });
   } catch (error) {
+    console.error(`[ERROR] getProfile - User ID: ${req.user.id}, Error:`, error.message);
     res.status(500).json({ 
       status: 'error',
       code: 500,
@@ -195,6 +201,7 @@ exports.findDoctorsByCity = async (req, res) => {
       },
       include: [{
         model: User,
+        as: 'User',
         attributes: ['name', 'phone', 'gender']
       }]
     });
@@ -233,6 +240,7 @@ exports.getAllDoctors = async (req, res) => {
       },
       include: [{
         model: User,
+        as: 'User',
         attributes: ['name', 'phone', 'gender']
       }]
     });

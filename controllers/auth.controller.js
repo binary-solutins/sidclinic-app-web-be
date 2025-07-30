@@ -406,6 +406,19 @@ exports.login = async (req, res) => {
       }
     }
 
+    // Check if user is a doctor and if they are approved
+    if (user.role === 'doctor') {
+      const doctor = await Doctor.findOne({ where: { userId: user.id } });
+      if (doctor && !doctor.isApproved) {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'User currently in verification, not approved',
+          data: null
+        });
+      }
+    }
+
     const token = generateToken(user);
 
     // Debug log: successful login

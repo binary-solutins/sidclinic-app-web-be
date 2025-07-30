@@ -4,6 +4,7 @@ const controller = require("../controllers/notification.controller");
 const { authenticate, authorize } = require("../middleware/auth");
 
 router.get("/", authenticate(), controller.getUserNotifications);
+router.get("/admin", authenticate(), authorize("admin"), controller.getAdminNotifications);
 router.patch("/:id/read", authenticate(), controller.markAsRead);
 router.patch("/read-all", authenticate(), controller.markAllAsRead);
 router.post(

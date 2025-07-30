@@ -102,8 +102,8 @@ const Doctor = sequelize.define('Doctor', {
   ]
 });
 
-// Define association without alias
-User.hasOne(Doctor, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Doctor.belongsTo(User, { foreignKey: 'userId', onDelete: 'CASCADE' });
+// Define association with alias
+User.hasOne(Doctor, { foreignKey: 'userId', as: 'Doctor', onDelete: 'CASCADE' });
+Doctor.belongsTo(User, { foreignKey: 'userId', as: 'User', onDelete: 'CASCADE' });
 
 module.exports = Doctor;

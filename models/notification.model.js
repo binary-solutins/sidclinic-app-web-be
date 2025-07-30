@@ -10,7 +10,7 @@ const Notification = sequelize.define('Notification', {
   },
   userId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true, // Made optional for admin notifications
     references: {
       model: User,
       key: 'id'
@@ -39,6 +39,10 @@ const Notification = sequelize.define('Notification', {
   data: {
     type: DataTypes.JSON,
     allowNull: true
+  },
+  isAdminNotification: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
   }
 });
 

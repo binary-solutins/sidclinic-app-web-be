@@ -46,7 +46,10 @@ module.exports = {
       const { limit = 20, offset = 0 } = req.query;
 
       const notifications = await Notification.findAll({
-        where: { userId: req.user.id },
+        where: { 
+          userId: req.user.id,
+          isAdminNotification: false // Only show user-specific notifications
+        },
         order: [["createdAt", "DESC"]],
         limit: parseInt(limit),
         offset: parseInt(offset),
@@ -210,6 +213,186 @@ module.exports = {
     }
   },
 
+  /**
+   * @swagger
+   * /notifications/admin:
+   *   get:
+   *     summary: Get admin notifications
+   *     tags: [Notifications]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *       - in: query
+   *         name: offset
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of admin notifications
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Notification'
+   *       401:
+   *         description: Unauthorized
+   *       500:
+   *         description: Server error
+   */
+  getAdminNotifications: async (req, res) => {
+    try {
+      console.log(
+        `[DEBUG] getAdminNotifications - Admin ID: ${req.user.id}, Query params:`,
+        req.query
+      );
+
+      const { limit = 20, offset = 0 } = req.query;
+
+      const notifications = await Notification.findAll({
+        where: { 
+          isAdminNotification: true
+        },
+        order: [["createdAt", "DESC"]],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+
+      console.log(
+        `[DEBUG] getAdminNotifications - Found ${notifications.length} admin notifications`
+      );
+
+      res.json({
+        status: "success",
+        code: 200,
+        data: notifications,
+      });
+    } catch (error) {
+      console.error(
+        `[ERROR] getAdminNotifications - Admin ID: ${req.user.id}, Error:`,
+        error.message
+      );
+      res.status(500).json({
+        status: "error",
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  /**
+   * @swagger
+   * /notifications/add-fcm-token:
+   *   post:
+   *     summary: Update user's FCM token
+   *     tags: [Notifications]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - fcmToken
+   *             properties:
+   *               fcmToken:
+   *                 type: string
+   *                 description: Firebase Cloud Messaging token
+   *     responses:
+   *       200:
+   *         description: FCM token updated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                   example: "success"
+   *                 code:
+   *                   type: integer
+   *                   example: 200
+   *                 message:
+   *                   type: string
+   *                   example: "FCM token updated successfully"
+   *       400:
+   *         description: Bad request - missing FCM token
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
+  updateFcmToken: async (req, res) => {
+    try {
+      const { fcmToken } = req.body;
+
+      console.log(
+        `[DEBUG] updateFcmToken - User ID: ${
+          req.user.id
+        }, FCM Token provided: ${fcmToken ? "Yes" : "No"}`
+      );
+
+      if (!fcmToken) {
+        console.log(
+          `[DEBUG] updateFcmToken - Validation failed: FCM token is missing`
+        );
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "FCM token is required",
+        });
+      }
+
+      // Find and update the user's FCM token
+      const user = await User.findByPk(req.user.id);
+
+      if (!user) {
+        console.log(`[DEBUG] updateFcmToken - User not found: ${req.user.id}`);
+        return res.status(404).json({
+          status: "error",
+          code: 404,
+          message: "User not found",
+        });
+      }
+
+      // Update the FCM token
+      user.fcmToken = fcmToken;
+      await user.save();
+
+      console.log(
+        `[DEBUG] updateFcmToken - Successfully updated FCM token for user ${req.user.id}`
+      );
+
+      res.json({
+        status: "success",
+        code: 200,
+        message: "FCM token updated successfully",
+        data: {
+          userId: user.id,
+          fcmToken: user.fcmToken,
+        },
+      });
+    } catch (error) {
+      console.error(
+        `[ERROR] updateFcmToken - User ID: ${req.user.id}, Error:`,
+        error.message
+      );
+      res.status(500).json({
+        status: "error",
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
   sendNotification: async (req, res) => {
     try {
       const { title, body, data, type } = req.body;
@@ -230,27 +413,28 @@ module.exports = {
       }
 
       let fcmTokens = [];
+      let users = [];
 
       if (type === "both") {
-        const users = await User.findAll({
-          attributes: ["fcmToken"],
+        users = await User.findAll({
+          attributes: ["id", "fcmToken"],
         });
         fcmTokens = users.map((user) => user.fcmToken);
       } else if (type === "user") {
-        const users = await User.findAll({
+        users = await User.findAll({
           where: { role: "user" },
-          attributes: ["fcmToken"],
+          attributes: ["id", "fcmToken"],
         });
         fcmTokens = users.map((user) => user.fcmToken);
         console.log(
           `[DEBUG] sendNotification - Found ${fcmTokens.length} users with FCM tokens`
         );
       } else {
-        const doctors = await User.findAll({
+        users = await User.findAll({
           where: { role: "doctor" },
-          attributes: ["fcmToken"],
+          attributes: ["id", "fcmToken"],
         });
-        fcmTokens = doctors.map((doctor) => doctor.fcmToken);
+        fcmTokens = users.map((user) => user.fcmToken);
         console.log(
           `[DEBUG] sendNotification - Found ${fcmTokens.length} doctors with FCM tokens`
         );
@@ -265,6 +449,22 @@ module.exports = {
           message: `No ${type}s found with FCM tokens`,
         });
       }
+
+      // Store notification in database for each user
+      const notificationPromises = users.map(user => 
+        Notification.create({
+          userId: user.id,
+          title: title,
+          message: body,
+          type: 'system',
+          data: data || {},
+          isRead: false,
+          isAdminNotification: true
+        })
+      );
+
+      await Promise.all(notificationPromises);
+      console.log(`[DEBUG] sendNotification - Stored notifications in database for ${users.length} users`);
 
       const CHUNK_SIZE = 50;
       const results = [];
@@ -353,6 +553,37 @@ module.exports = {
         message: "Internal server error",
         error: error.message,
       });
+    }
+  },
+
+  // Helper function to create notification for a specific user
+  createUserNotification: async (userId, title, message, type = 'appointment', data = {}, relatedId = null) => {
+    try {
+      const notification = await Notification.create({
+        userId: userId,
+        title: title,
+        message: message,
+        type: type,
+        data: data,
+        relatedId: relatedId,
+        isRead: false,
+        isAdminNotification: false
+      });
+
+      // Send push notification if user has FCM token
+      const user = await User.findByPk(userId);
+      if (user && user.fcmToken) {
+        try {
+          await sendPushNotification(user.fcmToken, title, message, data);
+        } catch (error) {
+          console.error(`[ERROR] Failed to send push notification to user ${userId}:`, error.message);
+        }
+      }
+
+      return notification;
+    } catch (error) {
+      console.error(`[ERROR] Failed to create notification for user ${userId}:`, error.message);
+      throw error;
     }
   },
 
