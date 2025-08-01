@@ -4,11 +4,9 @@ const swaggerUi = require("swagger-ui-express");
 const specs = require("./swagger");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
-
 const doctorRoutes = require("./routes/doctor.route");
 const appointmentRoutes = require("./routes/appoinment.routes");
 const notificationRoutes = require("./routes/notification.route");
-
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -24,6 +22,7 @@ const patientRoutes = require("./routes/patient.routes");
 const priceRoutes = require("./routes/price.route");
 const adminRoutes = require('./routes/admin.routes');
 const locationRoutes = require('./routes/location.routes');
+const queryRoutes = require('./routes/query.routes');
 
 app.use(cors());
 app.use(
@@ -44,7 +43,6 @@ app.use(
 );
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
-// Rate limiting
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -52,7 +50,7 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth/", authLimiter);
 
-// Database connection
+
 sequelize
   .authenticate()
   .then(() => console.log("Database connected"))
@@ -86,7 +84,6 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/video-call", videoRoutes);
@@ -96,8 +93,8 @@ app.use("/api/patients", patientRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/price", priceRoutes);
 app.use("/api/location", locationRoutes);
+app.use("/api/queries", queryRoutes);
 
-// Global error handler
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -123,7 +120,7 @@ app.use((req, res) => {
   });
 });
 
-app.set('trust proxy', 1); // or true
+app.set('trust proxy', 1);
 
 
 const PORT = process.env.PORT || 3000;
@@ -131,7 +128,7 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Graceful shutdown
+
 process.on("SIGTERM", () => {
   console.log("SIGTERM signal received: closing HTTP server");
   server.close(() => {
