@@ -78,6 +78,7 @@ io.on("connection", (socket) => {
     );
   });
 });
+
 // API Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
