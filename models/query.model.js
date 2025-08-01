@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
-const User = require('./user.model');
 
 const Query = sequelize.define('Query', {
   id: {
@@ -8,11 +7,19 @@ const Query = sequelize.define('Query', {
     primaryKey: true,
     autoIncrement: true
   },
+  userId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
+  },
   title: {
     type: DataTypes.STRING,
     allowNull: false,
     validate: {
-      len: [1, 200]
+      len: [5, 200]
     }
   },
   description: {
@@ -23,12 +30,21 @@ const Query = sequelize.define('Query', {
     }
   },
   category: {
-    type: DataTypes.ENUM('General', 'Technical', 'Billing', 'Appointment', 'Medical', 'Other'),
+    type: DataTypes.ENUM(
+      'Technical Support',
+      'Account Issues',
+      'Billing',
+      'Medical Inquiry',
+      'Appointment Issues',
+      'Feature Request',
+      'Bug Report',
+      'General'
+    ),
     allowNull: false,
     defaultValue: 'General'
   },
   priority: {
-    type: DataTypes.ENUM('Low', 'Medium', 'High', 'Urgent'),
+    type: DataTypes.ENUM('Low', 'Medium', 'High', 'Critical'),
     allowNull: false,
     defaultValue: 'Medium'
   },
@@ -37,62 +53,59 @@ const Query = sequelize.define('Query', {
     allowNull: false,
     defaultValue: 'Open'
   },
-  raisedBy: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+  attachments: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
   },
-  raisedByRole: {
-    type: DataTypes.ENUM('user', 'doctor'),
-    allowNull: false
+  adminResponse: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  adminId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
   },
   assignedTo: {
     type: DataTypes.INTEGER,
-    allowNull: true
-  },
-  attachments: {
-    type: DataTypes.JSON,
-    allowNull: true
+    allowNull: true,
+    references: {
+      model: 'Users',
+      key: 'id'
+    }
   },
   resolvedAt: {
     type: DataTypes.DATE,
     allowNull: true
   },
-  resolution: {
+  tags: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: []
+  },
+  isPublic: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  rating: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: {
+      min: 1,
+      max: 5
+    }
+  },
+  feedback: {
     type: DataTypes.TEXT,
     allowNull: true
-  },
-  isActive: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
   }
 }, {
-  tableName: 'Queries',
-  timestamps: true,
-  indexes: [
-    {
-      fields: ['raisedBy']
-    },
-    {
-      fields: ['status']
-    },
-    {
-      fields: ['category']
-    },
-    {
-      fields: ['priority']
-    },
-    {
-      fields: ['createdAt']
-    }
-  ]
+  tableName: 'queries',
+  timestamps: true
 });
-
-// Define associations
-User.hasMany(Query, { foreignKey: 'raisedBy', as: 'queries', onDelete: 'CASCADE' });
-Query.belongsTo(User, { foreignKey: 'raisedBy', as: 'user', onDelete: 'CASCADE' });
-
-// Assigned to associations
-User.hasMany(Query, { foreignKey: 'assignedTo', as: 'assignedQueries', onDelete: 'SET NULL' });
-Query.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignedToUser', onDelete: 'SET NULL' });
 
 module.exports = Query;
