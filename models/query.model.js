@@ -108,4 +108,25 @@ const Query = sequelize.define('Query', {
   timestamps: true
 });
 
+Query.associate = function(models) {
+  // Query belongs to User (who created the query)
+  Query.belongsTo(models.User, {
+    foreignKey: 'userId',
+    as: 'user'
+  });
+  
+  // Query belongs to Admin User (who responded to the query)
+  Query.belongsTo(models.User, {
+    foreignKey: 'adminId',
+    as: 'admin'
+  });
+  
+  // Query belongs to Assigned User (who is assigned to handle the query)
+  Query.belongsTo(models.User, {
+    foreignKey: 'assignedTo',
+    as: 'assignedUser'
+  });
+};
+
+
 module.exports = Query;

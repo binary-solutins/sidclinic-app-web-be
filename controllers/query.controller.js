@@ -2,6 +2,7 @@ const Query = require("../models/query.model");
 const User = require("../models/user.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
+const sequelize = require("../config/db");
 
 // Create a new query (User/Doctor)
 exports.createQuery = async (req, res) => {
@@ -20,8 +21,7 @@ exports.createQuery = async (req, res) => {
     }
 
     const query = await Query.create({
-      raisedBy: userId,
-      raisedByRole: req.user.role,
+      userId,
       title,
       description,
       category: category || 'General',
@@ -91,7 +91,7 @@ exports.getUserQueries = async (req, res) => {
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    const where = { raisedBy: userId };
+    const where = { userId };
     
     if (status) {
       where.status = status;
@@ -114,13 +114,13 @@ exports.getUserQueries = async (req, res) => {
       include: [
         {
           model: User,
-          as: 'user',
+          as: 'admin',
           attributes: ['id', 'name'],
           required: false
         },
         {
           model: User,
-          as: 'assignedToUser',
+          as: 'assignedUser',
           attributes: ['id', 'name'],
           required: false
         }
@@ -164,7 +164,7 @@ exports.getQueryById = async (req, res) => {
     
     // Non-admin users can only see their own queries
     if (userRole !== 'admin') {
-      where.raisedBy = userId;
+      where.userId = userId;
     }
 
     const query = await Query.findOne({
@@ -177,7 +177,13 @@ exports.getQueryById = async (req, res) => {
         },
         {
           model: User,
-          as: 'assignedToUser',
+          as: 'admin',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'assignedUser',
           attributes: ['id', 'name'],
           required: false
         }
@@ -218,7 +224,7 @@ exports.updateQuery = async (req, res) => {
     const { title, description, category, priority, attachments, tags, isPublic } = req.body;
 
     const query = await Query.findOne({
-      where: { id, raisedBy: userId }
+      where: { id, userId }
     });
 
     if (!query) {
@@ -285,7 +291,7 @@ exports.deleteQuery = async (req, res) => {
     const userId = req.user.id;
 
     const query = await Query.findOne({
-      where: { id, raisedBy: userId }
+      where: { id, userId }
     });
 
     if (!query) {
@@ -367,7 +373,7 @@ exports.getAllQueries = async (req, res) => {
     if (status) where.status = status;
     if (category) where.category = category;
     if (priority) where.priority = priority;
-    if (userId) where.raisedBy = userId;
+    if (userId) where.userId = userId;
     if (assignedTo) where.assignedTo = assignedTo;
     if (isPublic !== undefined) where.isPublic = isPublic;
 
@@ -399,7 +405,13 @@ exports.getAllQueries = async (req, res) => {
         },
         {
           model: User,
-          as: 'assignedToUser',
+          as: 'admin',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
+          model: User,
+          as: 'assignedUser',
           attributes: ['id', 'name'],
           required: false
         }
@@ -528,7 +540,12 @@ exports.respondToQuery = async (req, res) => {
         },
         {
           model: User,
-          as: 'assignedToUser',
+          as: 'admin',
+          attributes: ['id', 'name']
+        },
+        {
+          model: User,
+          as: 'assignedUser',
           attributes: ['id', 'name'],
           required: false
         }
@@ -655,7 +672,7 @@ exports.rateQuery = async (req, res) => {
     }
 
     const query = await Query.findOne({
-      where: { id, raisedBy: userId, status: 'Resolved' }
+      where: { id, userId, status: 'Resolved' }
     });
 
     if (!query) {
