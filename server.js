@@ -8,7 +8,7 @@ const dashboardRoutes = require("./routes/dashboard.routes");
 const doctorRoutes = require("./routes/doctor.route");
 const appointmentRoutes = require("./routes/appoinment.routes");
 const notificationRoutes = require("./routes/notification.route");
-require("./models/associations");
+
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
@@ -24,7 +24,7 @@ const patientRoutes = require("./routes/patient.routes");
 const priceRoutes = require("./routes/price.route");
 const adminRoutes = require('./routes/admin.routes');
 const locationRoutes = require('./routes/location.routes');
-const queryRoutes = require('./routes/query.routes');
+
 app.use(cors());
 app.use(
   helmet({
@@ -96,7 +96,7 @@ app.use("/api/patients", patientRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/price", priceRoutes);
 app.use("/api/location", locationRoutes);
-app.use("/api/queries", queryRoutes);
+
 // Global error handler
 app.use(
   helmet({

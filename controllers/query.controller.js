@@ -1,644 +1,744 @@
-/**
- * @swagger
- * components:
- *   schemas:
- *     Query:
- *       type: object
- *       required:
- *         - title
- *         - description
- *         - category
- *         - priority
- *       properties:
- *         id:
- *           type: integer
- *           example: 1
- *         title:
- *           type: string
- *           example: "Appointment booking issue"
- *           maxLength: 200
- *         description:
- *           type: string
- *           example: "I'm unable to book an appointment for tomorrow"
- *           maxLength: 2000
- *         category:
- *           type: string
- *           enum: [General, Technical, Billing, Appointment, Medical, Other]
- *           example: "Appointment"
- *         priority:
- *           type: string
- *           enum: [Low, Medium, High, Urgent]
- *           example: "Medium"
- *         status:
- *           type: string
- *           enum: [Open, In Progress, Resolved, Closed]
- *           example: "Open"
- *         raisedBy:
- *           type: integer
- *           example: 1
- *         raisedByRole:
- *           type: string
- *           enum: [user, doctor]
- *           example: "user"
- *         assignedTo:
- *           type: integer
- *           nullable: true
- *           example: 2
- *         attachments:
- *           type: array
- *           items:
- *             type: string
- *           example: ["https://example.com/file1.jpg"]
- *         resolvedAt:
- *           type: string
- *           format: date-time
- *           nullable: true
- *         resolution:
- *           type: string
- *           nullable: true
- *           example: "Issue resolved by updating the booking system"
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
- *     CreateQueryRequest:
- *       type: object
- *       required:
- *         - title
- *         - description
- *         - category
- *         - priority
- *       properties:
- *         title:
- *           type: string
- *           example: "Appointment booking issue"
- *         description:
- *           type: string
- *           example: "I'm unable to book an appointment for tomorrow"
- *         category:
- *           type: string
- *           enum: [General, Technical, Billing, Appointment, Medical, Other]
- *           example: "Appointment"
- *         priority:
- *           type: string
- *           enum: [Low, Medium, High, Urgent]
- *           example: "Medium"
- *         attachments:
- *           type: array
- *           items:
- *             type: string
- *           example: ["https://example.com/file1.jpg"]
- *     UpdateQueryRequest:
- *       type: object
- *       properties:
- *         title:
- *           type: string
- *           example: "Updated appointment booking issue"
- *         description:
- *           type: string
- *           example: "Updated description of the issue"
- *         category:
- *           type: string
- *           enum: [General, Technical, Billing, Appointment, Medical, Other]
- *         priority:
- *           type: string
- *           enum: [Low, Medium, High, Urgent]
- *         status:
- *           type: string
- *           enum: [Open, In Progress, Resolved, Closed]
- *         assignedTo:
- *           type: integer
- *           example: 2
- *         resolution:
- *           type: string
- *           example: "Issue resolved by updating the booking system"
- *         attachments:
- *           type: array
- *           items:
- *             type: string
- *     QueryResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: true
- *         message:
- *           type: string
- *           example: "Query created successfully"
- *         data:
- *           $ref: '#/components/schemas/Query'
- *     QueryListResponse:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *           example: true
- *         message:
- *           type: string
- *           example: "Queries retrieved successfully"
- *         data:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Query'
- *         pagination:
- *           type: object
- *           properties:
- *             page:
- *               type: integer
- *               example: 1
- *             limit:
- *               type: integer
- *               example: 10
- *             total:
- *               type: integer
- *               example: 25
- *             totalPages:
- *               type: integer
- *               example: 3
- */
-
-const Query = require('../models/query.model');
-const User = require('../models/user.model');
-const Doctor = require('../models/doctor.model');
+const Query = require("../models/query.model");
+const User = require("../models/user.model");
 const { Op } = require('sequelize');
+const { emailService } = require('../services/email.services');
 
-/**
- * Create a new query
- */
-const createQuery = async (req, res) => {
+// Create a new query (User/Doctor)
+exports.createQuery = async (req, res) => {
   try {
-    const { title, description, category, priority, attachments } = req.body;
     const userId = req.user.id;
-    const userRole = req.user.role;
+    const { title, description, category, priority, attachments, tags, isPublic } = req.body;
 
-    // Validate user role
-    if (!['user', 'doctor'].includes(userRole)) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only users and doctors can create queries'
+    // Validation
+    if (!title || !description) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Title and description are required",
+        data: null
       });
     }
 
     const query = await Query.create({
+      raisedBy: userId,
+      raisedByRole: req.user.role,
       title,
       description,
-      category,
-      priority,
-      raisedBy: userId,
-      raisedByRole: userRole,
-      attachments: attachments || []
+      category: category || 'General',
+      priority: priority || 'Medium',
+      attachments: attachments || [],
+      tags: tags || [],
+      isPublic: isPublic || false
     });
 
     // Fetch the created query with user details
-    const queryWithUser = await Query.findByPk(query.id, {
+    const createdQuery = await Query.findByPk(query.id, {
       include: [
         {
           model: User,
-          as: 'RaisedByUser',
+          as: 'user',
           attributes: ['id', 'name', 'phone', 'role']
         }
       ]
     });
+
+    // Send notification email to admin (optional)
+    try {
+      const emailData = {
+        queryId: query.id,
+        userName: req.user.name,
+        userRole: req.user.role,
+        title: query.title,
+        category: query.category,
+        priority: query.priority,
+        description: query.description.substring(0, 200) + '...',
+        dashboardUrl: `${process.env.ADMIN_URL || 'http://localhost:3000'}/admin/queries/${query.id}`
+      };
+
+      await emailService.sendAppointmentEmail(
+        process.env.ADMIN_EMAIL,
+        'new_query_notification',
+        emailData
+      );
+    } catch (emailError) {
+      console.error('Error sending query notification email:', emailError);
+    }
 
     res.status(201).json({
-      success: true,
-      message: 'Query created successfully',
-      data: queryWithUser
+      status: "success",
+      code: 201,
+      message: "Query created successfully",
+      data: createdQuery
     });
   } catch (error) {
-    console.error('Create query error:', error);
     res.status(500).json({
-      success: false,
-      message: 'Failed to create query',
-      error: error.message
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
     });
   }
 };
 
-/**
- * Get all queries with filtering and pagination
- */
-const getAllQueries = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      category,
-      priority,
-      raisedByRole,
-      search
-    } = req.query;
-
-    const offset = (page - 1) * limit;
-    const where = { isActive: true };
-
-    // Add filters
-    if (status) where.status = status;
-    if (category) where.category = category;
-    if (priority) where.priority = priority;
-    if (raisedByRole) where.raisedByRole = raisedByRole;
-
-    // Add search functionality
-    if (search) {
-      where[Op.or] = [
-        { title: { [Op.like]: `%${search}%` } },
-        { description: { [Op.like]: `%${search}%` } }
-      ];
-    }
-
-    const { count, rows } = await Query.findAndCountAll({
-      where,
-      include: [
-        {
-          model: User,
-          as: 'RaisedByUser',
-          attributes: ['id', 'name', 'phone', 'role']
-        },
-        {
-          model: User,
-          as: 'AssignedToUser',
-          attributes: ['id', 'name', 'phone', 'role']
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset)
-    });
-
-    const totalPages = Math.ceil(count / limit);
-
-    res.json({
-      success: true,
-      message: 'Queries retrieved successfully',
-      data: rows,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count,
-        totalPages
-      }
-    });
-  } catch (error) {
-    console.error('Get queries error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve queries',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get queries by current user
- */
-const getMyQueries = async (req, res) => {
+// Get all queries for the logged-in user
+exports.getUserQueries = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 10, status } = req.query;
-
+    let { page = 1, limit = 10, status, category, sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
+    
+    page = parseInt(page);
+    limit = parseInt(limit);
     const offset = (page - 1) * limit;
-    const where = { 
-      raisedBy: userId,
-      isActive: true 
-    };
 
-    if (status) where.status = status;
+    const where = { raisedBy: userId };
+    
+    if (status) {
+      where.status = status;
+    }
+    
+    if (category) {
+      where.category = category;
+    }
 
-    const { count, rows } = await Query.findAndCountAll({
+    // Sorting
+    let order = [];
+    if (['createdAt', 'updatedAt', 'title', 'priority', 'status'].includes(sortBy)) {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+
+    const { count, rows: queries } = await Query.findAndCountAll({
       where,
       include: [
         {
           model: User,
-          as: 'AssignedToUser',
-          attributes: ['id', 'name', 'phone', 'role']
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      offset: parseInt(offset)
-    });
-
-    const totalPages = Math.ceil(count / limit);
-
-    res.json({
-      success: true,
-      message: 'Your queries retrieved successfully',
-      data: rows,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count,
-        totalPages
-      }
-    });
-  } catch (error) {
-    console.error('Get my queries error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve your queries',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get query by ID
- */
-const getQueryById = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const query = await Query.findOne({
-      where: { id, isActive: true },
-      include: [
-        {
-          model: User,
-          as: 'RaisedByUser',
-          attributes: ['id', 'name', 'phone', 'role']
+          as: 'user',
+          attributes: ['id', 'name'],
+          required: false
         },
         {
           model: User,
-          as: 'AssignedToUser',
-          attributes: ['id', 'name', 'phone', 'role']
+          as: 'assignedToUser',
+          attributes: ['id', 'name'],
+          required: false
         }
-      ]
+      ],
+      order,
+      limit,
+      offset
     });
 
-    if (!query) {
-      return res.status(404).json({
-        success: false,
-        message: 'Query not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Query retrieved successfully',
-      data: query
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "User queries retrieved successfully",
+      data: queries,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
     });
   } catch (error) {
-    console.error('Get query by ID error:', error);
     res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve query',
-      error: error.message
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
     });
   }
 };
 
-/**
- * Update query
- */
-const updateQuery = async (req, res) => {
+// Get query details by ID (User can only see their own queries)
+exports.getQueryById = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    const query = await Query.findByPk(id);
+    const where = { id };
+    
+    // Non-admin users can only see their own queries
+    if (userRole !== 'admin') {
+      where.raisedBy = userId;
+    }
+
+    const query = await Query.findOne({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone', 'role']
+        },
+        {
+          model: User,
+          as: 'assignedToUser',
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ]
+    });
 
     if (!query) {
       return res.status(404).json({
-        success: false,
-        message: 'Query not found'
+        status: "error",
+        code: 404,
+        message: "Query not found",
+        data: null
       });
     }
 
-    // Check permissions
-    if (userRole === 'admin') {
-      // Admin can update any query
-    } else if (query.raisedBy === userId) {
-      // User can only update their own queries
-      // Remove fields that users shouldn't be able to update
-      delete updateData.assignedTo;
-      delete updateData.status;
-      delete updateData.resolution;
-    } else {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only update your own queries'
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Query details retrieved successfully",
+      data: query
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Update query (User can only update their own queries and only certain fields)
+exports.updateQuery = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { title, description, category, priority, attachments, tags, isPublic } = req.body;
+
+    const query = await Query.findOne({
+      where: { id, raisedBy: userId }
+    });
+
+    if (!query) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Query not found or you don't have permission to update it",
+        data: null
       });
+    }
+
+    // Users can only update open queries
+    if (query.status !== 'Open') {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Cannot update query that is not in Open status",
+        data: null
+      });
+    }
+
+    const updateData = {};
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (category) updateData.category = category;
+    if (priority) updateData.priority = priority;
+    if (attachments) updateData.attachments = attachments;
+    if (tags) updateData.tags = tags;
+    if (isPublic !== undefined) updateData.isPublic = isPublic;
+
+    await query.update(updateData);
+
+    const updatedQuery = await Query.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone', 'role']
+        }
+      ]
+    });
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Query updated successfully",
+      data: updatedQuery
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Delete query (User can only delete their own open queries)
+exports.deleteQuery = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const query = await Query.findOne({
+      where: { id, raisedBy: userId }
+    });
+
+    if (!query) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Query not found or you don't have permission to delete it",
+        data: null
+      });
+    }
+
+    // Users can only delete open queries
+    if (query.status !== 'Open') {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Cannot delete query that is not in Open status",
+        data: null
+      });
+    }
+
+    await query.destroy();
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Query deleted successfully",
+      data: null
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Admin: Get all queries with advanced filtering
+exports.getAllQueries = async (req, res) => {
+  try {
+    let { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      status, 
+      category, 
+      priority, 
+      userId, 
+      assignedTo,
+      sortBy = 'createdAt', 
+      sortOrder = 'DESC',
+      dateFrom,
+      dateTo,
+      isPublic
+    } = req.query;
+    
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
+
+    const where = {};
+    const userWhere = {};
+    
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { description: { [Op.iLike]: `%${search}%` } },
+        { adminResponse: { [Op.iLike]: `%${search}%` } }
+      ];
+      userWhere[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    if (status) where.status = status;
+    if (category) where.category = category;
+    if (priority) where.priority = priority;
+    if (userId) where.raisedBy = userId;
+    if (assignedTo) where.assignedTo = assignedTo;
+    if (isPublic !== undefined) where.isPublic = isPublic;
+
+    // Date filtering
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt[Op.gte] = new Date(dateFrom);
+      if (dateTo) where.createdAt[Op.lte] = new Date(dateTo);
+    }
+
+    // Sorting
+    let order = [];
+    if (['createdAt', 'updatedAt', 'title', 'priority', 'status', 'resolvedAt'].includes(sortBy)) {
+      order.push([sortBy, sortOrder.toUpperCase()]);
+    } else if (sortBy === 'userName') {
+      order.push([{ model: User, as: 'user' }, 'name', sortOrder.toUpperCase()]);
+    } else {
+      order.push(['createdAt', 'DESC']);
+    }
+
+    const { count, rows: queries } = await Query.findAndCountAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone', 'role'],
+          where: Object.keys(userWhere).length ? userWhere : undefined
+        },
+        {
+          model: User,
+          as: 'assignedToUser',
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ],
+      order,
+      limit,
+      offset
+    });
+
+    // Get statistics
+    const stats = await Query.findAll({
+      attributes: [
+        'status',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: ['status'],
+      raw: true
+    });
+
+    const statistics = {
+      total: count,
+      open: stats.find(s => s.status === 'Open')?.count || 0,
+      inProgress: stats.find(s => s.status === 'In Progress')?.count || 0,
+      resolved: stats.find(s => s.status === 'Resolved')?.count || 0,
+      closed: stats.find(s => s.status === 'Closed')?.count || 0
+    };
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "All queries retrieved successfully",
+      data: queries,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      },
+      statistics
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Admin: Respond to query
+exports.respondToQuery = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user.id;
+    const { adminResponse, status, assignedTo } = req.body;
+
+    if (!adminResponse) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Admin response is required",
+        data: null
+      });
+    }
+
+    const query = await Query.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'name', 'phone', 'role']
+        }
+      ]
+    });
+
+    if (!query) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Query not found",
+        data: null
+      });
+    }
+
+    const updateData = {
+      adminResponse,
+      adminId,
+      status: status || 'In Progress'
+    };
+
+    if (assignedTo) updateData.assignedTo = assignedTo;
+    if (status === 'Resolved' || status === 'Closed') {
+      updateData.resolvedAt = new Date();
     }
 
     await query.update(updateData);
 
-    // Fetch updated query with user details
+    // Send email notification to user
+    try {
+      const emailData = {
+        userName: query.user.name,
+        queryTitle: query.title,
+        queryId: query.id,
+        adminResponse: adminResponse,
+        status: updateData.status,
+        dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/queries/${query.id}`
+      };
+
+      await emailService.sendAppointmentEmail(
+        query.user.email || `${query.user.phone}@temp.com`,
+        'query_response',
+        emailData
+      );
+    } catch (emailError) {
+      console.error('Error sending query response email:', emailError);
+    }
+
     const updatedQuery = await Query.findByPk(id, {
       include: [
         {
           model: User,
-          as: 'RaisedByUser',
+          as: 'user',
           attributes: ['id', 'name', 'phone', 'role']
         },
         {
           model: User,
-          as: 'AssignedToUser',
-          attributes: ['id', 'name', 'phone', 'role']
+          as: 'assignedToUser',
+          attributes: ['id', 'name'],
+          required: false
         }
       ]
     });
 
-    res.json({
-      success: true,
-      message: 'Query updated successfully',
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Query response added successfully",
       data: updatedQuery
     });
   } catch (error) {
-    console.error('Update query error:', error);
     res.status(500).json({
-      success: false,
-      message: 'Failed to update query',
-      error: error.message
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
     });
   }
 };
 
-/**
- * Delete query (soft delete)
- */
-const deleteQuery = async (req, res) => {
+// Admin: Update query status
+exports.updateQueryStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, assignedTo } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Status is required",
+        data: null
+      });
+    }
+
+    const query = await Query.findByPk(id);
+
+    if (!query) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Query not found",
+        data: null
+      });
+    }
+
+    const updateData = { status };
+    if (assignedTo) updateData.assignedTo = assignedTo;
+    if (status === 'Resolved' || status === 'Closed') {
+      updateData.resolvedAt = new Date();
+    }
+
+    await query.update(updateData);
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Query status updated successfully",
+      data: { status: query.status, assignedTo: query.assignedTo }
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Admin: Delete query
+exports.deleteQueryAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query = await Query.findByPk(id);
+
+    if (!query) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Query not found",
+        data: null
+      });
+    }
+
+    await query.destroy();
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Query deleted successfully",
+      data: null
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// User: Rate resolved query
+exports.rateQuery = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
-    const userRole = req.user.role;
+    const { rating, feedback } = req.body;
 
-    const query = await Query.findByPk(id);
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Rating must be between 1 and 5",
+        data: null
+      });
+    }
+
+    const query = await Query.findOne({
+      where: { id, raisedBy: userId, status: 'Resolved' }
+    });
 
     if (!query) {
       return res.status(404).json({
-        success: false,
-        message: 'Query not found'
+        status: "error",
+        code: 404,
+        message: "Query not found or not resolved yet",
+        data: null
       });
     }
 
-    // Check permissions
-    if (userRole === 'admin') {
-      // Admin can delete any query
-    } else if (query.raisedBy === userId) {
-      // User can only delete their own queries
-    } else {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only delete your own queries'
-      });
-    }
+    await query.update({ rating, feedback });
 
-    await query.update({ isActive: false });
-
-    res.json({
-      success: true,
-      message: 'Query deleted successfully'
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Query rated successfully",
+      data: { rating, feedback }
     });
   } catch (error) {
-    console.error('Delete query error:', error);
     res.status(500).json({
-      success: false,
-      message: 'Failed to delete query',
-      error: error.message
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
     });
   }
 };
 
-/**
- * Assign query to admin/support
- */
-const assignQuery = async (req, res) => {
+// Get public queries (FAQ-like)
+exports.getPublicQueries = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { assignedTo } = req.body;
-    const userRole = req.user.role;
+    let { page = 1, limit = 10, category, search = '' } = req.query;
+    
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const offset = (page - 1) * limit;
 
-    if (userRole !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can assign queries'
-      });
-    }
-
-    const query = await Query.findByPk(id);
-
-    if (!query) {
-      return res.status(404).json({
-        success: false,
-        message: 'Query not found'
-      });
-    }
-
-    await query.update({ assignedTo });
-
-    const updatedQuery = await Query.findByPk(id, {
-      include: [
-        {
-          model: User,
-          as: 'RaisedByUser',
-          attributes: ['id', 'name', 'phone', 'role']
-        },
-        {
-          model: User,
-          as: 'AssignedToUser',
-          attributes: ['id', 'name', 'phone', 'role']
-        }
-      ]
-    });
-
-    res.json({
-      success: true,
-      message: 'Query assigned successfully',
-      data: updatedQuery
-    });
-  } catch (error) {
-    console.error('Assign query error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to assign query',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get query statistics
- */
-const getQueryStats = async (req, res) => {
-  try {
-    const userRole = req.user.role;
-
-    if (userRole !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Only admins can view query statistics'
-      });
-    }
-
-    const stats = await Query.findAll({
-      attributes: [
-        'status',
-        'category',
-        'priority',
-        [Query.sequelize.fn('COUNT', Query.sequelize.col('id')), 'count']
-      ],
-      where: { isActive: true },
-      group: ['status', 'category', 'priority'],
-      raw: true
-    });
-
-    // Process stats into a more readable format
-    const processedStats = {
-      byStatus: {},
-      byCategory: {},
-      byPriority: {},
-      total: 0
+    const where = { 
+      isPublic: true, 
+      status: 'Resolved'
     };
+    
+    if (category) {
+      where.category = category;
+    }
 
-    stats.forEach(stat => {
-      const count = parseInt(stat.count);
-      processedStats.total += count;
+    if (search) {
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { description: { [Op.iLike]: `%${search}%` } },
+        { adminResponse: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
 
-      // Group by status
-      if (!processedStats.byStatus[stat.status]) {
-        processedStats.byStatus[stat.status] = 0;
-      }
-      processedStats.byStatus[stat.status] += count;
-
-      // Group by category
-      if (!processedStats.byCategory[stat.category]) {
-        processedStats.byCategory[stat.category] = 0;
-      }
-      processedStats.byCategory[stat.category] += count;
-
-      // Group by priority
-      if (!processedStats.byPriority[stat.priority]) {
-        processedStats.byPriority[stat.priority] = 0;
-      }
-      processedStats.byPriority[stat.priority] += count;
+    const { count, rows: queries } = await Query.findAndCountAll({
+      where,
+      attributes: ['id', 'title', 'description', 'category', 'adminResponse', 'createdAt', 'rating'],
+      order: [['createdAt', 'DESC']],
+      limit,
+      offset
     });
 
-    res.json({
-      success: true,
-      message: 'Query statistics retrieved successfully',
-      data: processedStats
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Public queries retrieved successfully",
+      data: queries,
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit)
+      }
     });
   } catch (error) {
-    console.error('Get query stats error:', error);
     res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve query statistics',
-      error: error.message
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
     });
   }
 };
-
-module.exports = {
-  createQuery,
-  getAllQueries,
-  getMyQueries,
-  getQueryById,
-  updateQuery,
-  deleteQuery,
-  assignQuery,
-  getQueryStats
-}; 

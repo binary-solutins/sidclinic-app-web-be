@@ -1,7 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 const User = require('./user.model');
-const Doctor = require('./doctor.model');
 
 const Query = sequelize.define('Query', {
   id: {
@@ -40,11 +39,7 @@ const Query = sequelize.define('Query', {
   },
   raisedBy: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: User,
-      key: 'id'
-    }
+    allowNull: false
   },
   raisedByRole: {
     type: DataTypes.ENUM('user', 'doctor'),
@@ -52,16 +47,11 @@ const Query = sequelize.define('Query', {
   },
   assignedTo: {
     type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: User,
-      key: 'id'
-    }
+    allowNull: true
   },
   attachments: {
     type: DataTypes.JSON,
-    allowNull: true,
-    comment: 'Array of file URLs or file information'
+    allowNull: true
   },
   resolvedAt: {
     type: DataTypes.DATE,
@@ -76,6 +66,8 @@ const Query = sequelize.define('Query', {
     defaultValue: true
   }
 }, {
+  tableName: 'Queries',
+  timestamps: true,
   indexes: [
     {
       fields: ['raisedBy']
@@ -92,17 +84,15 @@ const Query = sequelize.define('Query', {
     {
       fields: ['createdAt']
     }
-  ],
-  hooks: {
-    beforeUpdate: async (query) => {
-      // Set resolvedAt when status changes to Resolved or Closed
-      if (query.changed('status') && 
-          (query.status === 'Resolved' || query.status === 'Closed') && 
-          !query.resolvedAt) {
-        query.resolvedAt = new Date();
-      }
-    }
-  }
+  ]
 });
 
-module.exports = Query; 
+// Define associations
+User.hasMany(Query, { foreignKey: 'raisedBy', as: 'queries', onDelete: 'CASCADE' });
+Query.belongsTo(User, { foreignKey: 'raisedBy', as: 'user', onDelete: 'CASCADE' });
+
+// Assigned to associations
+User.hasMany(Query, { foreignKey: 'assignedTo', as: 'assignedQueries', onDelete: 'SET NULL' });
+Query.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignedToUser', onDelete: 'SET NULL' });
+
+module.exports = Query;
