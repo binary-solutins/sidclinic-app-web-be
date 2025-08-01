@@ -13,5 +13,17 @@ router.post(
   controller.sendNotification
 );
 router.post("/add-fcm-token", authenticate(), controller.updateFcmToken);
+router.get(
+  "/admin/all",
+  authenticate(),
+  authorize("admin"),
+  controller.getAllNotificationsForAdmin
+);
+router.get(
+  "/admin/stats",
+  authenticate(),
+  authorize("admin"),
+  controller.getNotificationStats
+);
 
 module.exports = router;

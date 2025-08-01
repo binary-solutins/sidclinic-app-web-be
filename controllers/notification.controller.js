@@ -229,40 +229,49 @@ module.exports = {
         });
       }
 
-      let fcmTokens = [];
+      let users = [];
 
       if (type === "both") {
-        const users = await User.findAll({
-          attributes: ["fcmToken"],
+        users = await User.findAll({
+          attributes: ["id", "fcmToken"],
         });
-        fcmTokens = users.map((user) => user.fcmToken);
       } else if (type === "user") {
-        const users = await User.findAll({
+        users = await User.findAll({
           where: { role: "user" },
-          attributes: ["fcmToken"],
+          attributes: ["id", "fcmToken"],
         });
-        fcmTokens = users.map((user) => user.fcmToken);
         console.log(
-          `[DEBUG] sendNotification - Found ${fcmTokens.length} users with FCM tokens`
+          `[DEBUG] sendNotification - Found ${users.length} users with FCM tokens`
         );
       } else {
-        const doctors = await User.findAll({
+        users = await User.findAll({
           where: { role: "doctor" },
-          attributes: ["fcmToken"],
+          attributes: ["id", "fcmToken"],
         });
-        fcmTokens = doctors.map((doctor) => doctor.fcmToken);
         console.log(
-          `[DEBUG] sendNotification - Found ${fcmTokens.length} doctors with FCM tokens`
+          `[DEBUG] sendNotification - Found ${users.length} doctors with FCM tokens`
         );
       }
 
-      if (fcmTokens.length === 0) {
+      if (users.length === 0) {
         console.log(
           `[DEBUG] sendNotification - No ${type}s found with FCM tokens`
         );
         return res.status(404).json({
           success: false,
           message: `No ${type}s found with FCM tokens`,
+        });
+      }
+
+      const fcmTokens = users.map((user) => user.fcmToken).filter(token => token);
+
+      if (fcmTokens.length === 0) {
+        console.log(
+          `[DEBUG] sendNotification - No valid FCM tokens found for ${type}s`
+        );
+        return res.status(404).json({
+          success: false,
+          message: `No valid FCM tokens found for ${type}s`,
         });
       }
 
@@ -275,6 +284,32 @@ module.exports = {
         `[DEBUG] sendNotification - Starting to send notifications in ${Math.ceil(
           fcmTokens.length / CHUNK_SIZE
         )} chunks`
+      );
+
+      // Store notifications in database for each user
+      const notificationPromises = users.map(async (user) => {
+        try {
+          await Notification.create({
+            userId: user.id,
+            title: title,
+            message: body,
+            type: 'system',
+            data: data || {},
+            isRead: false
+          });
+          return { userId: user.id, success: true };
+        } catch (error) {
+          console.error(`[ERROR] Failed to store notification for user ${user.id}:`, error.message);
+          return { userId: user.id, success: false, error: error.message };
+        }
+      });
+
+      const storageResults = await Promise.all(notificationPromises);
+      const storageSuccess = storageResults.filter(r => r.success).length;
+      const storageFailed = storageResults.filter(r => !r.success).length;
+
+      console.log(
+        `[DEBUG] sendNotification - Stored notifications: ${storageSuccess} successful, ${storageFailed} failed`
       );
 
       for (let i = 0; i < fcmTokens.length; i += CHUNK_SIZE) {
@@ -337,8 +372,13 @@ module.exports = {
 
       res.json({
         success: true,
-        message: `Notification sent to ${successfulSends} ${type}s, ${failedSends} failed`,
+        message: `Notification sent to ${successfulSends} ${type}s, ${failedSends} failed. Stored ${storageSuccess} notifications in database.`,
         results: results,
+        storage: {
+          total: users.length,
+          successful: storageSuccess,
+          failed: storageFailed,
+        },
         summary: {
           total: fcmTokens.length,
           successful: successfulSends,
@@ -459,6 +499,310 @@ module.exports = {
       );
       res.status(500).json({
         status: "error",
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  /**
+   * @swagger
+   * /notifications/admin/all:
+   *   get:
+   *     summary: Get all notifications for admin (admin only)
+   *     tags: [Notifications]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 20
+   *         description: Number of notifications to return
+   *       - in: query
+   *         name: offset
+   *         schema:
+   *           type: integer
+   *           default: 0
+   *         description: Number of notifications to skip
+   *       - in: query
+   *         name: type
+   *         schema:
+   *           type: string
+   *           enum: [appointment, system, other]
+   *         description: Filter by notification type
+   *       - in: query
+   *         name: isRead
+   *         schema:
+   *           type: boolean
+   *         description: Filter by read status
+   *       - in: query
+   *         name: userId
+   *         schema:
+   *           type: integer
+   *         description: Filter by specific user ID
+   *       - in: query
+   *         name: startDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Filter notifications from this date (YYYY-MM-DD)
+   *       - in: query
+   *         name: endDate
+   *         schema:
+   *           type: string
+   *           format: date
+   *         description: Filter notifications until this date (YYYY-MM-DD)
+   *     responses:
+   *       200:
+   *         description: List of all notifications with pagination
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                   example: "success"
+   *                 code:
+   *                   type: integer
+   *                   example: 200
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     notifications:
+   *                       type: array
+   *                       items:
+   *                         $ref: '#/components/schemas/Notification'
+   *                     pagination:
+   *                       type: object
+   *                       properties:
+   *                         total:
+   *                           type: integer
+   *                         limit:
+   *                           type: integer
+   *                         offset:
+   *                           type: integer
+   *                         totalPages:
+   *                           type: integer
+   *                         currentPage:
+   *                           type: integer
+   *       401:
+   *         description: Unauthorized
+   *       403:
+   *         description: Forbidden - Admin access required
+   *       500:
+   *         description: Server error
+   */
+  getAllNotificationsForAdmin: async (req, res) => {
+    try {
+      console.log(
+        `[DEBUG] getAllNotificationsForAdmin - Admin ID: ${req.user.id}, Query params:`,
+        req.query
+      );
+
+      const {
+        limit = 20,
+        offset = 0,
+        type,
+        isRead,
+        userId,
+        startDate,
+        endDate,
+      } = req.query;
+
+      // Build where clause for filtering
+      const whereClause = {};
+
+      if (type) {
+        whereClause.type = type;
+      }
+
+      if (isRead !== undefined) {
+        whereClause.isRead = isRead === 'true';
+      }
+
+      if (userId) {
+        whereClause.userId = parseInt(userId);
+      }
+
+      // Date range filtering
+      if (startDate || endDate) {
+        whereClause.createdAt = {};
+        if (startDate) {
+          whereClause.createdAt[Op.gte] = new Date(startDate);
+        }
+        if (endDate) {
+          whereClause.createdAt[Op.lte] = new Date(endDate + ' 23:59:59');
+        }
+      }
+
+      // Get total count for pagination
+      const totalCount = await Notification.count({
+        where: whereClause,
+      });
+
+      // Get notifications with pagination and include user information
+      const notifications = await Notification.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: User,
+            attributes: ['id', 'name', 'phone', 'role'],
+          },
+        ],
+        order: [['createdAt', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+      });
+
+      // Calculate pagination info
+      const totalPages = Math.ceil(totalCount / parseInt(limit));
+      const currentPage = Math.floor(parseInt(offset) / parseInt(limit)) + 1;
+
+      console.log(
+        `[DEBUG] getAllNotificationsForAdmin - Found ${notifications.length} notifications out of ${totalCount} total for admin ${req.user.id}`
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        data: {
+          notifications,
+          pagination: {
+            total: totalCount,
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+            totalPages,
+            currentPage,
+          },
+        },
+      });
+    } catch (error) {
+      console.error(
+        `[ERROR] getAllNotificationsForAdmin - Admin ID: ${req.user.id}, Error:`,
+        error.message
+      );
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  /**
+   * @swagger
+   * /notifications/admin/stats:
+   *   get:
+   *     summary: Get notification statistics for admin (admin only)
+   *     tags: [Notifications]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Notification statistics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                   example: "success"
+   *                 code:
+   *                   type: integer
+   *                   example: 200
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     totalNotifications:
+   *                       type: integer
+   *                     unreadNotifications:
+   *                       type: integer
+   *                     readNotifications:
+   *                       type: integer
+   *                     notificationsByType:
+   *                       type: object
+   *                     recentActivity:
+   *                       type: array
+   *       401:
+   *         description: Unauthorized
+   *       403:
+   *         description: Forbidden - Admin access required
+   *       500:
+   *         description: Server error
+   */
+  getNotificationStats: async (req, res) => {
+    try {
+      console.log(
+        `[DEBUG] getNotificationStats - Admin ID: ${req.user.id}`
+      );
+
+      // Get total notifications count
+      const totalNotifications = await Notification.count();
+
+      // Get unread notifications count
+      const unreadNotifications = await Notification.count({
+        where: { isRead: false }
+      });
+
+      // Get read notifications count
+      const readNotifications = await Notification.count({
+        where: { isRead: true }
+      });
+
+      // Get notifications by type
+      const notificationsByType = await Notification.findAll({
+        attributes: [
+          'type',
+          [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+        ],
+        group: ['type'],
+        raw: true
+      });
+
+      // Get recent notifications (last 10)
+      const recentActivity = await Notification.findAll({
+        include: [
+          {
+            model: User,
+            attributes: ['id', 'name', 'phone', 'role'],
+          },
+        ],
+        order: [['createdAt', 'DESC']],
+        limit: 10,
+      });
+
+      // Convert notificationsByType to a more usable format
+      const typeStats = {};
+      notificationsByType.forEach(item => {
+        typeStats[item.type] = parseInt(item.count);
+      });
+
+      console.log(
+        `[DEBUG] getNotificationStats - Retrieved stats for admin ${req.user.id}: Total=${totalNotifications}, Unread=${unreadNotifications}`
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        data: {
+          totalNotifications,
+          unreadNotifications,
+          readNotifications,
+          notificationsByType: typeStats,
+          recentActivity,
+        },
+      });
+    } catch (error) {
+      console.error(
+        `[ERROR] getNotificationStats - Admin ID: ${req.user.id}, Error:`,
+        error.message
+      );
+      res.status(500).json({
+        status: 'error',
         code: 500,
         message: error.message,
       });
