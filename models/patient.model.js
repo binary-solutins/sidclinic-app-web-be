@@ -25,6 +25,11 @@ const Patient = sequelize.define('Patient', {
     allowNull: false,
     validate: { isEmail: true }
   },
+  profileImage: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Appwrite URL to patient profile image'
+  },
   languagePreference: {
     type: DataTypes.ENUM('English', 'Hindi', 'Gujarati'),
     defaultValue: 'English'

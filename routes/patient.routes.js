@@ -382,4 +382,59 @@ router.post('/consultation-reports', authenticate(), patientController.addConsul
 router.get('/consultation-reports', authenticate(), patientController.getConsultationReports);
 router.get('/consultation-reports/:id', authenticate(), patientController.getConsultationReport);
 
+// Profile Image Routes
+const multer = require('multer');
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+/**
+ * @swagger
+ * /patients/profile-image:
+ *   post:
+ *     summary: Upload profile image
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile image file
+ *     responses:
+ *       200:
+ *         description: Profile image uploaded successfully
+ *       400:
+ *         description: No image uploaded
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+
+/**
+ * @swagger
+ * /patients/profile-image:
+ *   get:
+ *     summary: Get profile image
+ *     tags: [Patients]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile image retrieved successfully
+ *       404:
+ *         description: No profile image found
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.post('/profile-image', authenticate(), upload.single('image'), patientController.uploadProfileImage);
+router.get('/profile-image', authenticate(), patientController.getProfileImage);
+
 module.exports = router;
