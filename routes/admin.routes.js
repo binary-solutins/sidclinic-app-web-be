@@ -597,11 +597,164 @@ const { authenticate, authorize } = require('../middleware/auth');
  *         $ref: '#/components/responses/ServerError'
  */
 
+/**
+ * @swagger
+ * /admin/dental-images:
+ *   get:
+ *     summary: Get all dental images with pagination (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of items per page
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: integer
+ *         description: Filter by user ID
+ *       - in: query
+ *         name: relativeId
+ *         schema:
+ *           type: integer
+ *         description: Filter by relative ID
+ *       - in: query
+ *         name: imageType
+ *         schema:
+ *           type: string
+ *           enum: [xray, photo, scan, other]
+ *         description: Filter by image type
+ *     responses:
+ *       200:
+ *         description: All dental images retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: All dental images retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     images:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/DentalImageResponse'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         totalItems:
+ *                           type: integer
+ *                         itemsPerPage:
+ *                           type: integer
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+
+/**
+ * @swagger
+ * /admin/dental-images/urls:
+ *   get:
+ *     summary: Get all dental image URLs only (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of items per page
+ *     responses:
+ *       200:
+ *         description: All image URLs retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: All image URLs retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     imageUrls:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Array of all image URLs
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                         totalItems:
+ *                           type: integer
+ *                         itemsPerPage:
+ *                           type: integer
+ *                         totalImageUrls:
+ *                           type: integer
+ *                           description: Total number of image URLs
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+
 // Routes
 router.get('/users', authenticate(), authorize('admin'), adminController.listAllUsers);
 router.post('/user', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
 router.put('/user/:id', authenticate(), authorize('admin'), adminController.createOrUpdateUser); 
 router.post('/doctor', authenticate(), authorize('admin'), adminController.createOrUpdateDoctor);
 router.put('/doctor/:id', authenticate(), authorize('admin'), adminController.createOrUpdateDoctor);
+
+// Dental Image Admin Routes
+const dentalImageController = require('../controllers/dentalImage.controller');
+router.get('/dental-images', authenticate(), authorize('admin'), dentalImageController.getAllDentalImages);
+router.get('/dental-images/urls', authenticate(), authorize('admin'), dentalImageController.getAllImageUrls);
 
 module.exports = router;
