@@ -1,4 +1,3 @@
-const { Client, Storage } = require('node-appwrite');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const FormData = require('form-data');
@@ -7,15 +6,9 @@ const FamilyMember = require('../models/familyMember.model');
 const Patient = require('../models/patient.model');
 
 // Appwrite configuration
-const client = new Client();
-client
-  .setEndpoint(process.env.APPWRITE_ENDPOINT)
-  .setProject(process.env.APPWRITE_PROJECT_ID);
-
-const storage = new Storage(client);
 const bucketId = process.env.APPWRITE_BUCKET_ID;
 
-// Helper function to upload image to Appwrite
+// Helper function to upload image to Appwrite (same as other controllers)
 const uploadImage = async (file) => {
   try {
     const fileId = uuidv4();
