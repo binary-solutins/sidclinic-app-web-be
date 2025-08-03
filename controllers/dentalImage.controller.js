@@ -55,8 +55,11 @@ exports.uploadDentalImages = async (req, res) => {
       });
     }
 
-    // Validate relativeId if provided
-    if (relativeId) {
+    let finalRelativeId = null;
+
+    // Handle relativeId validation
+    if (relativeId && relativeId !== '0' && relativeId !== 0) {
+      // Validate relativeId if provided and not 0
       const patient = await Patient.findOne({ where: { userId: req.user.id } });
       if (!patient) {
         return res.status(404).json({
@@ -78,6 +81,11 @@ exports.uploadDentalImages = async (req, res) => {
           data: null
         });
       }
+      
+      finalRelativeId = relativeId;
+    } else if (relativeId === '0' || relativeId === 0) {
+      // Patient uploading for themselves
+      finalRelativeId = null;
     }
 
     // Upload all images to Appwrite
@@ -90,7 +98,7 @@ exports.uploadDentalImages = async (req, res) => {
     // Create dental image record
     const dentalImage = await DentalImage.create({
       userId: req.user.id,
-      relativeId: relativeId || null,
+      relativeId: finalRelativeId,
       imageUrls,
       description,
       imageType
@@ -106,6 +114,7 @@ exports.uploadDentalImages = async (req, res) => {
         description,
         imageType,
         relativeId: dentalImage.relativeId,
+        isForSelf: dentalImage.relativeId === null,
         createdAt: dentalImage.createdAt
       }
     });
@@ -128,9 +137,18 @@ exports.getUserDentalImages = async (req, res) => {
 
     // Build where clause
     const whereClause = { userId: req.user.id, isActive: true };
+    
+    // Handle relativeId filtering
     if (relativeId) {
-      whereClause.relativeId = relativeId;
+      if (relativeId === '0' || relativeId === 0) {
+        // Filter for patient's own images (relativeId is null)
+        whereClause.relativeId = null;
+      } else {
+        // Filter for specific relative
+        whereClause.relativeId = relativeId;
+      }
     }
+    
     if (imageType) {
       whereClause.imageType = imageType;
     }
@@ -269,9 +287,18 @@ exports.getAllDentalImages = async (req, res) => {
     if (userId) {
       whereClause.userId = userId;
     }
+    
+    // Handle relativeId filtering
     if (relativeId) {
-      whereClause.relativeId = relativeId;
+      if (relativeId === '0' || relativeId === 0) {
+        // Filter for patient's own images (relativeId is null)
+        whereClause.relativeId = null;
+      } else {
+        // Filter for specific relative
+        whereClause.relativeId = relativeId;
+      }
     }
+    
     if (imageType) {
       whereClause.imageType = imageType;
     }
