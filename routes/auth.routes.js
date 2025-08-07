@@ -91,6 +91,18 @@
  *         newPassword:
  *           type: string
  *           example: "newSecurePassword123"
+ *     LoginWithOtpRequest:
+ *       type: object
+ *       required:
+ *         - phone
+ *         - otp
+ *       properties:
+ *         phone:
+ *           type: string
+ *           example: "+1234567890"
+ *         otp:
+ *           type: string
+ *           example: "123456"
  *     UserResponse:
  *       type: object
  *       properties:
@@ -153,6 +165,76 @@ const { authenticate } = require('../middleware/auth');
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/send-otp', authController.sendOtp);
+
+/**
+ * @swagger
+ * /auth/send-login-otp:
+ *   post:
+ *     summary: Send OTP for login
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SendOtpRequest'
+ *     responses:
+ *       200:
+ *         description: Login OTP sent successfully
+ *       400:
+ *         description: User not found or invalid request
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/send-login-otp', authController.sendLoginOtp);
+
+/**
+ * @swagger
+ * /auth/login-with-otp:
+ *   post:
+ *     summary: Login with OTP verification
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginWithOtpRequest'
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserResponse'
+ *       400:
+ *         description: Invalid OTP or validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/login-with-otp', authController.loginWithOtp);
 
 /**
  * @swagger

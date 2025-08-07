@@ -762,6 +762,209 @@ const resetPassword = async (req, res) => {
   }
 };
 
+/**
+ * Send OTP for login
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const sendLoginOtp = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    // Validate phone number
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    // Format phone number
+    const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+    
+    if (formattedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid phone number format. Please enter a valid 10-digit number.'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({
+      where: {
+        phone: `+91${formattedPhone}`
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User not found with this phone number'
+      });
+    }
+
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save OTP to database
+    const OTP = require('../models/Otp.model');
+    await OTP.create({
+      phone: `+91${formattedPhone}`,
+      otp,
+      expiresAt,
+      isUsed: false
+    });
+
+    // Send OTP via SMS
+    try {
+      await sendSMSViaGatewayHub(`+91${formattedPhone}`, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Login OTP sent successfully'
+      });
+    } catch (smsError) {
+      console.error('SMS sending failed:', smsError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP. Please try again.'
+      });
+    }
+
+  } catch (error) {
+    console.error('Send login OTP error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+/**
+ * Login with OTP verification
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const loginWithOtp = async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+
+    // Validate input
+    if (!phone || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and OTP are required'
+      });
+    }
+
+    // Format phone number
+    const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+    
+    if (formattedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid phone number format'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({
+      where: {
+        phone: `+91${formattedPhone}`
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify OTP
+    const OTP = require('../models/Otp.model');
+    const otpRecord = await OTP.findOne({
+      where: {
+        phone: `+91${formattedPhone}`,
+        otp,
+        isUsed: false,
+        expiresAt: {
+          [Op.gt]: new Date()
+        }
+      }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Mark OTP as used
+    await otpRecord.update({ isUsed: true });
+
+    // Check if user is a doctor and if they are approved
+    if (user.role === 'doctor') {
+      const doctor = await Doctor.findOne({ where: { userId: user.id } });
+      if (doctor && !doctor.isApproved) {
+        return res.status(403).json({
+          success: false,
+          message: 'User currently in verification, not approved'
+        });
+      }
+    }
+
+    // Generate token
+    const token = generateToken(user);
+
+    // If user is a doctor, fetch doctor id
+    let doctorId = null;
+    let patientId = null;
+    if (user.role === 'doctor') {
+      const doctor = await Doctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
+      if (doctor) {
+        doctorId = doctor.id;
+      }
+    } else if (user.role === 'user') {
+      const Patient = require('../models/patient.model');
+      const patient = await Patient.findOne({ where: { userId: user.id }, attributes: ['id'] });
+      if (patient) {
+        patientId = patient.id;
+      }
+    }
+
+    // Build response data
+    const responseData = {
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      token
+    };
+    if (doctorId) {
+      responseData.doctorId = doctorId;
+    }
+    if (patientId) {
+      responseData.patientId = patientId;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      data: responseData
+    });
+
+  } catch (error) {
+    console.error('Login with OTP error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 module.exports = {
   sendOtp,
   register,
@@ -769,5 +972,7 @@ module.exports = {
   getProfile,
   checkUserExists,
   sendResetOtp,
-  resetPassword
+  resetPassword,
+  sendLoginOtp,
+  loginWithOtp
 };

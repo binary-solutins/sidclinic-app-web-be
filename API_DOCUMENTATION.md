@@ -277,6 +277,51 @@ Content-Type: application/json
 }
 ```
 
+#### Send Login OTP
+```http
+POST /auth/send-login-otp
+Content-Type: application/json
+
+{
+  "phone": "+919876543210"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login OTP sent successfully"
+}
+```
+
+#### Login with OTP
+```http
+POST /auth/login-with-otp
+Content-Type: application/json
+
+{
+  "phone": "+919876543210",
+  "otp": "123456"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "id": 1,
+    "name": "John Doe",
+    "phone": "+919876543210",
+    "role": "user",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "patientId": 1
+  }
+}
+```
+
 ### Doctor Management
 
 #### Create Doctor Profile
@@ -449,167 +494,4 @@ GET /blogs
 ## Authentication & Authorization
 
 ### JWT Token Structure
-```json
-{
-  "id": 1,
-  "name": "John Doe",
-  "phone": "+919876543210",
-  "role": "user",
-  "iat": 1640995200,
-  "exp": 1641081600
-}
 ```
-
-### Role-based Access Control
-
-#### User Role
-- View own profile
-- Manage appointments
-- Upload medical reports
-- Create queries
-- View blogs
-
-#### Doctor Role
-- All user permissions
-- Manage patient profiles
-- Update appointment status
-- Add oral health scores
-- View assigned queries
-
-#### Admin Role
-- All doctor permissions
-- Manage all users
-- Approve doctor profiles
-- Manage all queries
-- Manage blogs
-- View system statistics
-
-## File Upload System
-
-### Appwrite Integration
-- **File Types**: Images, PDFs, documents
-- **Size Limits**: 10MB per file
-- **Security**: Signed URLs for secure access
-- **Organization**: Structured folder system
-
-### Upload Endpoints
-- Profile images: `/uploads/profiles/`
-- Medical reports: `/uploads/reports/`
-- Clinic photos: `/uploads/clinics/`
-
-## Real-time Features
-
-### WebSocket Events
-
-#### Video Call Events
-```javascript
-// Join room
-socket.emit('join-room', roomId);
-
-// WebRTC signaling
-socket.on('offer', (offer) => socket.to(roomId).emit('offer', offer));
-socket.on('answer', (answer) => socket.to(roomId).emit('answer', answer));
-socket.on('ice-candidate', (candidate) => socket.to(roomId).emit('ice-candidate', candidate));
-```
-
-### Video Call Implementation
-- **WebRTC**: Peer-to-peer video communication
-- **Socket.io**: Signaling server
-- **Azure Communication Services**: Alternative video solution
-- **Room Management**: Unique room IDs for each consultation
-
-## Security Features
-
-### Rate Limiting
-```javascript
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: "Too many authentication attempts"
-});
-```
-
-### Helmet Security
-```javascript
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      "script-src": ["'self'", "'unsafe-inline'"],
-      "media-src": ["'self'", "blob:"],
-      "connect-src": ["'self'", "wss:", "ws:"]
-    }
-  }
-}));
-```
-
-### Password Security
-- **bcryptjs**: Password hashing with salt rounds
-- **JWT**: Secure token-based authentication
-- **Input Validation**: Request data sanitization
-
-## Email Notifications
-
-### Email Templates
-Located in `templates/emails/`:
-- `doctor_activated.hbs`
-- `doctor_approved.hbs`
-- `doctor_disapproved.hbs`
-- `doctor_suspended.hbs`
-
-### Email Types
-- **Account Activation**: Welcome emails
-- **Appointment Reminders**: 24h and 1h before
-- **Status Updates**: Doctor approval/rejection
-- **Password Reset**: OTP emails
-
-## Deployment
-
-### Production Environment Variables
-```env
-NODE_ENV=production
-PORT=3000
-DB_HOST=your-production-db-host
-DB_USER=your-production-db-user
-DB_PASSWORD=your-production-db-password
-DB_NAME=your-production-db-name
-JWT_SECRET=your-production-jwt-secret
-```
-
-### Deployment Platforms
-- **Vercel**: Serverless deployment
-- **Render**: Cloud platform
-- **Heroku**: Container-based deployment
-- **AWS**: EC2 or ECS deployment
-
-## Error Codes
-
-- `400`: Bad Request
-- `401`: Unauthorized
-- `403`: Forbidden
-- `404`: Not Found
-- `422`: Validation Error
-- `500`: Internal Server Error
-
-## Rate Limits
-
-- **Authentication**: 100 requests per 15 minutes
-- **General API**: 1000 requests per hour
-- **File Upload**: 50 requests per hour
-
-## Support
-
-### Documentation Access
-- **Swagger UI**: Available at `/api-docs`
-- **API Version**: Current version v1
-- **Base URL**: All endpoints under `/api/` prefix
-
-### Contact Information
-- **Email**: support@sidclinic.com
-- **Technical Support**: Available via GitHub issues
-- **Documentation**: Comprehensive guides available
-
----
-
-**Last Updated**: January 2025
-**Version**: 1.0.0
-**Maintainer**: SID Clinic Development Team 
