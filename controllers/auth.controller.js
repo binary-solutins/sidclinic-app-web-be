@@ -126,6 +126,8 @@ sendOtp = async (req, res) => {
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000);
 
+    console.log('otp ==========> ', otp)
+
     // Always use the approved template
     const message = SMS_TEMPLATE.OTP_MESSAGE(otp);
 
