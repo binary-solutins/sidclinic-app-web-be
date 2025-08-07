@@ -54,7 +54,7 @@ const sendSMSViaGatewayHub = async (phone, message, otp = null) => {
   try {
     // Only use the phone number as provided, do not prepend '91'
     let formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     // Validate it's exactly 10 digits
     if (formattedPhone.length !== 10) {
       throw new Error('Invalid phone number format');
@@ -99,7 +99,7 @@ const sendSMSViaGatewayHub = async (phone, message, otp = null) => {
   }
 };
 
-exports.sendOtp = async (req, res) => {
+sendOtp = async (req, res) => {
   try {
     const { phone } = req.body;
 
@@ -234,7 +234,7 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
-exports.register = async (req, res) => {
+register = async (req, res) => {
   try {
     // Log the request body for debugging
     console.log('Register request body:', req.body);
@@ -369,7 +369,7 @@ exports.resendOtp = async (req, res) => {
   }
 };
 
-exports.login = async (req, res) => {
+login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
@@ -475,7 +475,7 @@ exports.login = async (req, res) => {
   }
 };
 
-exports.getProfile = async (req, res) => {
+getProfile = async (req, res) => {
   try {
     // Defensive: check req.user and req.user.id
     if (!req.user || !req.user.id) {
@@ -495,9 +495,9 @@ exports.getProfile = async (req, res) => {
           model: Doctor,
           as: 'Doctor',
           attributes: [
-            'id', 'doctorPhoto', 'degree', 'registrationNumber', 'clinicName', 
-            'clinicPhotos', 'yearsOfExperience', 'specialty', 'clinicContactNumber', 
-            'email', 'address', 'country', 'state', 'city', 'locationPin', 
+            'id', 'doctorPhoto', 'degree', 'registrationNumber', 'clinicName',
+            'clinicPhotos', 'yearsOfExperience', 'specialty', 'clinicContactNumber',
+            'email', 'address', 'country', 'state', 'city', 'locationPin',
             'isApproved', 'is_active', 'startTime', 'endTime'
           ],
           required: false
@@ -563,7 +563,7 @@ const checkUserExists = async (req, res) => {
 
     // Format phone number
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -612,7 +612,7 @@ const sendResetOtp = async (req, res) => {
 
     // Format phone number
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -650,7 +650,7 @@ const sendResetOtp = async (req, res) => {
     // Send OTP via SMS
     try {
       await sendSMSViaGatewayHub(`+91${formattedPhone}`, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
-      
+
       return res.status(200).json({
         success: true,
         message: 'Reset OTP sent successfully'
@@ -699,7 +699,7 @@ const resetPassword = async (req, res) => {
 
     // Format phone number
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -781,7 +781,7 @@ const sendLoginOtp = async (req, res) => {
 
     // Format phone number
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -819,7 +819,7 @@ const sendLoginOtp = async (req, res) => {
     // Send OTP via SMS
     try {
       await sendSMSViaGatewayHub(`+91${formattedPhone}`, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
-      
+
       return res.status(200).json({
         success: true,
         message: 'Login OTP sent successfully'
@@ -860,7 +860,7 @@ const loginWithOtp = async (req, res) => {
 
     // Format phone number
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
