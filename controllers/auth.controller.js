@@ -543,3 +543,231 @@ exports.getProfile = async (req, res) => {
     });
   }
 };
+
+/**
+ * Check if a user exists by phone number
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const checkUserExists = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    // Validate phone number
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    // Format phone number
+    const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+    
+    if (formattedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid phone number format. Please enter a valid 10-digit number.'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({
+      where: {
+        phone: `+91${formattedPhone}`
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      exists: !!user,
+      message: user ? 'User exists' : 'User does not exist'
+    });
+
+  } catch (error) {
+    console.error('Check user exists error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+/**
+ * Send OTP for password reset
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const sendResetOtp = async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    // Validate phone number
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    // Format phone number
+    const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+    
+    if (formattedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid phone number format. Please enter a valid 10-digit number.'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({
+      where: {
+        phone: `+91${formattedPhone}`
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User not found with this phone number'
+      });
+    }
+
+    // Generate OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save OTP to database
+    const OTP = require('../models/Otp.model');
+    await OTP.create({
+      phone: `+91${formattedPhone}`,
+      otp,
+      expiresAt,
+      isUsed: false
+    });
+
+    // Send OTP via SMS
+    try {
+      await sendSMSViaGatewayHub(`+91${formattedPhone}`, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Reset OTP sent successfully'
+      });
+    } catch (smsError) {
+      console.error('SMS sending failed:', smsError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP. Please try again.'
+      });
+    }
+
+  } catch (error) {
+    console.error('Send reset OTP error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+/**
+ * Reset password with OTP verification
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { phone, otp, newPassword } = req.body;
+
+    // Validate input
+    if (!phone || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number, OTP, and new password are required'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      });
+    }
+
+    // Format phone number
+    const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+    
+    if (formattedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid phone number format'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({
+      where: {
+        phone: `+91${formattedPhone}`
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify OTP
+    const OTP = require('../models/Otp.model');
+    const otpRecord = await OTP.findOne({
+      where: {
+        phone: `+91${formattedPhone}`,
+        otp,
+        isUsed: false,
+        expiresAt: {
+          [Op.gt]: new Date()
+        }
+      }
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Mark OTP as used
+    await otpRecord.update({ isUsed: true });
+
+    // Update user password
+    user.password = newPassword; // Will be hashed by the model hook
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+module.exports = {
+  sendOtp,
+  register,
+  login,
+  getProfile,
+  checkUserExists,
+  sendResetOtp,
+  resetPassword
+};
