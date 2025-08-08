@@ -60,7 +60,7 @@ exports.getProfile = async (req, res) => {
     });
 
     if (!profile) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         status: 'error',
         code: 404,
         message: 'Patient profile not found or not associated with user',
@@ -75,7 +75,7 @@ exports.getProfile = async (req, res) => {
       data: profile
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       status: 'error',
       code: 500,
       message: error.message,
@@ -96,23 +96,62 @@ exports.setupProfile = async (req, res) => {
       });
     }
 
+    // Handle user profile updates (name, phone, gender)
+    // Check if name is provided directly in request body or nested under user
+    let userUpdateData = {};
+
+    if (req.body.user) {
+      if (req.body.user.name) userUpdateData.name = req.body.user.name;
+      if (req.body.user.phone) userUpdateData.phone = req.body.user.phone;
+      if (req.body.user.gender) userUpdateData.gender = req.body.user.gender;
+    } else if (req.body.name) {
+      // Handle case where name is sent directly in request body
+      userUpdateData.name = req.body.name;
+    }
+
+    if (Object.keys(userUpdateData).length > 0) {
+      await user.update(userUpdateData);
+      await user.reload();
+    }
+
+    // Handle patient profile updates
+    const patientData = { ...req.body };
+    delete patientData.user; // Remove user data from patient update
+    delete patientData.name; // Remove name from patient data since it's handled in user table
+
+    // Validate email if provided
+    if (patientData.email !== undefined && patientData.email !== null) {
+      if (patientData.email === '') {
+        delete patientData.email; // Remove empty email to avoid validation error
+      }
+    }
+
     const [patient, created] = await Patient.findOrCreate({
       where: { userId: user.id },
       defaults: {
-        ...req.body,
+        ...patientData,
         userId: user.id
       }
     });
 
     if (!created) {
-      await patient.update(req.body);
+      await patient.update(patientData);
     }
 
-    res.status(created ? 201 : 200).json({ 
+    // Fetch updated data with user information
+    const updatedPatient = await Patient.findOne({
+      where: { userId: user.id },
+      include: [{
+        model: User,
+        attributes: ['name', 'phone', 'gender']
+      }]
+    });
+
+    res.status(created ? 201 : 200).json({
       status: 'success',
       code: created ? 201 : 200,
       message: created ? 'Profile created successfully' : 'Profile updated successfully',
-      data: patient 
+      data: updatedPatient
     });
   } catch (error) {
     res.status(500).json({
@@ -202,9 +241,9 @@ exports.updateFamilyMember = async (req, res) => {
     }
 
     const familyMember = await FamilyMember.findOne({
-      where: { 
+      where: {
         id: req.params.id,
-        patientId: patient.id 
+        patientId: patient.id
       }
     });
 
@@ -248,9 +287,9 @@ exports.deleteFamilyMember = async (req, res) => {
     }
 
     const familyMember = await FamilyMember.findOne({
-      where: { 
+      where: {
         id: req.params.id,
-        patientId: patient.id 
+        patientId: patient.id
       }
     });
 
@@ -441,9 +480,9 @@ exports.getConsultationReport = async (req, res) => {
     }
 
     const report = await ConsultationReport.findOne({
-      where: { 
+      where: {
         id: req.params.id,
-        patientId: patient.id 
+        patientId: patient.id
       }
     });
 
