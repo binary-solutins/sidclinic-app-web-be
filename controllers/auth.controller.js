@@ -561,7 +561,7 @@ const checkUserExists = async (req, res) => {
       });
     }
 
-    // Format phone number
+    // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
     
     if (formattedPhone.length !== 10) {
@@ -571,10 +571,10 @@ const checkUserExists = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Check if user exists - use the formatted phone number without +91 prefix
     const user = await User.findOne({
       where: {
-        phone: `+91${formattedPhone}`
+        phone: formattedPhone
       }
     });
 
@@ -610,7 +610,7 @@ const sendResetOtp = async (req, res) => {
       });
     }
 
-    // Format phone number
+    // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
     
     if (formattedPhone.length !== 10) {
@@ -620,10 +620,10 @@ const sendResetOtp = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Check if user exists - use the formatted phone number without +91 prefix
     const user = await User.findOne({
       where: {
-        phone: `+91${formattedPhone}`
+        phone: formattedPhone
       }
     });
 
@@ -636,20 +636,19 @@ const sendResetOtp = async (req, res) => {
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Save OTP to database
+    // Save OTP to database - use formatted phone number
     const OTP = require('../models/Otp.model');
     await OTP.create({
-      phone: `+91${formattedPhone}`,
+      phone: formattedPhone,
       otp,
-      expiresAt,
-      isUsed: false
+      expirationTime
     });
 
     // Send OTP via SMS
     try {
-      await sendSMSViaGatewayHub(`+91${formattedPhone}`, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
+      await sendSMSViaGatewayHub(formattedPhone, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
       
       return res.status(200).json({
         success: true,
@@ -697,7 +696,7 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Format phone number
+    // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
     
     if (formattedPhone.length !== 10) {
@@ -707,10 +706,10 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Check if user exists - use the formatted phone number without +91 prefix
     const user = await User.findOne({
       where: {
-        phone: `+91${formattedPhone}`
+        phone: formattedPhone
       }
     });
 
@@ -721,14 +720,13 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Verify OTP
+    // Verify OTP - use formatted phone number
     const OTP = require('../models/Otp.model');
     const otpRecord = await OTP.findOne({
       where: {
-        phone: `+91${formattedPhone}`,
+        phone: formattedPhone,
         otp,
-        isUsed: false,
-        expiresAt: {
+        expirationTime: {
           [Op.gt]: new Date()
         }
       }
@@ -741,8 +739,8 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Mark OTP as used
-    await otpRecord.update({ isUsed: true });
+    // Delete the OTP after successful verification
+    await otpRecord.destroy();
 
     // Update user password
     user.password = newPassword; // Will be hashed by the model hook
@@ -779,7 +777,7 @@ const sendLoginOtp = async (req, res) => {
       });
     }
 
-    // Format phone number
+    // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
     
     if (formattedPhone.length !== 10) {
@@ -789,10 +787,10 @@ const sendLoginOtp = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Check if user exists - use the formatted phone number without +91 prefix
     const user = await User.findOne({
       where: {
-        phone: `+91${formattedPhone}`
+        phone: formattedPhone
       }
     });
 
@@ -805,20 +803,19 @@ const sendLoginOtp = async (req, res) => {
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Save OTP to database
+    // Save OTP to database - use formatted phone number
     const OTP = require('../models/Otp.model');
     await OTP.create({
-      phone: `+91${formattedPhone}`,
+      phone: formattedPhone,
       otp,
-      expiresAt,
-      isUsed: false
+      expirationTime
     });
 
     // Send OTP via SMS
     try {
-      await sendSMSViaGatewayHub(`+91${formattedPhone}`, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
+      await sendSMSViaGatewayHub(formattedPhone, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
       
       return res.status(200).json({
         success: true,
@@ -858,7 +855,7 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Format phone number
+    // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
     
     if (formattedPhone.length !== 10) {
@@ -868,10 +865,10 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Check if user exists
+    // Check if user exists - use the formatted phone number without +91 prefix
     const user = await User.findOne({
       where: {
-        phone: `+91${formattedPhone}`
+        phone: formattedPhone
       }
     });
 
@@ -882,14 +879,13 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Verify OTP
+    // Verify OTP - use formatted phone number
     const OTP = require('../models/Otp.model');
     const otpRecord = await OTP.findOne({
       where: {
-        phone: `+91${formattedPhone}`,
+        phone: formattedPhone,
         otp,
-        isUsed: false,
-        expiresAt: {
+        expirationTime: {
           [Op.gt]: new Date()
         }
       }
@@ -902,8 +898,8 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Mark OTP as used
-    await otpRecord.update({ isUsed: true });
+    // Delete the OTP after successful verification
+    await otpRecord.destroy();
 
     // Check if user is a doctor and if they are approved
     if (user.role === 'doctor') {
@@ -966,10 +962,12 @@ const loginWithOtp = async (req, res) => {
 };
 
 module.exports = {
-  sendOtp,
-  register,
-  login,
-  getProfile,
+  sendOtp: exports.sendOtp,
+  verifyOtp: exports.verifyOtp,
+  register: exports.register,
+  resendOtp: exports.resendOtp,
+  login: exports.login,
+  getProfile: exports.getProfile,
   checkUserExists,
   sendResetOtp,
   resetPassword,
