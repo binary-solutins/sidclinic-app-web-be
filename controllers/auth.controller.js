@@ -54,7 +54,7 @@ const sendSMSViaGatewayHub = async (phone, message, otp = null) => {
   try {
     // Only use the phone number as provided, do not prepend '91'
     let formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     // Validate it's exactly 10 digits
     if (formattedPhone.length !== 10) {
       throw new Error('Invalid phone number format');
@@ -250,42 +250,6 @@ exports.register = async (req, res) => {
         data: null
       });
     }
-
-    // Validate OTP from global cache
-    if (!global.otpCache || !global.otpCache[phone]) {
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'OTP not found or expired. Please request a new OTP.',
-        data: null
-      });
-    }
-
-    const storedOtpData = global.otpCache[phone];
-
-    // Check if OTP is expired
-    if (Date.now() > storedOtpData.expiresAt) {
-      delete global.otpCache[phone];
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'OTP has expired',
-        data: null
-      });
-    }
-
-    // Check if OTP is verified
-    if (!storedOtpData.verified) {
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'OTP not verified. Please verify OTP first.',
-        data: null
-      });
-    }
-
-    // Clear OTP after successful verification
-    delete global.otpCache[phone];
 
     const user = await User.create({ name, phone, password, gender, role });
     const token = generateToken(user);
@@ -495,9 +459,9 @@ exports.getProfile = async (req, res) => {
           model: Doctor,
           as: 'Doctor',
           attributes: [
-            'id', 'doctorPhoto', 'degree', 'registrationNumber', 'clinicName', 
-            'clinicPhotos', 'yearsOfExperience', 'specialty', 'clinicContactNumber', 
-            'email', 'address', 'country', 'state', 'city', 'locationPin', 
+            'id', 'doctorPhoto', 'degree', 'registrationNumber', 'clinicName',
+            'clinicPhotos', 'yearsOfExperience', 'specialty', 'clinicContactNumber',
+            'email', 'address', 'country', 'state', 'city', 'locationPin',
             'isApproved', 'is_active', 'startTime', 'endTime'
           ],
           required: false
@@ -563,7 +527,7 @@ const checkUserExists = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -612,7 +576,7 @@ const sendResetOtp = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -640,10 +604,10 @@ const sendResetOtp = async (req, res) => {
 
     // Save OTP to database - use formatted phone number
     const OTP = require('../models/Otp.model');
-    
+
     // Check if OTP already exists for this phone number
     const existingOtp = await OTP.findByPk(formattedPhone);
-    
+
     if (existingOtp) {
       // Update existing OTP
       await existingOtp.update({
@@ -662,7 +626,7 @@ const sendResetOtp = async (req, res) => {
     // Send OTP via SMS
     try {
       await sendSMSViaGatewayHub(formattedPhone, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
-      
+
       return res.status(200).json({
         success: true,
         message: 'Reset OTP sent successfully'
@@ -711,7 +675,7 @@ const resetPassword = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -792,7 +756,7 @@ const sendLoginOtp = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -820,10 +784,10 @@ const sendLoginOtp = async (req, res) => {
 
     // Save OTP to database - use formatted phone number
     const OTP = require('../models/Otp.model');
-    
+
     // Check if OTP already exists for this phone number
     const existingOtp = await OTP.findByPk(formattedPhone);
-    
+
     if (existingOtp) {
       // Update existing OTP
       await existingOtp.update({
@@ -842,7 +806,7 @@ const sendLoginOtp = async (req, res) => {
     // Send OTP via SMS
     try {
       await sendSMSViaGatewayHub(formattedPhone, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
-      
+
       return res.status(200).json({
         success: true,
         message: 'Login OTP sent successfully'
@@ -883,7 +847,7 @@ const loginWithOtp = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
