@@ -239,7 +239,7 @@ exports.register = async (req, res) => {
     // Log the request body for debugging
     console.log('Register request body:', req.body);
 
-    const { phone, name, password, gender, role = 'user', otp } = req.body;
+    const { phone, name, password, gender, role = 'user' } = req.body;
 
     const existingUser = await User.findOne({ where: { phone } });
     if (existingUser) {
@@ -251,7 +251,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Validate OTP
+    // Validate OTP from global cache
     if (!global.otpCache || !global.otpCache[phone]) {
       return res.status(401).json({
         status: 'error',
@@ -274,12 +274,12 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Check if OTP matches (compare as string to avoid type issues)
-    if (String(storedOtpData.otp) !== String(otp)) {
+    // Check if OTP is verified
+    if (!storedOtpData.verified) {
       return res.status(401).json({
         status: 'error',
         code: 401,
-        message: 'Invalid OTP',
+        message: 'OTP not verified. Please verify OTP first.',
         data: null
       });
     }
