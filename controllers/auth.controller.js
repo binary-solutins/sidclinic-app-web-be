@@ -20,7 +20,6 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/user.model');
 const Doctor = require('../models/doctor.model');
-const { Op } = require('sequelize');
 
 // Use only the approved template exactly as provided
 const SMS_TEMPLATE = {
@@ -689,7 +688,7 @@ const resetPassword = async (req, res) => {
         phone: formattedPhone
       }
     });
-
+    //! maybe need to update here
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -697,27 +696,35 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Verify OTP - use formatted phone number
-    const OTP = require('../models/Otp.model');
-    const otpRecord = await OTP.findOne({
-      where: {
-        phone: formattedPhone,
-        otp,
-        expirationTime: {
-          [Op.gt]: new Date()
-        }
-      }
-    });
-
-    if (!otpRecord) {
+    // Verify OTP using in-memory cache
+    if (!global.otpCache || !global.otpCache[formattedPhone]) {
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired OTP'
       });
     }
 
-    // Delete the OTP after successful verification
-    await otpRecord.destroy();
+    const storedOtpData = global.otpCache[formattedPhone];
+
+    // Check if OTP is expired
+    if (Date.now() > storedOtpData.expiresAt) {
+      delete global.otpCache[formattedPhone];
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Check if OTP matches (compare as string to avoid type issues)
+    if (String(storedOtpData.otp) !== String(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+
+    // OTP verified - delete from cache to prevent reuse
+    delete global.otpCache[formattedPhone];
 
     // Update user password
     user.password = newPassword; // Will be hashed by the model hook
@@ -780,28 +787,21 @@ const sendLoginOtp = async (req, res) => {
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expirationTime = Date.now() + (10 * 60 * 1000); // 10 minutes from now
 
-    // Save OTP to database - use formatted phone number
-    const OTP = require('../models/Otp.model');
+    // Store OTP in cache memory
+    global.otpCache = global.otpCache || {};
+    global.otpCache[formattedPhone] = {
+      otp: otp,
+      expiresAt: expirationTime
+    };
 
-    // Check if OTP already exists for this phone number
-    const existingOtp = await OTP.findByPk(formattedPhone);
-
-    if (existingOtp) {
-      // Update existing OTP
-      await existingOtp.update({
-        otp,
-        expirationTime
-      });
-    } else {
-      // Create new OTP
-      await OTP.create({
-        phone: formattedPhone,
-        otp,
-        expirationTime
-      });
-    }
+    // Clean up expired OTPs after 10 minutes
+    setTimeout(() => {
+      if (global.otpCache && global.otpCache[formattedPhone]) {
+        delete global.otpCache[formattedPhone];
+      }
+    }, 10 * 60 * 1000);
 
     // Send OTP via SMS
     try {
@@ -813,6 +813,10 @@ const sendLoginOtp = async (req, res) => {
       });
     } catch (smsError) {
       console.error('SMS sending failed:', smsError);
+      // Clean up the OTP from cache if SMS fails
+      if (global.otpCache && global.otpCache[formattedPhone]) {
+        delete global.otpCache[formattedPhone];
+      }
       return res.status(500).json({
         success: false,
         message: 'Failed to send OTP. Please try again.'
@@ -869,27 +873,35 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Verify OTP - use formatted phone number
-    const OTP = require('../models/Otp.model');
-    const otpRecord = await OTP.findOne({
-      where: {
-        phone: formattedPhone,
-        otp,
-        expirationTime: {
-          [Op.gt]: new Date()
-        }
-      }
-    });
-
-    if (!otpRecord) {
+    // Verify OTP using in-memory cache
+    if (!global.otpCache || !global.otpCache[formattedPhone]) {
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired OTP'
       });
     }
 
-    // Delete the OTP after successful verification
-    await otpRecord.destroy();
+    const storedOtpData = global.otpCache[formattedPhone];
+
+    // Check if OTP is expired
+    if (Date.now() > storedOtpData.expiresAt) {
+      delete global.otpCache[formattedPhone];
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Check if OTP matches (compare as string to avoid type issues)
+    if (String(storedOtpData.otp) !== String(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+
+    // OTP verified - delete from cache to prevent reuse
+    delete global.otpCache[formattedPhone];
 
     // Check if user is a doctor and if they are approved
     if (user.role === 'doctor') {
