@@ -572,9 +572,9 @@ exports.getProfileImage = async (req, res) => {
     }
 
     if (!patient.profileImage) {
-      return res.status(404).json({
-        status: 'error',
-        code: 404,
+      return res.status(200).json({
+        status: 'success',
+        code: 200,
         message: 'No profile image found',
         data: null
       });
