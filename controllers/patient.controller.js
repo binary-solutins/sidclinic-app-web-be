@@ -378,8 +378,8 @@ exports.getMedicalHistory = async (req, res) => {
 
     if (!medicalHistory) {
       return res.status(404).json({
-        status: 'error',
-        code: 404,
+        status: 'success',
+        code: 200,
         message: 'Medical history not found',
         data: null
       });
