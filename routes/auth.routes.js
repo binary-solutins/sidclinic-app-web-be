@@ -26,7 +26,6 @@
  *       type: object
  *       required:
  *         - phone
- *         - otp
  *         - name
  *         - password
  *         - gender
@@ -34,9 +33,6 @@
  *         phone:
  *           type: string
  *           example: "+1234567890"
- *         otp:
- *           type: string
- *           example: "123456"
  *         name:
  *           type: string
  *           example: "John Doe"
@@ -340,7 +336,7 @@ router.post('/reset-password', authController.resetPassword);
  * @swagger
  * /auth/register:
  *   post:
- *     summary: Register a new user with OTP verification
+ *     summary: Register a new user
  *     tags: [Authentication]
  *     requestBody:
  *       required: true

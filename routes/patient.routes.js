@@ -312,7 +312,7 @@ router.delete('/family-members/:id', authenticate(), patientController.deleteFam
  *     responses:
  *       200:
  *         description: Medical history retrieved successfully
- *       404:
+ *       200:
  *         description: Medical history not found
  *       500:
  *         $ref: '#/components/responses/ServerError'
@@ -385,7 +385,7 @@ router.get('/consultation-reports/:id', authenticate(), patientController.getCon
 // Profile Image Routes
 const multer = require('multer');
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });

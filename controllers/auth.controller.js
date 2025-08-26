@@ -20,7 +20,6 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/user.model');
 const Doctor = require('../models/doctor.model');
-const { Op } = require('sequelize');
 
 // Use only the approved template exactly as provided
 const SMS_TEMPLATE = {
@@ -54,7 +53,7 @@ const sendSMSViaGatewayHub = async (phone, message, otp = null) => {
   try {
     // Only use the phone number as provided, do not prepend '91'
     let formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     // Validate it's exactly 10 digits
     if (formattedPhone.length !== 10) {
       throw new Error('Invalid phone number format');
@@ -250,42 +249,6 @@ exports.register = async (req, res) => {
         data: null
       });
     }
-
-    // Validate OTP from global cache
-    if (!global.otpCache || !global.otpCache[phone]) {
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'OTP not found or expired. Please request a new OTP.',
-        data: null
-      });
-    }
-
-    const storedOtpData = global.otpCache[phone];
-
-    // Check if OTP is expired
-    if (Date.now() > storedOtpData.expiresAt) {
-      delete global.otpCache[phone];
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'OTP has expired',
-        data: null
-      });
-    }
-
-    // Check if OTP is verified
-    if (!storedOtpData.verified) {
-      return res.status(401).json({
-        status: 'error',
-        code: 401,
-        message: 'OTP not verified. Please verify OTP first.',
-        data: null
-      });
-    }
-
-    // Clear OTP after successful verification
-    delete global.otpCache[phone];
 
     const user = await User.create({ name, phone, password, gender, role });
     const token = generateToken(user);
@@ -495,9 +458,9 @@ exports.getProfile = async (req, res) => {
           model: Doctor,
           as: 'Doctor',
           attributes: [
-            'id', 'doctorPhoto', 'degree', 'registrationNumber', 'clinicName', 
-            'clinicPhotos', 'yearsOfExperience', 'specialty', 'clinicContactNumber', 
-            'email', 'address', 'country', 'state', 'city', 'locationPin', 
+            'id', 'doctorPhoto', 'degree', 'registrationNumber', 'clinicName',
+            'clinicPhotos', 'yearsOfExperience', 'specialty', 'clinicContactNumber',
+            'email', 'address', 'country', 'state', 'city', 'locationPin',
             'isApproved', 'is_active', 'startTime', 'endTime'
           ],
           required: false
@@ -563,7 +526,7 @@ const checkUserExists = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -612,7 +575,7 @@ const sendResetOtp = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -640,10 +603,10 @@ const sendResetOtp = async (req, res) => {
 
     // Save OTP to database - use formatted phone number
     const OTP = require('../models/Otp.model');
-    
+
     // Check if OTP already exists for this phone number
     const existingOtp = await OTP.findByPk(formattedPhone);
-    
+
     if (existingOtp) {
       // Update existing OTP
       await existingOtp.update({
@@ -662,7 +625,7 @@ const sendResetOtp = async (req, res) => {
     // Send OTP via SMS
     try {
       await sendSMSViaGatewayHub(formattedPhone, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
-      
+
       return res.status(200).json({
         success: true,
         message: 'Reset OTP sent successfully'
@@ -711,7 +674,7 @@ const resetPassword = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -725,7 +688,7 @@ const resetPassword = async (req, res) => {
         phone: formattedPhone
       }
     });
-
+    //! maybe need to update here
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -733,27 +696,35 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Verify OTP - use formatted phone number
-    const OTP = require('../models/Otp.model');
-    const otpRecord = await OTP.findOne({
-      where: {
-        phone: formattedPhone,
-        otp,
-        expirationTime: {
-          [Op.gt]: new Date()
-        }
-      }
-    });
-
-    if (!otpRecord) {
+    // Verify OTP using in-memory cache
+    if (!global.otpCache || !global.otpCache[formattedPhone]) {
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired OTP'
       });
     }
 
-    // Delete the OTP after successful verification
-    await otpRecord.destroy();
+    const storedOtpData = global.otpCache[formattedPhone];
+
+    // Check if OTP is expired
+    if (Date.now() > storedOtpData.expiresAt) {
+      delete global.otpCache[formattedPhone];
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Check if OTP matches (compare as string to avoid type issues)
+    if (String(storedOtpData.otp) !== String(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+
+    // OTP verified - delete from cache to prevent reuse
+    delete global.otpCache[formattedPhone];
 
     // Update user password
     user.password = newPassword; // Will be hashed by the model hook
@@ -792,7 +763,7 @@ const sendLoginOtp = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -816,39 +787,36 @@ const sendLoginOtp = async (req, res) => {
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expirationTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expirationTime = Date.now() + (10 * 60 * 1000); // 10 minutes from now
 
-    // Save OTP to database - use formatted phone number
-    const OTP = require('../models/Otp.model');
-    
-    // Check if OTP already exists for this phone number
-    const existingOtp = await OTP.findByPk(formattedPhone);
-    
-    if (existingOtp) {
-      // Update existing OTP
-      await existingOtp.update({
-        otp,
-        expirationTime
-      });
-    } else {
-      // Create new OTP
-      await OTP.create({
-        phone: formattedPhone,
-        otp,
-        expirationTime
-      });
-    }
+    // Store OTP in cache memory
+    global.otpCache = global.otpCache || {};
+    global.otpCache[formattedPhone] = {
+      otp: otp,
+      expiresAt: expirationTime
+    };
+
+    // Clean up expired OTPs after 10 minutes
+    setTimeout(() => {
+      if (global.otpCache && global.otpCache[formattedPhone]) {
+        delete global.otpCache[formattedPhone];
+      }
+    }, 10 * 60 * 1000);
 
     // Send OTP via SMS
     try {
       await sendSMSViaGatewayHub(formattedPhone, SMS_TEMPLATE.OTP_MESSAGE(otp), otp);
-      
+
       return res.status(200).json({
         success: true,
         message: 'Login OTP sent successfully'
       });
     } catch (smsError) {
       console.error('SMS sending failed:', smsError);
+      // Clean up the OTP from cache if SMS fails
+      if (global.otpCache && global.otpCache[formattedPhone]) {
+        delete global.otpCache[formattedPhone];
+      }
       return res.status(500).json({
         success: false,
         message: 'Failed to send OTP. Please try again.'
@@ -883,7 +851,7 @@ const loginWithOtp = async (req, res) => {
 
     // Format phone number - remove any +91 prefix and non-digits
     const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
-    
+
     if (formattedPhone.length !== 10) {
       return res.status(400).json({
         success: false,
@@ -905,27 +873,35 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Verify OTP - use formatted phone number
-    const OTP = require('../models/Otp.model');
-    const otpRecord = await OTP.findOne({
-      where: {
-        phone: formattedPhone,
-        otp,
-        expirationTime: {
-          [Op.gt]: new Date()
-        }
-      }
-    });
-
-    if (!otpRecord) {
+    // Verify OTP using in-memory cache
+    if (!global.otpCache || !global.otpCache[formattedPhone]) {
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired OTP'
       });
     }
 
-    // Delete the OTP after successful verification
-    await otpRecord.destroy();
+    const storedOtpData = global.otpCache[formattedPhone];
+
+    // Check if OTP is expired
+    if (Date.now() > storedOtpData.expiresAt) {
+      delete global.otpCache[formattedPhone];
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired OTP'
+      });
+    }
+
+    // Check if OTP matches (compare as string to avoid type issues)
+    if (String(storedOtpData.otp) !== String(otp)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+
+    // OTP verified - delete from cache to prevent reuse
+    delete global.otpCache[formattedPhone];
 
     // Check if user is a doctor and if they are approved
     if (user.role === 'doctor') {

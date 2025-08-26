@@ -82,6 +82,11 @@ io.on("connection", (socket) => {
   });
 });
 
+// Root route to indicate server status
+app.get("/", (req, res) => {
+  res.status(200).json({ success: true, message: "Server is running" });
+});
+
 // API Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 
