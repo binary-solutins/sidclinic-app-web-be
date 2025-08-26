@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Completed - SID Clinic</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 20px 0;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: white;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .logo img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #1e3a8a;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .appointment-card {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            position: relative;
+        }
+        
+        .appointment-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .appointment-card h3 {
+            color: #065f46;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #a7f3d0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #065f46;
+            font-size: 14px;
+        }
+        
+        .detail-value {
+            color: #1e3a8a;
+            font-weight: 500;
+            text-align: right;
+            font-size: 14px;
+        }
+        
+        .appointment-id {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .summary-section {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 8px;
+        }
+        
+        .summary-section h4 {
+            color: #1e3a8a;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .summary-content {
+            color: #475569;
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 15px;
+        }
+        
+        .prescription-section {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 8px;
+        }
+        
+        .prescription-section h4 {
+            color: #92400e;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .prescription-content {
+            color: #475569;
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #fde68a;
+        }
+        
+        .info-box {
+            background-color: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 8px;
+        }
+        
+        .info-box h4 {
+            color: #1e3a8a;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .info-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .info-box li {
+            margin-bottom: 8px;
+            color: #475569;
+        }
+        
+        .rating-section {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .rating-section h4 {
+            color: #92400e;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .rating-section p {
+            color: #92400e;
+            margin-bottom: 20px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            margin: 25px 0;
+            transition: all 0.3s ease;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+        
+        .footer {
+            background-color: #1e293b;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .footer h3 {
+            color: #3b82f6;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .footer p {
+            margin-bottom: 10px;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .contact-info {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+        }
+        
+        .contact-info p {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                margin: 0 10px;
+                border-radius: 8px;
+            }
+            
+            .header, .content, .footer {
+                padding: 20px;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .detail-value {
+                text-align: left;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <img src="https://sidclinic.com/logo.jpeg" alt="SID Clinic Logo">
+            </div>
+            <h1>✅ Appointment Completed</h1>
+            <p>Your appointment has been successfully completed</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Dear {{patientName}},</div>
+            
+            <p>Thank you for choosing <strong>SID Clinic</strong> for your healthcare needs. Your appointment with <strong>Dr. {{doctorName}}</strong> has been successfully completed.</p>
+            
+            <div class="status-badge">✅ Completed</div>
+            
+            <div class="appointment-card">
+                <h3>📅 Completed Appointment Details</h3>
+                <div class="detail-row">
+                    <span class="detail-label">👨‍⚕️ Doctor:</span>
+                    <span class="detail-value">Dr. {{doctorName}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">📅 Date:</span>
+                    <span class="detail-value">{{appointmentDate}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">🕐 Time:</span>
+                    <span class="detail-value">{{appointmentTime}}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">🏥 Type:</span>
+                    <span class="detail-value">{{appointmentType}}</span>
+                </div>
+                <div class="appointment-id">ID: {{appointmentId}}</div>
+            </div>
+            
+            <div class="summary-section">
+                <h4>📋 Consultation Summary</h4>
+                <div class="summary-content">{{consultationNotes}}</div>
+            </div>
+            
+            {{#if prescription}}
+            <div class="prescription-section">
+                <h4>💊 Prescription</h4>
+                <div class="prescription-content">{{prescription}}</div>
+            </div>
+            {{/if}}
+            
+            <div class="info-box">
+                <h4>📋 Follow-up Instructions</h4>
+                <ul>
+                    <li>Follow the prescribed treatment plan as directed by your doctor</li>
+                    <li>Take medications as prescribed and complete the full course</li>
+                    <li>Schedule any recommended follow-up appointments</li>
+                    <li>Contact us immediately if you experience any adverse reactions</li>
+                    <li>Keep track of your symptoms and report any changes</li>
+                </ul>
+            </div>
+            
+            <div class="rating-section">
+                <h4>⭐ Rate Your Experience</h4>
+                <p>We value your feedback! Please take a moment to rate your experience with Dr. {{doctorName}} and our services.</p>
+                <a href="{{ratingUrl}}" class="cta-button">Rate Your Experience</a>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{{dashboardUrl}}" class="cta-button">View Appointment Summary</a>
+            </div>
+            
+            <p style="margin-top: 25px; color: #64748b; font-size: 14px;">
+                If you have any questions about your consultation, prescription, or need to schedule a follow-up appointment, please don't hesitate to contact our support team.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <h3>🏥 SID Clinic</h3>
+            <p>Providing quality healthcare services with compassion and excellence</p>
+            
+            <div class="contact-info">
+                <p>📧 support@sidclinic.com</p>
+                <p>📞 +1 (555) 123-4567</p>
+                <p>🌐 www.sidclinic.com</p>
+                <p style="margin-top: 15px; opacity: 0.7; font-size: 12px;">
+                    This is an automated message. Please do not reply to this email.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
