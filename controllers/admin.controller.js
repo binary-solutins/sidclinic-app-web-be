@@ -30,7 +30,7 @@ exports.listPendingDoctors = async (req, res) => {
     // Sorting
     let order = [];
     if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
-      order.push([{ model: User }, sortBy, sortOrder.toUpperCase()]);
+      order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
     } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || sortBy === 'yearsOfExperience') {
       order.push([sortBy, sortOrder.toUpperCase()]);
     } else {
@@ -43,6 +43,7 @@ exports.listPendingDoctors = async (req, res) => {
       include: [
         {
           model: User,
+          as: 'User',
           attributes: ["name", "phone", "createdAt"],
           where: Object.keys(userWhere).length ? userWhere : undefined,
         },
@@ -102,7 +103,7 @@ exports.listApprovedDoctors = async (req, res) => {
     // Sorting
     let order = [];
     if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
-      order.push([{ model: User }, sortBy, sortOrder.toUpperCase()]);
+      order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
     } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || sortBy === 'yearsOfExperience') {
       order.push([sortBy, sortOrder.toUpperCase()]);
     } else {
@@ -115,6 +116,7 @@ exports.listApprovedDoctors = async (req, res) => {
       include: [
         {
           model: User,
+          as: 'User',
           attributes: ["name", "phone", "createdAt"],
           where: Object.keys(userWhere).length ? userWhere : undefined,
         },
@@ -177,7 +179,7 @@ exports.listAllDoctors = async (req, res) => {
     // Sorting
     let order = [];
     if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
-      order.push([{ model: User }, sortBy, sortOrder.toUpperCase()]);
+      order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
     } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || 
                sortBy === 'yearsOfExperience' || sortBy === 'city' || sortBy === 'state' || 
                sortBy === 'isApproved' || sortBy === 'is_active') {
@@ -192,6 +194,7 @@ exports.listAllDoctors = async (req, res) => {
       include: [
         {
           model: User,
+          as: 'User',
           attributes: ["name", "phone", "createdAt"],
           where: Object.keys(userWhere).length ? userWhere : undefined,
         },
@@ -231,6 +234,7 @@ exports.toggleDoctorApproval = async (req, res) => {
       include: [
         {
           model: User,
+          as: 'User',
           attributes: ["name"],
         },
       ],
@@ -298,6 +302,7 @@ exports.getDoctorDetails = async (req, res) => {
       include: [
         {
           model: User,
+          as: 'User',
           attributes: ["name", "phone", "createdAt"],
         },
       ],
@@ -334,6 +339,7 @@ exports.toggleDoctorStatus = async (req, res) => {
       include: [
         {
           model: User,
+          as: 'User',
           attributes: ["name"],
         },
       ],
@@ -545,7 +551,7 @@ exports.createOrUpdateDoctor = async (req, res) => {
     if (id) {
       // Update existing doctor
       const doctor = await Doctor.findByPk(id, {
-        include: [{ model: User, attributes: ['id', 'name', 'phone', 'gender'] }]
+        include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone', 'gender'] }]
       });
 
       if (!doctor) {
@@ -600,7 +606,7 @@ exports.createOrUpdateDoctor = async (req, res) => {
 
       // Fetch updated doctor with user data
       const updatedDoctor = await Doctor.findByPk(id, {
-        include: [{ model: User, attributes: ['id', 'name', 'phone', 'gender', 'role'] }]
+        include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone', 'gender', 'role'] }]
       });
 
       res.status(200).json({
@@ -676,7 +682,7 @@ exports.createOrUpdateDoctor = async (req, res) => {
 
       // Fetch created doctor with user data
       const createdDoctor = await Doctor.findByPk(doctor.id, {
-        include: [{ model: User, attributes: ['id', 'name', 'phone', 'gender', 'role'] }]
+        include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone', 'gender', 'role'] }]
       });
 
       res.status(201).json({
