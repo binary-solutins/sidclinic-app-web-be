@@ -357,12 +357,9 @@ exports.getVirtualAppointments = async (req, res) => {
     let { 
       page = 1, 
       limit = 10, 
-      search = '', 
       status = '', 
-      dateFrom = '', 
-      dateTo = '', 
-      timeFrom = '', 
-      timeTo = '',
+      fromDate = '', 
+      toDate = '',
       sortBy = 'appointmentDateTime', 
       sortOrder = 'DESC' 
     } = req.query;
@@ -371,7 +368,7 @@ exports.getVirtualAppointments = async (req, res) => {
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    // Build where conditions
+    // Build where conditions - only virtual appointments
     const where = {
       type: 'virtual' // Only virtual appointments
     };
@@ -382,74 +379,32 @@ exports.getVirtualAppointments = async (req, res) => {
     }
 
     // Date range filter
-    if (dateFrom || dateTo) {
+    if (fromDate || toDate) {
       where.appointmentDateTime = {};
-      if (dateFrom) {
-        const fromDate = new Date(dateFrom);
-        fromDate.setHours(0, 0, 0, 0);
-        where.appointmentDateTime[Op.gte] = fromDate;
+      if (fromDate) {
+        where.appointmentDateTime[Op.gte] = new Date(fromDate);
       }
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        where.appointmentDateTime[Op.lte] = toDate;
+      if (toDate) {
+        where.appointmentDateTime[Op.lte] = new Date(`${toDate}T23:59:59.999Z`);
       }
-    }
-
-    // Time range filter
-    if (timeFrom || timeTo) {
-      if (!where.appointmentDateTime) {
-        where.appointmentDateTime = {};
-      }
-      
-      if (timeFrom) {
-        const fromTime = new Date();
-        const [hours, minutes] = timeFrom.split(':');
-        fromTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        where.appointmentDateTime[Op.gte] = fromTime;
-      }
-      
-      if (timeTo) {
-        const toTime = new Date();
-        const [hours, minutes] = timeTo.split(':');
-        toTime.setHours(parseInt(hours), parseInt(minutes), 59, 999);
-        where.appointmentDateTime[Op.lte] = toTime;
-      }
-    }
-
-    // Search filter
-    let searchCondition = null;
-    if (search) {
-      searchCondition = {
-        [Op.or]: [
-          { '$patient.name$': { [Op.iLike]: `%${search}%` } },
-          { '$patient.phone$': { [Op.iLike]: `%${search}%` } },
-          { notes: { [Op.iLike]: `%${search}%` } },
-          { consultationNotes: { [Op.iLike]: `%${search}%` } }
-        ]
-      };
     }
 
     // Sorting
     let order = [];
     if (['appointmentDateTime', 'createdAt', 'bookingDate'].includes(sortBy)) {
       order.push([sortBy, sortOrder.toUpperCase()]);
-    } else if (sortBy === 'patientName') {
-      order.push([{ model: User, as: 'patient' }, 'name', sortOrder.toUpperCase()]);
-    } else if (sortBy === 'status') {
-      order.push(['status', sortOrder.toUpperCase()]);
     } else {
       order.push(['appointmentDateTime', 'DESC']);
     }
 
     // Fetch appointments with pagination
     const { count, rows: appointments } = await Appointment.findAndCountAll({
-      where: searchCondition ? { ...where, ...searchCondition } : where,
+      where,
       include: [
         {
           model: User,
           as: 'patient',
-          attributes: ['id', 'name', 'phone', 'email']
+          attributes: ['id', 'name', 'phone']
         },
         {
           model: Doctor,
@@ -479,7 +434,7 @@ exports.getVirtualAppointments = async (req, res) => {
       doctorName: appointment.doctor?.User?.name || 'Unknown Doctor',
       doctorPhone: appointment.doctor?.User?.phone || 'N/A',
       status: appointment.status,
-      appointmentType: appointment.type === 'virtual' ? 'Virtual Consultation' : 'Physical Consultation',
+      appointmentType: 'Virtual Consultation',
       notes: appointment.notes || '',
       consultationNotes: appointment.consultationNotes || '',
       prescription: appointment.prescription || '',
@@ -497,15 +452,6 @@ exports.getVirtualAppointments = async (req, res) => {
       updatedAt: appointment.updatedAt
     }));
 
-    // Prepare applied filters for response
-    const appliedFilters = {};
-    if (search) appliedFilters.search = search;
-    if (status) appliedFilters.status = status;
-    if (dateFrom) appliedFilters.dateFrom = dateFrom;
-    if (dateTo) appliedFilters.dateTo = dateTo;
-    if (timeFrom) appliedFilters.timeFrom = timeFrom;
-    if (timeTo) appliedFilters.timeTo = timeTo;
-
     res.status(200).json({
       status: "success",
       code: 200,
@@ -516,9 +462,6 @@ exports.getVirtualAppointments = async (req, res) => {
         page,
         limit,
         totalPages: Math.ceil(count / limit)
-      },
-      filters: {
-        applied: appliedFilters
       }
     });
   } catch (error) {

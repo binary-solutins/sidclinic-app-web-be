@@ -147,7 +147,7 @@ const upload = multer({
  * /doctors/profile:
  *   post:
  *     summary: Create or update doctor profile
- *     description: Comprehensive API to create or update doctor profile with all text fields and image uploads. Supports profile photo and multiple clinic photos upload via multipart/form-data.
+ *     description: Comprehensive API to create or update doctor profile with all text fields and image uploads. Supports profile photo and multiple clinic photos upload via multipart/form-data. Includes comprehensive validation for all fields and updates user name in the user table. Returns detailed validation error messages for better user experience. The 'name' field will update the user's name in the user table if provided.
  *     tags: [Doctors]
  *     security:
  *       - bearerAuth: []
@@ -182,41 +182,60 @@ const upload = multer({
  *                 description: Array of clinic photo files (optional, max 5 files)
  *               degree:
  *                 type: string
+ *                 description: Doctor's medical degree(s) - required field
  *                 example: "MBBS, MD"
  *               registrationNumber:
  *                 type: string
+ *                 description: Doctor's medical registration number - required and must be unique
  *                 example: "MCI-12345"
  *               clinicName:
  *                 type: string
+ *                 description: Name of the doctor's clinic - required field
  *                 example: "HealthCare Medical Center"
  *               yearsOfExperience:
  *                 type: integer
+ *                 description: Number of years of professional experience - must be a positive number
+ *                 minimum: 0
  *                 example: 10
  *               specialty:
  *                 type: string
+ *                 description: Doctor's medical specialty - optional field
  *                 example: "Cardiology"
  *               clinicContactNumber:
  *                 type: string
+ *                 description: Contact number for the clinic - must be 10-15 digits with valid format
+ *                 pattern: '^[0-9+\-\s()]{10,15}$'
  *                 example: "+1234567890"
  *               email:
  *                 type: string
  *                 format: email
+ *                 description: Professional email address - must be a valid email format
  *                 example: "doctor@example.com"
  *               address:
  *                 type: string
+ *                 description: Physical address of the clinic - required field
  *                 example: "123 Medical Street, Healthcare City"
  *               country:
  *                 type: string
+ *                 description: Country of the clinic - required field
  *                 example: "India"
  *               state:
  *                 type: string
+ *                 description: State/province of the clinic - required field
  *                 example: "Maharashtra"
  *               city:
  *                 type: string
+ *                 description: City of the clinic - required field
  *                 example: "Mumbai"
+ *               name:
+ *                 type: string
+ *                 description: Doctor's name (will update user table)
+ *                 example: "Dr. John Smith"
  *               locationPin:
  *                 type: string
- *                 example: "19.0760,72.8777"
+ *                 pattern: '^[0-9]{6}$'
+ *                 description: 6-digit location pin code
+ *                 example: "400001"
  *               startTime:
  *                 type: string
  *                 format: time
@@ -263,11 +282,37 @@ const upload = multer({
  *                 data:
  *                   $ref: '#/components/schemas/DoctorProfile'
  *       400:
- *         description: Validation error
+ *         description: Validation error or upload failure
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "Validation failed"
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   description: Array of specific validation error messages
+ *                   example: 
+ *                     - "Degree is required"
+ *                     - "Registration number is required"
+ *                     - "Please provide a valid email address"
+ *                     - "Years of experience must be a valid positive number"
+ *                     - "Location pin must be exactly 6 digits"
+ *                     - "Please provide a valid clinic contact number"
+ *                     - "Registration number is already taken by another doctor"
+ *                 data:
+ *                   type: null
+ *                   example: null
  *       401:
  *         $ref: '#/components/responses/Unauthorized'
  *       403:
@@ -275,13 +320,49 @@ const upload = multer({
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 403
+ *                 message:
+ *                   type: string
+ *                   example: "User is not registered as a doctor"
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["User is not registered as a doctor"]
+ *                 data:
+ *                   type: null
+ *                   example: null
  *       404:
  *         description: User not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["User not found"]
+ *                 data:
+ *                   type: null
+ *                   example: null
  *       500:
  *         $ref: '#/components/responses/ServerError'
  */

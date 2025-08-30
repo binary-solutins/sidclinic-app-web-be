@@ -234,45 +234,28 @@ router.get('/virtual-doctor/apis',
  *           default: 10
  *         description: Number of items per page
  *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by patient name or appointment notes
- *       - in: query
  *         name: status
  *         schema:
  *           type: string
  *           enum: [pending, confirmed, completed, canceled, rejected, reschedule_requested]
  *         description: Filter by appointment status
  *       - in: query
- *         name: dateFrom
+ *         name: fromDate
  *         schema:
  *           type: string
  *           format: date
  *         description: Filter appointments from this date (YYYY-MM-DD)
  *       - in: query
- *         name: dateTo
+ *         name: toDate
  *         schema:
  *           type: string
  *           format: date
  *         description: Filter appointments to this date (YYYY-MM-DD)
  *       - in: query
- *         name: timeFrom
- *         schema:
- *           type: string
- *           format: time
- *         description: Filter appointments from this time (HH:MM)
- *       - in: query
- *         name: timeTo
- *         schema:
- *           type: string
- *           format: time
- *         description: Filter appointments to this time (HH:MM)
- *       - in: query
  *         name: sortBy
  *         schema:
  *           type: string
- *           enum: [appointmentDateTime, patientName, status, createdAt, bookingDate]
+ *           enum: [appointmentDateTime, createdAt, bookingDate]
  *           default: appointmentDateTime
  *         description: Sort field
  *       - in: query

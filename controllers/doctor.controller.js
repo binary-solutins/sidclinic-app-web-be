@@ -4,6 +4,7 @@ const { Client, Storage } = require('appwrite');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const FormData = require('form-data');
+const { Op } = require('sequelize');
 
 // Configure Appwrite
 const client = new Client();
@@ -89,6 +90,73 @@ exports.getProfile = async (req, res) => {
 
 exports.setupProfile = async (req, res) => {
   try {
+    // Validation function
+    const validateDoctorData = (data) => {
+      const errors = [];
+      
+      // Required field validations
+      if (!data.degree || data.degree.trim() === '') {
+        errors.push('Degree is required');
+      }
+      
+      if (!data.registrationNumber || data.registrationNumber.trim() === '') {
+        errors.push('Registration number is required');
+      }
+      
+      if (!data.clinicName || data.clinicName.trim() === '') {
+        errors.push('Clinic name is required');
+      }
+      
+      if (!data.yearsOfExperience || isNaN(data.yearsOfExperience) || data.yearsOfExperience < 0) {
+        errors.push('Years of experience must be a valid positive number');
+      }
+      
+      if (!data.clinicContactNumber || data.clinicContactNumber.trim() === '') {
+        errors.push('Clinic contact number is required');
+      }
+      
+      if (!data.email || data.email.trim() === '') {
+        errors.push('Email is required');
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(data.email)) {
+          errors.push('Please provide a valid email address');
+        }
+      }
+      
+      if (!data.address || data.address.trim() === '') {
+        errors.push('Address is required');
+      }
+      
+      if (!data.country || data.country.trim() === '') {
+        errors.push('Country is required');
+      }
+      
+      if (!data.state || data.state.trim() === '') {
+        errors.push('State is required');
+      }
+      
+      if (!data.city || data.city.trim() === '') {
+        errors.push('City is required');
+      }
+      
+      if (!data.locationPin || data.locationPin.trim() === '') {
+        errors.push('Location pin is required');
+      } else if (!/^\d{6}$/.test(data.locationPin)) {
+        errors.push('Location pin must be exactly 6 digits');
+      }
+      
+      // Phone number validation
+      if (data.clinicContactNumber) {
+        const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+        if (!phoneRegex.test(data.clinicContactNumber)) {
+          errors.push('Please provide a valid clinic contact number');
+        }
+      }
+      
+      return errors;
+    };
+
     const user = await User.findByPk(req.user.id);
     if (!user) {
       return res.status(404).json({
@@ -108,37 +176,69 @@ exports.setupProfile = async (req, res) => {
       });
     }
 
+    // Validate input data
+    const validationErrors = validateDoctorData(req.body);
+    if (validationErrors.length > 0) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Validation failed',
+        errors: validationErrors,
+        data: null
+      });
+    }
+
     // Handle profile photo upload if provided
     let doctorPhotoUrl = null;
     if (req.files && req.files.doctorPhoto && req.files.doctorPhoto[0]) {
-      doctorPhotoUrl = await uploadImage(req.files.doctorPhoto[0]);
+      try {
+        doctorPhotoUrl = await uploadImage(req.files.doctorPhoto[0]);
+      } catch (uploadError) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Failed to upload doctor photo',
+          errors: [uploadError.message],
+          data: null
+        });
+      }
     }
 
     // Handle multiple clinic photos upload if provided
     let clinicPhotosUrls = [];
     if (req.files && req.files.clinicPhotos && req.files.clinicPhotos.length > 0) {
-      for (const file of req.files.clinicPhotos) {
-        const photoUrl = await uploadImage(file);
-        clinicPhotosUrls.push(photoUrl);
+      try {
+        for (const file of req.files.clinicPhotos) {
+          const photoUrl = await uploadImage(file);
+          clinicPhotosUrls.push(photoUrl);
+        }
+      } catch (uploadError) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Failed to upload clinic photos',
+          errors: [uploadError.message],
+          data: null
+        });
       }
     }
 
     // Prepare doctor data - map request body to model fields
     const doctorData = {
-      degree: req.body.degree,
-      registrationNumber: req.body.registrationNumber,
-      clinicName: req.body.clinicName,
-      yearsOfExperience: req.body.yearsOfExperience,
-      specialty: req.body.specialty,
-      clinicContactNumber: req.body.clinicContactNumber,
-      email: req.body.email,
-      address: req.body.address,
-      country: req.body.country,
-      state: req.body.state,
-      city: req.body.city,
-      locationPin: req.body.locationPin,
-      startTime: req.body.startTime,
-      endTime: req.body.endTime,
+      degree: req.body.degree.trim(),
+      registrationNumber: req.body.registrationNumber.trim(),
+      clinicName: req.body.clinicName.trim(),
+      yearsOfExperience: parseInt(req.body.yearsOfExperience),
+      specialty: req.body.specialty ? req.body.specialty.trim() : null,
+      clinicContactNumber: req.body.clinicContactNumber.trim(),
+      email: req.body.email.trim().toLowerCase(),
+      address: req.body.address.trim(),
+      country: req.body.country.trim(),
+      state: req.body.state.trim(),
+      city: req.body.city.trim(),
+      locationPin: req.body.locationPin.trim(),
+      startTime: req.body.startTime || null,
+      endTime: req.body.endTime || null,
       userId: user.id
     };
 
@@ -156,34 +256,113 @@ exports.setupProfile = async (req, res) => {
       where: { userId: user.id }
     });
 
+    // Check if registration number is already taken by another doctor
+    if (req.body.registrationNumber) {
+      const existingDoctorWithRegNumber = await Doctor.findOne({
+        where: { 
+          registrationNumber: req.body.registrationNumber.trim(),
+          userId: { [Op.ne]: user.id } // Exclude current user
+        }
+      });
+      
+      if (existingDoctorWithRegNumber) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Registration number is already taken by another doctor',
+          errors: ['Registration number must be unique'],
+          data: null
+        });
+      }
+    }
+
+    // Update user name if provided
+    if (req.body.name && req.body.name.trim() !== '') {
+      try {
+        await user.update({ name: req.body.name.trim() });
+      } catch (userUpdateError) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Failed to update user name',
+          errors: [userUpdateError.message],
+          data: null
+        });
+      }
+    }
+
     if (doctor) {
       // Update existing profile
-      await doctor.update(doctorData);
-      const message = 'Profile updated successfully';
-      const statusCode = 200;
-      
-      res.status(statusCode).json({ 
-        status: 'success',
-        code: statusCode,
-        message: message,
-        data: doctor 
-      });
+      try {
+        await doctor.update(doctorData);
+        const message = 'Profile updated successfully';
+        const statusCode = 200;
+        
+        // Fetch updated profile with user data
+        const updatedDoctor = await Doctor.findOne({
+          where: { userId: user.id },
+          include: [{
+            model: User,
+            as: 'User',
+            attributes: ['name', 'phone', 'gender']
+          }]
+        });
+        
+        res.status(statusCode).json({ 
+          status: 'success',
+          code: statusCode,
+          message: message,
+          data: updatedDoctor 
+        });
+      } catch (updateError) {
+        console.error('Profile update error:', updateError);
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Failed to update profile',
+          errors: [updateError.message],
+          data: null
+        });
+      }
     } else {
       // Create new profile
-      doctor = await Doctor.create(doctorData);
-      res.status(201).json({ 
-        status: 'success',
-        code: 201,
-        message: 'Profile created successfully',
-        data: doctor 
-      });
+      try {
+        doctor = await Doctor.create(doctorData);
+        
+        // Fetch created profile with user data
+        const newDoctor = await Doctor.findOne({
+          where: { id: doctor.id },
+          include: [{
+            model: User,
+            as: 'User',
+            attributes: ['name', 'phone', 'gender']
+          }]
+        });
+        
+        res.status(201).json({ 
+          status: 'success',
+          code: 201,
+          message: 'Profile created successfully',
+          data: newDoctor 
+        });
+      } catch (createError) {
+        console.error('Profile creation error:', createError);
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Failed to create profile',
+          errors: [createError.message],
+          data: null
+        });
+      }
     }
   } catch (error) {
     console.error('Profile setup error:', error);
     res.status(500).json({
       status: 'error',
       code: 500,
-      message: error.message,
+      message: 'Internal server error',
+      errors: [error.message],
       data: null
     });
   }
