@@ -207,7 +207,7 @@ router.delete('/admin/virtual-doctors/:id',
  *       500:
  *         description: Internal server error
  */
-router.get('/apis', 
+router.get('/virtual-doctor/apis', 
   authenticate(['virtual-doctor']), 
   virtualDoctorController.getVirtualApis
 );
@@ -292,7 +292,7 @@ router.get('/apis',
  *       500:
  *         description: Internal server error
  */
-router.get('/appointments', 
+router.get('/virtual-doctor/appointments', 
   authenticate(['virtual-doctor']), 
   virtualDoctorController.getVirtualAppointments
 );

@@ -109,7 +109,7 @@ app.use("/api/oral-health-scores", oralHealthScoreRoutes);
 app.use("/api/medical-reports", medicalReportRoutes);
 app.use("/api/dental-images", dentalImageRoutes);
 app.use("/api/personal-patients", personalPatientRoutes);
-app.use("/api/virtual-doctor", virtualDoctorRoutes);
+app.use("/api", virtualDoctorRoutes);
 
 app.use(
   helmet({
