@@ -22,7 +22,7 @@ const User = sequelize.define('User', {
     allowNull: false 
   },
   role: { 
-    type: DataTypes.ENUM('user', 'doctor', 'admin'), 
+    type: DataTypes.ENUM('user', 'doctor', 'admin', 'virtual-doctor'), 
     defaultValue: 'user' 
   },
   fcmToken: {

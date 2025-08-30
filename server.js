@@ -27,6 +27,7 @@ const oralHealthScoreRoutes = require('./routes/oralHealthScore.routes');
 const medicalReportRoutes = require('./routes/medicalReport.routes');
 const dentalImageRoutes = require('./routes/dentalImage.routes');
 const personalPatientRoutes = require('./routes/personalPatient.routes');
+const virtualDoctorRoutes = require('./routes/virtualDoctor.routes');
 
 app.use(cors());
 app.use(
@@ -108,6 +109,7 @@ app.use("/api/oral-health-scores", oralHealthScoreRoutes);
 app.use("/api/medical-reports", medicalReportRoutes);
 app.use("/api/dental-images", dentalImageRoutes);
 app.use("/api/personal-patients", personalPatientRoutes);
+app.use("/api/virtual-doctor", virtualDoctorRoutes);
 
 app.use(
   helmet({
