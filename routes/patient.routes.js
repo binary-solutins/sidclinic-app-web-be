@@ -312,7 +312,7 @@ router.delete('/family-members/:id', authenticate(), patientController.deleteFam
  *     responses:
  *       200:
  *         description: Medical history retrieved successfully
- *       200:
+ *       404:
  *         description: Medical history not found
  *       500:
  *         $ref: '#/components/responses/ServerError'

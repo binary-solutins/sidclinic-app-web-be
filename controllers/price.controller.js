@@ -66,7 +66,7 @@ exports.getAllPrices = async (req, res) => {
 
     const prices = await Price.findAll({
       where: whereClause,
-      order: [['serviceName', 'ASC']]
+      order: [['createdAt', 'DESC']]
     });
 
     res.json({
@@ -302,7 +302,7 @@ exports.getAvailableServices = async (req, res) => {
           isActive: true 
         },
         attributes: ['id', 'serviceName', 'price'],
-        order: [['serviceName', 'ASC']]
+        order: [['createdAt', 'DESC']]
       });
   
       res.json({

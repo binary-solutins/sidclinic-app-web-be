@@ -98,10 +98,15 @@ exports.getAllVirtualDoctors = async (req, res) => {
       ];
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (['name', 'phone', 'createdAt'].includes(sortBy)) {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For name and phone, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC' && (sortBy === 'name' || sortBy === 'phone')) {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
@@ -262,25 +267,31 @@ exports.getVirtualApis = async (req, res) => {
       );
     }
 
-    // Sort the data
+    // Sort the data - Always ensure DESC order for recent first
     if (sortBy === 'name') {
       filteredApis.sort((a, b) => {
-        return sortOrder === 'ASC' 
-          ? a.name.localeCompare(b.name)
-          : b.name.localeCompare(a.name);
+        if (sortOrder === 'ASC') {
+          // For ASC name sort, add secondary sort by createdAt DESC
+          const nameCompare = a.name.localeCompare(b.name);
+          return nameCompare !== 0 ? nameCompare : new Date(b.createdAt) - new Date(a.createdAt);
+        } else {
+          return b.name.localeCompare(a.name);
+        }
       });
     } else if (sortBy === 'category') {
       filteredApis.sort((a, b) => {
-        return sortOrder === 'ASC'
-          ? a.category.localeCompare(b.category)
-          : b.category.localeCompare(a.category);
+        if (sortOrder === 'ASC') {
+          // For ASC category sort, add secondary sort by createdAt DESC
+          const categoryCompare = a.category.localeCompare(b.category);
+          return categoryCompare !== 0 ? categoryCompare : new Date(b.createdAt) - new Date(a.createdAt);
+        } else {
+          return b.category.localeCompare(a.category);
+        }
       });
     } else {
-      // Default sort by createdAt
+      // Default sort by createdAt - always DESC for recent first
       filteredApis.sort((a, b) => {
-        return sortOrder === 'ASC'
-          ? new Date(a.createdAt) - new Date(b.createdAt)
-          : new Date(b.createdAt) - new Date(a.createdAt);
+        return new Date(b.createdAt) - new Date(a.createdAt);
       });
     }
 
@@ -389,10 +400,15 @@ exports.getVirtualAppointments = async (req, res) => {
       }
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (['appointmentDateTime', 'createdAt', 'bookingDate'].includes(sortBy)) {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For appointmentDateTime and bookingDate, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC' && (sortBy === 'appointmentDateTime' || sortBy === 'bookingDate')) {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['appointmentDateTime', 'DESC']);
     }

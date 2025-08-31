@@ -101,10 +101,15 @@ exports.getUserQueries = async (req, res) => {
       where.category = category;
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (['createdAt', 'updatedAt', 'title', 'priority', 'status'].includes(sortBy)) {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For all fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
@@ -384,12 +389,22 @@ exports.getAllQueries = async (req, res) => {
       if (dateTo) where.createdAt[Op.lte] = new Date(dateTo);
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (['createdAt', 'updatedAt', 'title', 'priority', 'status', 'resolvedAt'].includes(sortBy)) {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For all fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else if (sortBy === 'userName') {
-      order.push([{ model: User, as: 'user' }, 'name', sortOrder.toUpperCase()]);
+      // For userName, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([{ model: User, as: 'user' }, 'name', 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([{ model: User, as: 'user' }, 'name', sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }

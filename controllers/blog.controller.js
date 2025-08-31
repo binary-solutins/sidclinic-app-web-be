@@ -210,12 +210,17 @@ exports.getAllBlogs = async (req, res) => {
     // Calculate offset
     const offset = (page - 1) * limit;
     
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (sortBy === 'title' || sortBy === 'category' || sortBy === 'status' || 
         sortBy === 'is_featured' || sortBy === 'view_count' || sortBy === 'published_at' || 
         sortBy === 'createdAt' || sortBy === 'updatedAt') {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For all fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
@@ -374,12 +379,17 @@ exports.getBlogsByUser = async (req, res) => {
     // Calculate offset
     const offset = (page - 1) * limit;
     
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (sortBy === 'title' || sortBy === 'category' || sortBy === 'status' || 
         sortBy === 'is_featured' || sortBy === 'view_count' || sortBy === 'published_at' || 
         sortBy === 'createdAt' || sortBy === 'updatedAt') {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For all fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
@@ -580,12 +590,17 @@ exports.getAllBlogsAdmin = async (req, res) => {
     // Calculate offset
     const offset = (page - 1) * limit;
     
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (sortBy === 'title' || sortBy === 'category' || sortBy === 'status' || 
         sortBy === 'is_featured' || sortBy === 'view_count' || sortBy === 'published_at' || 
         sortBy === 'createdAt' || sortBy === 'updatedAt') {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For all fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }

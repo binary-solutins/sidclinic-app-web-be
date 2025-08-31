@@ -27,12 +27,22 @@ exports.listPendingDoctors = async (req, res) => {
       ];
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
-      order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
+      // For name and phone, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC' && (sortBy === 'name' || sortBy === 'phone')) {
+        order.push([{ model: User, as: 'User' }, sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
+      }
     } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || sortBy === 'yearsOfExperience') {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For clinic fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
@@ -100,12 +110,22 @@ exports.listApprovedDoctors = async (req, res) => {
       ];
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
-      order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
+      // For name and phone, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC' && (sortBy === 'name' || sortBy === 'phone')) {
+        order.push([{ model: User, as: 'User' }, sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
+      }
     } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || sortBy === 'yearsOfExperience') {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For clinic fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
@@ -176,14 +196,24 @@ exports.listAllDoctors = async (req, res) => {
       ];
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
-      order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
+      // For name and phone, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC' && (sortBy === 'name' || sortBy === 'phone')) {
+        order.push([{ model: User, as: 'User' }, sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
+      }
     } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || 
                sortBy === 'yearsOfExperience' || sortBy === 'city' || sortBy === 'state' || 
                sortBy === 'isApproved' || sortBy === 'is_active') {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For clinic fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
@@ -723,10 +753,15 @@ exports.listAllUsers = async (req, res) => {
       ];
     }
 
-    // Sorting
+    // Sorting - Always ensure DESC order for recent first
     let order = [];
     if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'gender' || sortBy === 'createdAt') {
-      order.push([sortBy, sortOrder.toUpperCase()]);
+      // For name, phone, and gender, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
     } else {
       order.push(['createdAt', 'DESC']);
     }
