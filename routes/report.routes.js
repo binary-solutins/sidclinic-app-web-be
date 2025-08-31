@@ -21,112 +21,11 @@ const upload = multer({
   }
 });
 
-/**
- * @swagger
- * components:
- *   schemas:
- *     Report:
- *       type: object
- *       properties:
- *         id:
- *           type: string
- *           example: "report_123"
- *         relativeId:
- *           type: integer
- *           example: 1
- *         relativeName:
- *           type: string
- *           example: "John Doe"
- *         reportType:
- *           type: string
- *           enum: [oral_diagnosis, dental_analysis, teeth_detection, cavity_detection, plaque_detection, other]
- *           example: "oral_diagnosis"
- *         createdAt:
- *           type: string
- *           format: date-time
- *           example: "2024-01-15T10:30:00Z"
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           example: "2024-01-15T10:30:00Z"
- *         boundingBoxData:
- *           type: array
- *           items:
- *             type: object
- *             properties:
- *               imageName:
- *                 type: string
- *                 example: "front_teeth.jpg"
- *               imageType:
- *                 type: string
- *                 example: "front"
- *               description:
- *                 type: string
- *                 example: "Front teeth analysis showing detected issues: cavities, plaque"
- *               originalImageUri:
- *                 type: string
- *                 example: "file://path/to/image1.jpg"
- *               detections:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     class_name:
- *                       type: string
- *                       example: "cavity"
- *                     confidence:
- *                       type: number
- *                       example: 0.85
- *                     bbox:
- *                       type: array
- *                       items:
- *                         type: number
- *                       example: [100, 150, 200, 250]
- *               teethDetection:
- *                 type: object
- *                 properties:
- *                   teeth_count:
- *                     type: integer
- *                     example: 8
- *                   positions:
- *                     type: array
- *                     items:
- *                       type: object
- *               imageDimensions:
- *                 type: object
- *                 properties:
- *                   width:
- *                     type: integer
- *                     example: 800
- *                   height:
- *                     type: integer
- *                     example: 600
- *               defectSummary:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     className:
- *                       type: string
- *                       example: "cavity"
- *                     confidence:
- *                       type: number
- *                       example: 0.85
- *                     locations:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["front"]
- *         images:
- *           type: array
- *           items:
- *             type: string
- *           example: ["https://appwrite.io/storage/buckets/bucket_id/files/file_id/view"]
- */
+
 
 /**
  * @swagger
- * /create/user/report/:
+ * /create/user/report:
  *   post:
  *     summary: Create a new dental analysis report
  *     tags: [Reports]
@@ -140,18 +39,13 @@ const upload = multer({
  *             type: object
  *             properties:
  *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *                 description: Dental images for analysis
+ *                 type: string
+ *                 format: binary
+ *                 description: Dental images for analysis (multiple files allowed)
  *               boundingBoxData:
  *                 type: string
  *                 description: JSON string containing bounding box data
  *                 example: '[{"imageName":"front_teeth.jpg","imageType":"front","description":"Front teeth analysis","detections":[{"class_name":"cavity","confidence":0.85,"bbox":[100,150,200,250]}],"teethDetection":{"teeth_count":8,"positions":[]},"imageDimensions":{"width":800,"height":600},"defectSummary":[{"className":"cavity","confidence":0.85,"locations":["front"]}]}]'
- *     servers:
- *       - url: http://localhost:3000/api
- *         description: Development server
  *               relativeId:
  *                 type: integer
  *                 description: Family member ID (0 for user themselves)
@@ -188,7 +82,7 @@ const upload = multer({
  *       500:
  *         description: Internal server error
  */
-router.post('/create/user/report/', 
+router.post('/create/user/report', 
   authenticate(['user', 'doctor', 'admin']), 
   upload.array('images', 10), 
   reportController.createReport
@@ -196,7 +90,7 @@ router.post('/create/user/report/',
 
 /**
  * @swagger
- * /get/user/reports/:
+ * /get/user/reports:
  *   get:
  *     summary: Get all reports for the authenticated user
  *     tags: [Reports]
@@ -229,7 +123,7 @@ router.post('/create/user/report/',
  *       500:
  *         description: Internal server error
  */
-router.get('/get/user/reports/', 
+router.get('/get/user/reports', 
   authenticate(['user', 'doctor', 'admin']), 
   reportController.getUserReports
 );

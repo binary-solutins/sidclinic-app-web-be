@@ -316,6 +316,143 @@ const options = {
               description: 'Number of doctors in the system'
             }
           }
+        },
+        Report: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              example: 'report_123'
+            },
+            relativeId: {
+              type: 'integer',
+              example: 1
+            },
+            relativeName: {
+              type: 'string',
+              example: 'John Doe'
+            },
+            reportType: {
+              type: 'string',
+              enum: ['oral_diagnosis', 'dental_analysis', 'teeth_detection', 'cavity_detection', 'plaque_detection', 'other'],
+              example: 'oral_diagnosis'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-01-15T10:30:00Z'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-01-15T10:30:00Z'
+            },
+            boundingBoxData: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  imageName: {
+                    type: 'string',
+                    example: 'front_teeth.jpg'
+                  },
+                  imageType: {
+                    type: 'string',
+                    example: 'front'
+                  },
+                  description: {
+                    type: 'string',
+                    example: 'Front teeth analysis showing detected issues: cavities, plaque'
+                  },
+                  originalImageUri: {
+                    type: 'string',
+                    example: 'file://path/to/image1.jpg'
+                  },
+                  detections: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        class_name: {
+                          type: 'string',
+                          example: 'cavity'
+                        },
+                        confidence: {
+                          type: 'number',
+                          example: 0.85
+                        },
+                        bbox: {
+                          type: 'array',
+                          items: {
+                            type: 'number'
+                          },
+                          example: [100, 150, 200, 250]
+                        }
+                      }
+                    }
+                  },
+                  teethDetection: {
+                    type: 'object',
+                    properties: {
+                      teeth_count: {
+                        type: 'integer',
+                        example: 8
+                      },
+                      positions: {
+                        type: 'array',
+                        items: {
+                          type: 'object'
+                        }
+                      }
+                    }
+                  },
+                  imageDimensions: {
+                    type: 'object',
+                    properties: {
+                      width: {
+                        type: 'integer',
+                        example: 800
+                      },
+                      height: {
+                        type: 'integer',
+                        example: 600
+                      }
+                    }
+                  },
+                  defectSummary: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        className: {
+                          type: 'string',
+                          example: 'cavity'
+                        },
+                        confidence: {
+                          type: 'number',
+                          example: 0.85
+                        },
+                        locations: {
+                          type: 'array',
+                          items: {
+                            type: 'string'
+                          },
+                          example: ['front']
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            images: {
+              type: 'array',
+              items: {
+                type: 'string'
+              },
+              example: ['https://appwrite.io/storage/buckets/bucket_id/files/file_id/view']
+            }
+          }
         }
       },
       responses: {
@@ -351,12 +488,12 @@ const options = {
         description: 'User authentication and authorization'
       },
       {
-        name: 'Dashboard',
-        description: 'Dashboard statistics and overview operations'
-      },
-      {
         name: 'Queries',
         description: 'Queries Related Operations'
+      },
+      {
+        name: 'Reports',
+        description: 'Dental analysis reports and medical reports operations'
       }
       // Add more tags as needed
     ]
