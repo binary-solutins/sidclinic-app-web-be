@@ -193,13 +193,17 @@ module.exports = {
         try {
           const roomId = uuidv4();
           const patientCommUser = await createAzureCommUser();
+          const doctorCommUser = await createAzureCommUser(); // Generate doctor token for virtual appointments
 
           appointmentData.videoCallLink = `/video-call/${roomId}`;
           appointmentData.roomId = roomId;
           appointmentData.azurePatientUserId = patientCommUser.userId;
           appointmentData.azurePatientToken = patientCommUser.token;
           appointmentData.azurePatientTokenExpiry = patientCommUser.expiresOn;
-                     appointmentData.doctorId = null; // Virtual appointments have doctorId = null
+          appointmentData.azureDoctorUserId = doctorCommUser.userId;
+          appointmentData.azureDoctorToken = doctorCommUser.token;
+          appointmentData.azureDoctorTokenExpiry = doctorCommUser.expiresOn;
+          appointmentData.doctorId = null; // Virtual appointments have doctorId = null
         } catch (err) {
           console.error('Azure Communication Services error:', err);
           return res.status(500).json({
@@ -353,13 +357,36 @@ module.exports = {
         appointment.azurePatientTokenExpiry = newPatientToken.expiresOn;
       }
 
-      // Handle virtual doctor - create token on demand
+      // Handle virtual doctor - use stored doctor token for virtual appointments
       let virtualDoctorToken = null;
       let virtualDoctorUserId = null;
       if (isVirtualDoctor) {
-        const virtualDoctorCommUser = await createAzureCommUser();
-        virtualDoctorUserId = virtualDoctorCommUser.userId;
-        virtualDoctorToken = virtualDoctorCommUser.token;
+        // For virtual appointments, use the stored doctor token
+        if (appointment.azureDoctorUserId && appointment.azureDoctorToken) {
+          // Check if token is expired and refresh if needed
+          if (new Date(appointment.azureDoctorTokenExpiry) <= now) {
+            const newDoctorToken = await communicationIdentityClient.getToken(
+              { communicationUserId: appointment.azureDoctorUserId },
+              ["voip"]
+            );
+            virtualDoctorToken = newDoctorToken.token;
+            virtualDoctorUserId = appointment.azureDoctorUserId;
+            appointment.azureDoctorToken = newDoctorToken.token;
+            appointment.azureDoctorTokenExpiry = newDoctorToken.expiresOn;
+          } else {
+            virtualDoctorToken = appointment.azureDoctorToken;
+            virtualDoctorUserId = appointment.azureDoctorUserId;
+          }
+        } else {
+          // Fallback: create new token if stored token doesn't exist
+          const virtualDoctorCommUser = await createAzureCommUser();
+          virtualDoctorUserId = virtualDoctorCommUser.userId;
+          virtualDoctorToken = virtualDoctorCommUser.token;
+          // Store the new token for future use
+          appointment.azureDoctorUserId = virtualDoctorCommUser.userId;
+          appointment.azureDoctorToken = virtualDoctorCommUser.token;
+          appointment.azureDoctorTokenExpiry = virtualDoctorCommUser.expiresOn;
+        }
       }
 
       // Handle assigned doctor tokens

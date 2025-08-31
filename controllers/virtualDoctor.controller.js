@@ -503,7 +503,7 @@ exports.getVideoCallCredentials = async (req, res) => {
       });
     }
 
-    // Create Azure token for virtual doctor on demand
+    // Use stored doctor token for virtual appointments
     const { CommunicationIdentityClient } = require('@azure/communication-identity');
     const communicationIdentityClient = new CommunicationIdentityClient(
       process.env.AZURE_COMMUNICATION_CONNECTION_STRING
@@ -526,12 +526,43 @@ exports.getVideoCallCredentials = async (req, res) => {
       }
     };
 
-    const virtualDoctorCommUser = await createAzureCommUser();
+    let virtualDoctorToken = null;
+    let virtualDoctorUserId = null;
+
+    // For virtual appointments, use the stored doctor token
+    if (appointment.azureDoctorUserId && appointment.azureDoctorToken) {
+      const now = new Date();
+      // Check if token is expired and refresh if needed
+      if (new Date(appointment.azureDoctorTokenExpiry) <= now) {
+        const newDoctorToken = await communicationIdentityClient.getToken(
+          { communicationUserId: appointment.azureDoctorUserId },
+          ["voip"]
+        );
+        virtualDoctorToken = newDoctorToken.token;
+        virtualDoctorUserId = appointment.azureDoctorUserId;
+        appointment.azureDoctorToken = newDoctorToken.token;
+        appointment.azureDoctorTokenExpiry = newDoctorToken.expiresOn;
+        await appointment.save();
+      } else {
+        virtualDoctorToken = appointment.azureDoctorToken;
+        virtualDoctorUserId = appointment.azureDoctorUserId;
+      }
+    } else {
+      // Fallback: create new token if stored token doesn't exist
+      const virtualDoctorCommUser = await createAzureCommUser();
+      virtualDoctorUserId = virtualDoctorCommUser.userId;
+      virtualDoctorToken = virtualDoctorCommUser.token;
+      // Store the new token for future use
+      appointment.azureDoctorUserId = virtualDoctorCommUser.userId;
+      appointment.azureDoctorToken = virtualDoctorCommUser.token;
+      appointment.azureDoctorTokenExpiry = virtualDoctorCommUser.expiresOn;
+      await appointment.save();
+    }
 
     const credentials = {
       roomId: appointment.roomId,
-      userId: virtualDoctorCommUser.userId,
-      token: virtualDoctorCommUser.token,
+      userId: virtualDoctorUserId,
+      token: virtualDoctorToken,
       userRole: 'virtual-doctor',
       appointmentId: appointment.id,
       participantName: req.user.name
