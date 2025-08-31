@@ -64,7 +64,7 @@ sequelize
 
 // Database sync (temporary for schema update)
 
-sequelize.sync({ alter: true })
+sequelize.sync({ alter: false })
   .then(() => {
     console.log('Database synchronized with alter mode');
   })
