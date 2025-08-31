@@ -72,7 +72,7 @@ const Appointment = sequelize.define('Appointment', {
     allowNull: true
   },
   canceledBy: {
-    type: DataTypes.ENUM('patient', 'doctor'),
+    type: DataTypes.ENUM('patient', 'doctor', 'virtual-doctor'),
     allowNull: true
   },
   canceledAt: {
@@ -164,6 +164,62 @@ const Appointment = sequelize.define('Appointment', {
   source: {
     type: DataTypes.ENUM('web', 'mobile', 'admin'),
     defaultValue: 'web'
+  },
+
+  // Virtual Doctor Tracking Fields
+  confirmedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: User,
+      key: 'id'
+    },
+    comment: 'User ID who confirmed the appointment (for virtual appointments)'
+  },
+  rejectedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: User,
+      key: 'id'
+    },
+    comment: 'User ID who rejected the appointment (for virtual appointments)'
+  },
+  rescheduleApprovedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: User,
+      key: 'id'
+    },
+    comment: 'User ID who approved the reschedule request (for virtual appointments)'
+  },
+  rescheduleRejectedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: User,
+      key: 'id'
+    },
+    comment: 'User ID who rejected the reschedule request (for virtual appointments)'
+  },
+  canceledByUserId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: User,
+      key: 'id'
+    },
+    comment: 'User ID who canceled the appointment (for virtual appointments)'
+  },
+  completedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: User,
+      key: 'id'
+    },
+    comment: 'User ID who completed the appointment (for virtual appointments)'
   }
 }, {
   tableName: 'appointments',

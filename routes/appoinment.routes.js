@@ -1301,4 +1301,520 @@ router.get('/video-credentials/:id',
     controller.joinVideoCall
   );
 
+// Virtual Doctor Routes for Virtual Appointments
+
+/**
+ * @swagger
+ * /appointments/virtual/{id}/confirm:
+ *   patch:
+ *     summary: Confirm a virtual appointment (Virtual Doctor only)
+ *     description: Confirm a pending virtual appointment. Only virtual doctors can confirm virtual appointments.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Virtual appointment confirmed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Appointment'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               message: "Virtual appointment confirmed successfully"
+ *               data:
+ *                 id: 1
+ *                 status: "confirmed"
+ *                 confirmedAt: "2024-12-21T09:00:00.000Z"
+ *       400:
+ *         description: Cannot confirm appointment
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *             example:
+ *               status: "error"
+ *               code: 400
+ *               message: "This function is only for virtual appointments"
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.patch('/virtual/:id/confirm', authenticate(['virtual-doctor']), controller.confirmVirtualAppointment);
+
+/**
+ * @swagger
+ * /appointments/virtual/{id}/reject:
+ *   patch:
+ *     summary: Reject a virtual appointment (Virtual Doctor only)
+ *     description: Reject a pending virtual appointment with an optional reason. Only virtual doctors can reject virtual appointments.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RejectRequest'
+ *           example:
+ *             rejectionReason: "Virtual doctor not available at this time"
+ *     responses:
+ *       200:
+ *         description: Virtual appointment rejected successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Appointment'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               message: "Virtual appointment rejected successfully"
+ *               data:
+ *                 id: 1
+ *                 status: "rejected"
+ *                 rejectionReason: "Virtual doctor not available at this time"
+ *                 rejectedAt: "2024-12-21T10:00:00.000Z"
+ *       400:
+ *         description: Cannot reject appointment
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.patch('/virtual/:id/reject', authenticate(['virtual-doctor']), controller.rejectVirtualAppointment);
+
+/**
+ * @swagger
+ * /appointments/virtual/{id}/approve-reschedule:
+ *   patch:
+ *     summary: Approve virtual appointment reschedule request (Virtual Doctor only)
+ *     description: Approve a patient's reschedule request for a virtual appointment. Only virtual doctors can approve virtual appointment reschedule requests.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Virtual appointment reschedule request approved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Appointment'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               message: "Virtual appointment reschedule request approved successfully"
+ *               data:
+ *                 id: 1
+ *                 status: "confirmed"
+ *                 appointmentDateTime: "2024-12-26T14:00:00.000Z"
+ *                 rescheduleApprovedAt: "2024-12-22T13:00:00.000Z"
+ *       400:
+ *         description: No reschedule request found
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.patch('/virtual/:id/approve-reschedule', authenticate(['virtual-doctor']), controller.approveVirtualReschedule);
+
+/**
+ * @swagger
+ * /appointments/virtual/{id}/reject-reschedule:
+ *   patch:
+ *     summary: Reject virtual appointment reschedule request (Virtual Doctor only)
+ *     description: Reject a patient's reschedule request for a virtual appointment with an optional reason. The original appointment time will be maintained.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RejectRequest'
+ *           example:
+ *             rejectionReason: "New time slot not available"
+ *     responses:
+ *       200:
+ *         description: Virtual appointment reschedule request rejected successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Appointment'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               message: "Virtual appointment reschedule request rejected. Original appointment time maintained."
+ *               data:
+ *                 id: 1
+ *                 status: "confirmed"
+ *                 appointmentDateTime: "2024-12-25T10:30:00.000Z"
+ *                 rescheduleRejectionReason: "New time slot not available"
+ *                 rescheduleRejectedAt: "2024-12-22T13:30:00.000Z"
+ *       400:
+ *         description: No reschedule request found
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.patch('/virtual/:id/reject-reschedule', authenticate(['virtual-doctor']), controller.rejectVirtualReschedule);
+
+/**
+ * @swagger
+ * /appointments/virtual/{id}/cancel:
+ *   patch:
+ *     summary: Cancel a virtual appointment (Virtual Doctor only)
+ *     description: Cancel a virtual appointment with an optional reason. Only virtual doctors can cancel virtual appointments.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CancelRequest'
+ *           example:
+ *             cancelReason: "Virtual doctor unavailable"
+ *     responses:
+ *       200:
+ *         description: Virtual appointment canceled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Appointment'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               message: "Virtual appointment canceled successfully"
+ *               data:
+ *                 id: 1
+ *                 status: "canceled"
+ *                 cancelReason: "Virtual doctor unavailable"
+ *                 canceledBy: "virtual-doctor"
+ *                 canceledAt: "2024-12-24T16:00:00.000Z"
+ *       400:
+ *         description: Cannot cancel appointment
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.patch('/virtual/:id/cancel', authenticate(['virtual-doctor']), controller.cancelVirtualAppointment);
+
+/**
+ * @swagger
+ * /appointments/virtual/{id}/complete:
+ *   patch:
+ *     summary: Mark virtual appointment as completed (Virtual Doctor only)
+ *     description: Mark a virtual appointment as completed with consultation notes and prescription. Only virtual doctors can complete virtual appointments.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CompleteRequest'
+ *           example:
+ *             consultationNotes: "Patient diagnosed with viral fever. Prescribed rest and medication."
+ *             prescription: "Paracetamol 500mg twice daily for 3 days"
+ *     responses:
+ *       200:
+ *         description: Virtual appointment completed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Appointment'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               message: "Virtual appointment completed successfully"
+ *               data:
+ *                 id: 1
+ *                 status: "completed"
+ *                 consultationNotes: "Patient diagnosed with viral fever. Prescribed rest and medication."
+ *                 prescription: "Paracetamol 500mg twice daily for 3 days"
+ *                 completedAt: "2024-12-25T11:00:00.000Z"
+ *       400:
+ *         description: Cannot complete appointment
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.patch('/virtual/:id/complete', authenticate(['virtual-doctor']), controller.completeVirtualAppointment);
+
+/**
+ * @swagger
+ * /appointments/virtual:
+ *   get:
+ *     summary: Get all virtual appointments (Virtual Doctor only)
+ *     description: Retrieve all virtual appointments with optional filtering and pagination. Only virtual doctors can access this endpoint.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         description: Filter by appointment status
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, rejected, canceled, completed, reschedule_requested]
+ *           example: "pending"
+ *       - in: query
+ *         name: fromDate
+ *         description: Filter appointments from this date (YYYY-MM-DD)
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: "2024-12-01"
+ *       - in: query
+ *         name: toDate
+ *         description: Filter appointments to this date (YYYY-MM-DD)
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: "2024-12-31"
+ *       - in: query
+ *         name: page
+ *         description: Page number for pagination
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *       - in: query
+ *         name: limit
+ *         description: Number of appointments per page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *           example: 10
+ *     responses:
+ *       200:
+ *         description: List of virtual appointments
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedResponse'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               data:
+ *                 appointments:
+ *                   - id: 1
+ *                     userId: 1
+ *                     doctorId: null
+ *                     appointmentDateTime: "2024-12-25T10:30:00.000Z"
+ *                     type: "virtual"
+ *                     status: "pending"
+ *                     notes: "Follow-up consultation"
+ *                     patient:
+ *                       id: 1
+ *                       name: "John Doe"
+ *                       phone: "+1234567890"
+ *                 pagination:
+ *                   total: 25
+ *                   page: 1
+ *                   limit: 10
+ *                   totalPages: 3
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/virtual', authenticate(['virtual-doctor']), controller.getVirtualAppointments);
+
+/**
+ * @swagger
+ * /appointments/virtual/{id}:
+ *   get:
+ *     summary: Get virtual appointment details by ID (Virtual Doctor only)
+ *     description: Retrieve detailed information about a specific virtual appointment. Only virtual doctors can access this endpoint.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Virtual appointment details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/Appointment'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               data:
+ *                 id: 1
+ *                 userId: 1
+ *                 doctorId: null
+ *                 appointmentDateTime: "2024-12-25T10:30:00.000Z"
+ *                 type: "virtual"
+ *                 status: "confirmed"
+ *                 notes: "Follow-up consultation"
+ *                 bookingDate: "2024-12-20T08:00:00.000Z"
+ *                 confirmedAt: "2024-12-21T09:00:00.000Z"
+ *                 patient:
+ *                   id: 1
+ *                   name: "John Doe"
+ *                   phone: "+1234567890"
+ *       400:
+ *         description: Not a virtual appointment
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/virtual/:id', authenticate(['virtual-doctor']), controller.getVirtualAppointmentById);
+
+/**
+ * @swagger
+ * /appointments/virtual/stats/dashboard:
+ *   get:
+ *     summary: Get virtual appointment statistics for dashboard (Virtual Doctor only)
+ *     description: Retrieve comprehensive virtual appointment statistics including counts by status, time periods, and reschedule requests. Only virtual doctors can access this endpoint.
+ *     tags: [Appointments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Virtual appointment statistics
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       $ref: '#/components/schemas/AppointmentStats'
+ *             example:
+ *               status: "success"
+ *               code: 200
+ *               data:
+ *                 total: 100
+ *                 pending: 15
+ *                 confirmed: 25
+ *                 completed: 45
+ *                 canceled: 10
+ *                 today: 5
+ *                 thisWeek: 20
+ *                 thisMonth: 80
+ *                 rescheduleRequests: 5
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/virtual/stats/dashboard', authenticate(['virtual-doctor']), controller.getVirtualAppointmentStats);
+
 module.exports = router;

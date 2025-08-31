@@ -1678,5 +1678,728 @@ module.exports = {
         message: error.message,
       });
     }
+  },
+
+  // Virtual Doctor Functions for Virtual Appointments
+
+  confirmVirtualAppointment: async (req, res) => {
+    try {
+      const appointment = await Appointment.findByPk(req.params.id, {
+        include: [
+          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: User, as: 'patient' }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Check if it's a virtual appointment
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This function is only for virtual appointments',
+        });
+      }
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can confirm virtual appointments',
+        });
+      }
+
+      if (appointment.status !== 'pending') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: `Cannot confirm appointment. Current status: ${appointment.status}`,
+        });
+      }
+
+      // Update status
+      appointment.status = 'confirmed';
+      appointment.confirmedAt = new Date();
+      appointment.confirmedBy = req.user.id; // Track who confirmed it
+      await appointment.save();
+
+      // Send confirmation email to patient
+      await sendAppointmentEmail(
+        appointment.patient.email,
+        'appointment_confirmed',
+        {
+          patientName: appointment.patient.name,
+          doctorName: 'Virtual Doctor', // For virtual appointments
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
+          appointmentType: appointment.type,
+          appointmentId: appointment.id,
+          videoCallLink: appointment.videoCallLink || null
+        }
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Virtual appointment confirmed successfully',
+        data: appointment,
+      });
+    } catch (error) {
+      console.error('Confirm Virtual Appointment Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  rejectVirtualAppointment: async (req, res) => {
+    try {
+      const { rejectionReason } = req.body;
+      const appointment = await Appointment.findByPk(req.params.id, {
+        include: [
+          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: User, as: 'patient' }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Check if it's a virtual appointment
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This function is only for virtual appointments',
+        });
+      }
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can reject virtual appointments',
+        });
+      }
+
+      if (appointment.status !== 'pending') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: `Cannot reject appointment. Current status: ${appointment.status}`,
+        });
+      }
+
+      // Update status
+      appointment.status = 'rejected';
+      appointment.rejectionReason = rejectionReason;
+      appointment.rejectedAt = new Date();
+      appointment.rejectedBy = req.user.id; // Track who rejected it
+      await appointment.save();
+
+      await sendAppointmentEmail(
+        appointment.patient.email,
+        'appointment_rejected',
+        {
+          patientName: appointment.patient.name,
+          doctorName: 'Virtual Doctor', // For virtual appointments
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
+          rejectionReason: rejectionReason || 'No reason provided',
+          appointmentId: appointment.id
+        }
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Virtual appointment rejected successfully',
+        data: appointment,
+      });
+    } catch (error) {
+      console.error('Reject Virtual Appointment Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  approveVirtualReschedule: async (req, res) => {
+    try {
+      const appointment = await Appointment.findByPk(req.params.id, {
+        include: [
+          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: User, as: 'patient' }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Check if it's a virtual appointment
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This function is only for virtual appointments',
+        });
+      }
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can approve virtual appointment reschedules',
+        });
+      }
+
+      if (appointment.status !== 'reschedule_requested') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'No reschedule request found for this appointment',
+        });
+      }
+
+      // Update appointment with new time
+      appointment.appointmentDateTime = appointment.requestedDateTime;
+      appointment.status = 'confirmed';
+      appointment.rescheduleApprovedAt = new Date();
+      appointment.rescheduleApprovedBy = req.user.id; // Track who approved it
+      await appointment.save();
+
+      // Send approval email to patient
+      await sendAppointmentEmail(
+        appointment.patient.email,
+        'reschedule_approved',
+        {
+          patientName: String(appointment.patient.name),
+          doctorName: 'Virtual Doctor', // For virtual appointments
+          newDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          newTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
+          appointmentType: String(appointment.type),
+          appointmentId: String(appointment.id),
+          videoCallLink: appointment.videoCallLink ? String(appointment.videoCallLink) : ''
+        }
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Virtual appointment reschedule request approved successfully',
+        data: appointment,
+      });
+    } catch (error) {
+      console.error('Approve Virtual Reschedule Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  rejectVirtualReschedule: async (req, res) => {
+    try {
+      const { rejectionReason } = req.body;
+      const appointment = await Appointment.findByPk(req.params.id, {
+        include: [
+          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: User, as: 'patient' }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Check if it's a virtual appointment
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This function is only for virtual appointments',
+        });
+      }
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can reject virtual appointment reschedules',
+        });
+      }
+
+      if (appointment.status !== 'reschedule_requested') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'No reschedule request found for this appointment',
+        });
+      }
+
+      // Revert to confirmed status and clear reschedule data
+      appointment.status = 'confirmed';
+      appointment.appointmentDateTime = appointment.originalDateTime;
+      appointment.rescheduleRejectionReason = rejectionReason;
+      appointment.rescheduleRejectedAt = new Date();
+      appointment.rescheduleRejectedBy = req.user.id; // Track who rejected it
+      appointment.requestedDateTime = null;
+      await appointment.save();
+
+      await sendAppointmentEmail(
+        appointment.patient.email,
+        'reschedule_rejected',
+        {
+          patientName: String(appointment.patient.name),
+          doctorName: 'Virtual Doctor', // For virtual appointments
+          originalDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          originalTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
+          rejectionReason: String(rejectionReason || 'No reason provided'),
+          appointmentId: String(appointment.id)
+        }
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Virtual appointment reschedule request rejected. Original appointment time maintained.',
+        data: appointment,
+      });
+    } catch (error) {
+      console.error('Reject Virtual Reschedule Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  cancelVirtualAppointment: async (req, res) => {
+    try {
+      const { cancelReason } = req.body;
+      const appointment = await Appointment.findByPk(req.params.id, {
+        include: [
+          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: User, as: 'patient' }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Check if it's a virtual appointment
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This function is only for virtual appointments',
+        });
+      }
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can cancel virtual appointments',
+        });
+      }
+
+      // Check if appointment can be canceled
+      if (['canceled', 'completed'].includes(appointment.status)) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: `Cannot cancel appointment with status: ${appointment.status}`,
+        });
+      }
+
+      // Update status
+      appointment.status = 'canceled';
+      appointment.cancelReason = cancelReason;
+      appointment.canceledBy = 'virtual-doctor';
+      appointment.canceledAt = new Date();
+      appointment.canceledByUserId = req.user.id; // Track who canceled it
+      await appointment.save();
+
+      // Send cancellation email to patient
+      await sendAppointmentEmail(
+        appointment.patient.email,
+        'appointment_canceled_by_doctor',
+        {
+          recipientName: appointment.patient.name,
+          cancelerName: 'Virtual Doctor',
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
+          cancelReason: cancelReason || 'No reason provided',
+          appointmentId: appointment.id
+        }
+      );
+
+      // Send confirmation email to virtual doctor
+      await sendAppointmentEmail(
+        req.user.phone, // Using phone as email for virtual doctors
+        'cancellation_confirmation_doctor',
+        {
+          cancelerName: 'Virtual Doctor',
+          otherPartyName: appointment.patient.name,
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
+          appointmentId: appointment.id
+        }
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Virtual appointment canceled successfully',
+        data: appointment,
+      });
+    } catch (error) {
+      console.error('Cancel Virtual Appointment Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  completeVirtualAppointment: async (req, res) => {
+    try {
+      const { consultationNotes, prescription } = req.body;
+      const appointment = await Appointment.findByPk(req.params.id, {
+        include: [
+          { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: User, as: 'patient' }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Check if it's a virtual appointment
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This function is only for virtual appointments',
+        });
+      }
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can complete virtual appointments',
+        });
+      }
+
+      if (appointment.status !== 'confirmed') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: `Cannot complete appointment with status: ${appointment.status}`,
+        });
+      }
+
+      // Update status
+      appointment.status = 'completed';
+      appointment.consultationNotes = consultationNotes;
+      appointment.prescription = prescription;
+      appointment.completedAt = new Date();
+      appointment.completedBy = req.user.id; // Track who completed it
+      await appointment.save();
+
+      await sendAppointmentEmail(
+        appointment.patient.email,
+        'appointment_completed',
+        {
+          patientName: appointment.patient.name,
+          doctorName: 'Virtual Doctor', // For virtual appointments
+          appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('dd LLL yyyy'),
+          appointmentTime: DateTime.fromJSDate(appointment.appointmentDateTime)
+            .setZone('Asia/Kolkata')
+            .toFormat('hh:mm a'),
+          consultationNotes: consultationNotes || 'No notes provided',
+          prescription: prescription || 'No prescription provided',
+          appointmentId: appointment.id
+        }
+      );
+
+      res.json({
+        status: 'success',
+        code: 200,
+        message: 'Virtual appointment completed successfully',
+        data: appointment,
+      });
+    } catch (error) {
+      console.error('Complete Virtual Appointment Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  getVirtualAppointments: async (req, res) => {
+    try {
+      const { status, fromDate, toDate, page = 1, limit = 10 } = req.query;
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can access virtual appointments',
+        });
+      }
+
+      const where = { 
+        type: 'virtual', // Only virtual appointments
+        doctorId: null // Virtual appointments have no assigned doctor
+      };
+      
+      if (status) where.status = status;
+
+      if (fromDate || toDate) {
+        where.appointmentDateTime = {};
+        if (fromDate) where.appointmentDateTime[Op.gte] = new Date(fromDate);
+        if (toDate) where.appointmentDateTime[Op.lte] = new Date(`${toDate}T23:59:59.999Z`);
+      }
+
+      const offset = (page - 1) * limit;
+
+      const { count, rows: appointments } = await Appointment.findAndCountAll({
+        where,
+        include: [
+          {
+            model: User,
+            as: 'patient',
+            attributes: ['id', 'name', 'phone']
+          }
+        ],
+        order: [['appointmentDateTime', 'DESC']],
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      });
+
+      res.json({
+        status: 'success',
+        code: 200,
+        data: {
+          appointments,
+          pagination: {
+            total: count,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(count / limit)
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Get Virtual Appointments Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  getVirtualAppointmentById: async (req, res) => {
+    try {
+      const appointment = await Appointment.findByPk(req.params.id, {
+        include: [
+          {
+            model: User,
+            as: 'patient',
+            attributes: ['id', 'name', 'phone']
+          }
+        ]
+      });
+
+      if (!appointment) {
+        return res.status(404).json({
+          status: 'error',
+          code: 404,
+          message: 'Appointment not found',
+        });
+      }
+
+      // Check if it's a virtual appointment
+      if (appointment.type !== 'virtual') {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'This is not a virtual appointment',
+        });
+      }
+
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can access virtual appointments',
+        });
+      }
+
+      res.json({
+        status: 'success',
+        code: 200,
+        data: appointment,
+      });
+    } catch (error) {
+      console.error('Get Virtual Appointment Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  getVirtualAppointmentStats: async (req, res) => {
+    try {
+      // Check if the requesting user is a virtual doctor
+      if (req.user.role !== 'virtual-doctor') {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'Only virtual doctors can access virtual appointment stats',
+        });
+      }
+
+      const whereCondition = { 
+        type: 'virtual',
+        doctorId: null
+      };
+
+      const today = DateTime.now().setZone('Asia/Kolkata');
+      const startOfToday = today.startOf('day');
+      const endOfToday = today.endOf('day');
+      const startOfWeek = today.startOf('week');
+      const startOfMonth = today.startOf('month');
+
+      const stats = {
+        total: await Appointment.count({ where: whereCondition }),
+        pending: await Appointment.count({
+          where: { ...whereCondition, status: 'pending' }
+        }),
+        confirmed: await Appointment.count({
+          where: { ...whereCondition, status: 'confirmed' }
+        }),
+        completed: await Appointment.count({
+          where: { ...whereCondition, status: 'completed' }
+        }),
+        canceled: await Appointment.count({
+          where: { ...whereCondition, status: 'canceled' }
+        }),
+        today: await Appointment.count({
+          where: {
+            ...whereCondition,
+            appointmentDateTime: { [Op.between]: [startOfToday.toJSDate(), endOfToday.toJSDate()] }
+          }
+        }),
+        thisWeek: await Appointment.count({
+          where: {
+            ...whereCondition,
+            appointmentDateTime: { [Op.gte]: startOfWeek.toJSDate() }
+          }
+        }),
+        thisMonth: await Appointment.count({
+          where: {
+            ...whereCondition,
+            appointmentDateTime: { [Op.gte]: startOfMonth.toJSDate() }
+          }
+        }),
+        rescheduleRequests: await Appointment.count({
+          where: { ...whereCondition, status: 'reschedule_requested' }
+        })
+      };
+      
+      res.json({
+        status: 'success',
+        code: 200,
+        data: stats,
+      });
+    } catch (error) {
+      console.error('Get Virtual Appointment Stats Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
   }
 };
