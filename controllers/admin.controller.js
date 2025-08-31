@@ -529,6 +529,24 @@ exports.createOrUpdateUser = async (req, res) => {
         notificationEnabled
       });
 
+      // If user role is 'user', automatically create a patient record
+      if (role === 'user') {
+        try {
+          const Patient = require('../models/patient.model');
+          await Patient.create({
+            userId: user.id,
+            email: `${phone}@temp.com`, // Temporary email using phone
+            dateOfBirth: null, // Will be updated later
+            languagePreference: 'English',
+            isActive: true
+          });
+          console.log(`Patient record created for user ${user.id}`);
+        } catch (patientError) {
+          console.error('Error creating patient record:', patientError);
+          // Don't fail the user creation if patient creation fails
+        }
+      }
+
       res.status(201).json({
         status: "success",
         code: 201,

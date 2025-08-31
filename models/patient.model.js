@@ -18,11 +18,11 @@ const Patient = sequelize.define('Patient', {
   },
   dateOfBirth: {
     type: DataTypes.DATEONLY,
-    allowNull: false
+    allowNull: true
   },
   email: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
     validate: { isEmail: true }
   },
   profileImage: {
