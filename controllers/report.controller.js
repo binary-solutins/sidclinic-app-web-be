@@ -69,6 +69,15 @@ exports.createReport = async (req, res) => {
       });
     }
 
+    // Validate that exactly 3 images are provided
+    if (!req.files || req.files.length !== 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Exactly 3 images are required for dental analysis',
+        data: null
+      });
+    }
+
     // Parse boundingBoxData if it's a string
     let parsedBoundingBoxData;
     try {
@@ -117,21 +126,19 @@ exports.createReport = async (req, res) => {
       }
     }
 
-    // Upload images if provided
+    // Upload the 3 required images
     let uploadedImages = [];
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        try {
-          const fileData = await uploadFile(file);
-          uploadedImages.push(fileData.fileUrl);
-        } catch (error) {
-          console.error('Error uploading image:', error);
-          return res.status(500).json({
-            success: false,
-            message: 'Error uploading images',
-            data: null
-          });
-        }
+    for (const file of req.files) {
+      try {
+        const fileData = await uploadFile(file);
+        uploadedImages.push(fileData.fileUrl);
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Error uploading images',
+          data: null
+        });
       }
     }
 
@@ -142,7 +149,7 @@ exports.createReport = async (req, res) => {
       relativeName,
       reportType: reportType || 'oral_diagnosis',
       boundingBoxData: parsedBoundingBoxData,
-      images: uploadedImages.length > 0 ? uploadedImages : null
+      images: uploadedImages
     });
 
     res.status(201).json({

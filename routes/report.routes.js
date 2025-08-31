@@ -9,7 +9,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 10 // Maximum 10 files
+    files: 3 // Exactly 3 files required
   },
   fileFilter: (req, file, cb) => {
     // Allow only image files
@@ -27,7 +27,14 @@ const upload = multer({
  * @swagger
  * /create/user/report:
  *   post:
- *     summary: Create a new dental analysis report
+ *     summary: Create a new dental analysis report (requires exactly 3 images)
+ *     description: |
+ *       Creates a new dental analysis report. This endpoint requires exactly 3 images:
+ *       - Front view of teeth
+ *       - Left side view of teeth  
+ *       - Right side view of teeth
+ *       
+ *       The boundingBoxData should contain analysis results for all 3 images.
  *     tags: [Reports]
  *     security:
  *       - bearerAuth: []
@@ -39,13 +46,17 @@ const upload = multer({
  *             type: object
  *             properties:
  *               images:
- *                 type: string
- *                 format: binary
- *                 description: Dental images for analysis (multiple files allowed)
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 minItems: 3
+ *                 maxItems: 3
+ *                 description: Exactly 3 dental images required for analysis (front, left, right views)
  *               boundingBoxData:
  *                 type: string
- *                 description: JSON string containing bounding box data
- *                 example: '[{"imageName":"front_teeth.jpg","imageType":"front","description":"Front teeth analysis","detections":[{"class_name":"cavity","confidence":0.85,"bbox":[100,150,200,250]}],"teethDetection":{"teeth_count":8,"positions":[]},"imageDimensions":{"width":800,"height":600},"defectSummary":[{"className":"cavity","confidence":0.85,"locations":["front"]}]}]'
+ *                 description: JSON string containing bounding box data for all 3 images
+ *                 example: '[{"imageName":"front_teeth.jpg","imageType":"front","description":"Front teeth analysis","detections":[{"class_name":"cavity","confidence":0.85,"bbox":[100,150,200,250]}],"teethDetection":{"teeth_count":8,"positions":[]},"imageDimensions":{"width":800,"height":600},"defectSummary":[{"className":"cavity","confidence":0.85,"locations":["front"]}]},{"imageName":"left_teeth.jpg","imageType":"left","description":"Left side teeth analysis","detections":[],"teethDetection":{"teeth_count":4,"positions":[]},"imageDimensions":{"width":800,"height":600},"defectSummary":[]},{"imageName":"right_teeth.jpg","imageType":"right","description":"Right side teeth analysis","detections":[],"teethDetection":{"teeth_count":4,"positions":[]},"imageDimensions":{"width":800,"height":600},"defectSummary":[]}]'
  *               relativeId:
  *                 type: integer
  *                 description: Family member ID (0 for user themselves)
@@ -76,7 +87,20 @@ const upload = multer({
  *                 data:
  *                   $ref: '#/components/schemas/Report'
  *       400:
- *         description: Bad request - missing required fields or invalid data
+ *         description: Bad request - missing required fields, invalid data, or incorrect number of images (exactly 3 required)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Exactly 3 images are required for dental analysis"
+ *                 data:
+ *                   type: null
  *       401:
  *         description: Unauthorized - authentication required
  *       500:
@@ -84,7 +108,7 @@ const upload = multer({
  */
 router.post('/create/user/report', 
   authenticate(['user', 'doctor', 'admin']), 
-  upload.array('images', 10), 
+  upload.array('images', 3), 
   reportController.createReport
 );
 
@@ -277,7 +301,7 @@ router.use((error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({
         success: false,
-        message: 'Too many files. Maximum is 10 files',
+        message: 'Exactly 3 images are required for dental analysis',
         data: null
       });
     }
