@@ -440,44 +440,18 @@ exports.getVirtualAppointments = async (req, res) => {
       distinct: true
     });
 
-    // Transform data for response
-    const transformedAppointments = appointments.map(appointment => ({
-      id: appointment.id,
-      appointmentDate: appointment.appointmentDateTime,
-      patientName: appointment.patient?.name || 'Unknown Patient',
-      patientPhone: appointment.patient?.phone || 'N/A',
-      patientEmail: appointment.patient?.email || 'N/A',
-      doctorName: appointment.doctor?.User?.name || 'Unknown Doctor',
-      doctorPhone: appointment.doctor?.User?.phone || 'N/A',
-      status: appointment.status,
-      appointmentType: 'Virtual Consultation',
-      notes: appointment.notes || '',
-      consultationNotes: appointment.consultationNotes || '',
-      prescription: appointment.prescription || '',
-      meetingLink: appointment.videoCallLink || '',
-      roomId: appointment.roomId || '',
-      priority: appointment.priority || 'medium',
-      source: appointment.source || 'web',
-      bookingDate: appointment.bookingDate,
-      confirmedAt: appointment.confirmedAt,
-      completedAt: appointment.completedAt,
-      canceledAt: appointment.canceledAt,
-      canceledBy: appointment.canceledBy,
-      cancelReason: appointment.cancelReason,
-      createdAt: appointment.createdAt,
-      updatedAt: appointment.updatedAt
-    }));
-
     res.status(200).json({
       status: "success",
       code: 200,
       message: "Virtual appointments retrieved successfully",
-      data: transformedAppointments,
-      pagination: {
-        total: count,
-        page,
-        limit,
-        totalPages: Math.ceil(count / limit)
+      data: {
+        appointments,
+        pagination: {
+          total: count,
+          page,
+          limit,
+          totalPages: Math.ceil(count / limit)
+        }
       }
     });
   } catch (error) {
@@ -488,6 +462,92 @@ exports.getVirtualAppointments = async (req, res) => {
       message: "Internal Server Error",
       error: error.message,
       data: null
+    });
+  }
+}; 
+
+ 
+
+// Get video call credentials for virtual doctor
+exports.getVideoCallCredentials = async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const appointment = await Appointment.findByPk(appointmentId, {
+      include: [
+        { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+        { model: User, as: 'patient' }
+      ]
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: 'Appointment not found',
+      });
+    }
+
+    if (appointment.type !== 'virtual') {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'This is not a virtual appointment',
+      });
+    }
+
+    if (appointment.status !== 'confirmed') {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Appointment must be confirmed to access video call',
+      });
+    }
+
+    // Create Azure token for virtual doctor on demand
+    const { CommunicationIdentityClient } = require('@azure/communication-identity');
+    const communicationIdentityClient = new CommunicationIdentityClient(
+      process.env.AZURE_COMMUNICATION_CONNECTION_STRING
+    );
+
+    // Helper function to create Azure Communication user and token
+    const createAzureCommUser = async () => {
+      try {
+        const user = await communicationIdentityClient.createUser();
+        const tokenResponse = await communicationIdentityClient.getToken(user, ["voip"]);
+
+        return {
+          userId: user.communicationUserId,
+          token: tokenResponse.token,
+          expiresOn: tokenResponse.expiresOn
+        };
+      } catch (error) {
+        console.error('Error creating Azure Communication user:', error);
+        throw error;
+      }
+    };
+
+    const virtualDoctorCommUser = await createAzureCommUser();
+
+    const credentials = {
+      roomId: appointment.roomId,
+      userId: virtualDoctorCommUser.userId,
+      token: virtualDoctorCommUser.token,
+      userRole: 'virtual-doctor',
+      appointmentId: appointment.id,
+      participantName: req.user.name
+    };
+
+    res.json({
+      status: 'success',
+      code: 200,
+      data: credentials,
+    });
+  } catch (error) {
+    console.error('Get Video Call Credentials Error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: error.message,
     });
   }
 }; 

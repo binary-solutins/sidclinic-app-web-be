@@ -83,18 +83,21 @@ module.exports = {
         });
       }
 
-      // Validate doctor
-      const doctor = await Doctor.findByPk(doctorId, {
-        include: [{ model: User, as: 'User' }],
-      });
+             // Validate doctor (skip validation for virtual appointments with doctorId = null)
+       let doctor = null;
+       if (doctorId !== null && doctorId !== 0) {
+         doctor = await Doctor.findByPk(doctorId, {
+           include: [{ model: User, as: 'User' }],
+         });
 
-      if (!doctor || !doctor.isApproved || doctor.User.role !== 'doctor') {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'Doctor not available',
-        });
-      }
+         if (!doctor || !doctor.isApproved || doctor.User.role !== 'doctor') {
+           return res.status(400).json({
+             status: 'error',
+             code: 400,
+             message: 'Doctor not available',
+           });
+         }
+       }
 
       // Check if appointment is during working days (Mon-Fri) and hours (9 AM - 6 PM IST)
       const appointmentHour = requestedTime.hour;
@@ -116,52 +119,64 @@ module.exports = {
         });
       }
 
-      // Check time slot availability (30-minute blocks) - all in IST
-      const slotStart = requestedTime.set({ minute: Math.floor(requestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
-      const slotEnd = slotStart.plus({ minutes: 30 });
+             // Check time slot availability (30-minute blocks) - all in IST
+       const slotStart = requestedTime.set({ minute: Math.floor(requestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
+       const slotEnd = slotStart.plus({ minutes: 30 });
 
-      const existingCount = await Appointment.count({
-        where: {
-          doctorId,
+               // For virtual appointments with doctorId = null, check global virtual appointment count
+        // For physical appointments, check specific doctor's availability
+        const whereCondition = {
           appointmentDateTime: {
             [Op.between]: [slotStart.toJSDate(), slotEnd.toJSDate()]
           },
           status: { [Op.notIn]: ['canceled', 'completed', 'rejected'] }
+        };
+
+        if (doctorId !== null && doctorId !== 0) {
+          whereCondition.doctorId = doctorId;
+        } else {
+          whereCondition.doctorId = null; // Virtual appointments
+          whereCondition.type = 'virtual';
         }
-      });
 
-      const maxAppointments = type === 'physical' ? 1 : 3;
+       const existingCount = await Appointment.count({ where: whereCondition });
 
-      if (existingCount >= maxAppointments) {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'Time slot is full. Please choose another time.',
+       const maxAppointments = type === 'physical' ? 1 : 3;
+
+       if (existingCount >= maxAppointments) {
+         return res.status(400).json({
+           status: 'error',
+           code: 400,
+           message: 'Time slot is full. Please choose another time.',
+         });
+       }
+
+             // Check if user already has an appointment on same date (IST)
+       const dayStart = requestedTime.startOf('day');
+       const dayEnd = requestedTime.endOf('day');
+
+               const existingUserAppointment = await Appointment.findOne({
+          where: {
+            userId,
+            doctorId: doctorId !== null && doctorId !== 0 ? doctorId : null,
+            appointmentDateTime: {
+              [Op.between]: [dayStart.toJSDate(), dayEnd.toJSDate()]
+            },
+            status: { [Op.notIn]: ['canceled', 'rejected'] }
+          }
         });
-      }
 
-      // Check if user already has an appointment with the same doctor on same date (IST)
-      const dayStart = requestedTime.startOf('day');
-      const dayEnd = requestedTime.endOf('day');
-
-      const existingUserAppointment = await Appointment.findOne({
-        where: {
-          userId,
-          doctorId,
-          appointmentDateTime: {
-            [Op.between]: [dayStart.toJSDate(), dayEnd.toJSDate()]
-          },
-          status: { [Op.notIn]: ['canceled', 'rejected'] }
+        if (existingUserAppointment) {
+          const message = doctorId !== null && doctorId !== 0
+            ? 'You already have an appointment with this doctor on the selected date'
+            : 'You already have a virtual appointment on the selected date';
+          
+          return res.status(400).json({
+            status: 'error',
+            code: 400,
+            message: message,
+          });
         }
-      });
-
-      if (existingUserAppointment) {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'You already have an appointment with this doctor on the selected date',
-        });
-      }
 
       // Build appointment data - convert IST DateTime to JS Date for DB storage
       const appointmentData = {
@@ -178,16 +193,13 @@ module.exports = {
         try {
           const roomId = uuidv4();
           const patientCommUser = await createAzureCommUser();
-          const doctorCommUser = await createAzureCommUser();
 
           appointmentData.videoCallLink = `/video-call/${roomId}`;
           appointmentData.roomId = roomId;
           appointmentData.azurePatientUserId = patientCommUser.userId;
           appointmentData.azurePatientToken = patientCommUser.token;
           appointmentData.azurePatientTokenExpiry = patientCommUser.expiresOn;
-          appointmentData.azureDoctorUserId = doctorCommUser.userId;
-          appointmentData.azureDoctorToken = doctorCommUser.token;
-          appointmentData.azureDoctorTokenExpiry = doctorCommUser.expiresOn;
+                     appointmentData.doctorId = null; // Virtual appointments have doctorId = null
         } catch (err) {
           console.error('Azure Communication Services error:', err);
           return res.status(500).json({
@@ -216,32 +228,35 @@ module.exports = {
       // );
 
 
-      await sendAppointmentEmail(
-        patient.email,
-        'appointment_requested',
-        {
-          patientName: String(user.name || ''),
-          doctorName: String(doctor.User.name || ''),
-          appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
-          appointmentTime: requestedTime.toFormat('hh:mm a'),
-          appointmentType: String(type),
-          appointmentId: appointment.id.toString()
-        }
-      );
+             await sendAppointmentEmail(
+         patient.email,
+         'appointment_requested',
+         {
+           patientName: String(user.name || ''),
+                       doctorName: doctorId !== null && doctorId !== 0 ? String(doctor.User.name || '') : 'Virtual Doctor',
+           appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
+           appointmentTime: requestedTime.toFormat('hh:mm a'),
+           appointmentType: String(type),
+           appointmentId: appointment.id.toString()
+         }
+       );
 
-      await sendAppointmentEmail(
-        doctor.email,
-        'new_appointment_request',
-        {
-          doctorName: String(doctor.User.name || ''),
-          patientName: String(user.name || ''),
-          appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
-          appointmentTime: requestedTime.toFormat('hh:mm a'),
-          appointmentType: String(type),
-          appointmentId: appointment.id.toString(),
-          notes: String(notes || 'No additional notes')
-        }
-      );
+               // Send email to doctor only if it's not a virtual appointment (doctorId !== null)
+        if (doctorId !== null && doctorId !== 0 && doctor) {
+         await sendAppointmentEmail(
+           doctor.email,
+           'new_appointment_request',
+           {
+             doctorName: String(doctor.User.name || ''),
+             patientName: String(user.name || ''),
+             appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
+             appointmentTime: requestedTime.toFormat('hh:mm a'),
+             appointmentType: String(type),
+             appointmentId: appointment.id.toString(),
+             notes: String(notes || 'No additional notes')
+           }
+         );
+       }
 
 
       // Format response data with IST times
@@ -311,11 +326,12 @@ module.exports = {
         });
       }
 
-      // Check if user is authorized (patient or doctor)
-      const isPatient = req.user.id === appointment.userId;
-      const isDoctor = req.user.id === appointment.doctor.User.id;
+             // Check if user is authorized (patient, assigned doctor, or virtual doctor)
+       const isPatient = req.user.id === appointment.userId;
+       const isAssignedDoctor = appointment.doctorId !== null && req.user.id === appointment.doctor?.User?.id;
+       const isVirtualDoctor = req.user.role === 'virtual-doctor';
 
-      if (!isPatient && !isDoctor) {
+      if (!isPatient && !isAssignedDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
@@ -326,7 +342,6 @@ module.exports = {
       // Check if tokens are expired and refresh if needed
       const now = new Date();
       let patientToken = appointment.azurePatientToken;
-      let doctorToken = appointment.azureDoctorToken;
 
       if (new Date(appointment.azurePatientTokenExpiry) <= now) {
         const newPatientToken = await communicationIdentityClient.getToken(
@@ -338,27 +353,65 @@ module.exports = {
         appointment.azurePatientTokenExpiry = newPatientToken.expiresOn;
       }
 
-      if (new Date(appointment.azureDoctorTokenExpiry) <= now) {
-        const newDoctorToken = await communicationIdentityClient.getToken(
-          { communicationUserId: appointment.azureDoctorUserId },
-          ["voip"]
-        );
-        doctorToken = newDoctorToken.token;
-        appointment.azureDoctorToken = newDoctorToken.token;
-        appointment.azureDoctorTokenExpiry = newDoctorToken.expiresOn;
+      // Handle virtual doctor - create token on demand
+      let virtualDoctorToken = null;
+      let virtualDoctorUserId = null;
+      if (isVirtualDoctor) {
+        const virtualDoctorCommUser = await createAzureCommUser();
+        virtualDoctorUserId = virtualDoctorCommUser.userId;
+        virtualDoctorToken = virtualDoctorCommUser.token;
+      }
+
+      // Handle assigned doctor tokens
+      let doctorToken = null;
+      let doctorUserId = null;
+      if (isAssignedDoctor) {
+        if (new Date(appointment.azureDoctorTokenExpiry) <= now) {
+          const newDoctorToken = await communicationIdentityClient.getToken(
+            { communicationUserId: appointment.azureDoctorUserId },
+            ["voip"]
+          );
+          doctorToken = newDoctorToken.token;
+          appointment.azureDoctorToken = newDoctorToken.token;
+          appointment.azureDoctorTokenExpiry = newDoctorToken.expiresOn;
+        } else {
+          doctorToken = appointment.azureDoctorToken;
+          doctorUserId = appointment.azureDoctorUserId;
+        }
       }
 
       await appointment.save();
 
       // Return appropriate credentials based on user role
-      const credentials = {
-        roomId: appointment.roomId,
-        userId: isPatient ? appointment.azurePatientUserId : appointment.azureDoctorUserId,
-        token: isPatient ? patientToken : doctorToken,
-        userRole: isPatient ? 'patient' : 'doctor',
-        appointmentId: appointment.id,
-        participantName: isPatient ? appointment.patient.name : appointment.doctor.User.name
-      };
+      let credentials;
+      if (isPatient) {
+        credentials = {
+          roomId: appointment.roomId,
+          userId: appointment.azurePatientUserId,
+          token: patientToken,
+          userRole: 'patient',
+          appointmentId: appointment.id,
+          participantName: appointment.patient.name
+        };
+      } else if (isAssignedDoctor) {
+        credentials = {
+          roomId: appointment.roomId,
+          userId: doctorUserId,
+          token: doctorToken,
+          userRole: 'doctor',
+          appointmentId: appointment.id,
+          participantName: appointment.doctor.User.name
+        };
+      } else if (isVirtualDoctor) {
+        credentials = {
+          roomId: appointment.roomId,
+          userId: virtualDoctorUserId,
+          token: virtualDoctorToken,
+          userRole: 'virtual-doctor',
+          appointmentId: appointment.id,
+          participantName: req.user.name
+        };
+      }
 
       res.json({
         status: 'success',

@@ -149,6 +149,9 @@ const upload = multer({
  *                 type: string
  *                 description: JSON string containing bounding box data
  *                 example: '[{"imageName":"front_teeth.jpg","imageType":"front","description":"Front teeth analysis","detections":[{"class_name":"cavity","confidence":0.85,"bbox":[100,150,200,250]}],"teethDetection":{"teeth_count":8,"positions":[]},"imageDimensions":{"width":800,"height":600},"defectSummary":[{"className":"cavity","confidence":0.85,"locations":["front"]}]}]'
+ *     servers:
+ *       - url: http://localhost:3000/api
+ *         description: Development server
  *               relativeId:
  *                 type: integer
  *                 description: Family member ID (0 for user themselves)

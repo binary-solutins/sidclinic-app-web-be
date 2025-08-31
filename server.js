@@ -62,7 +62,15 @@ sequelize
   .then(() => console.log("Database connected"))
   .catch((err) => console.error("Unable to connect to the database:", err));
 
-sequelize.sync({ alter: false });
+// Database sync (temporary for schema update)
+
+sequelize.sync({ alter: true })
+  .then(() => {
+    console.log('Database synchronized with alter mode');
+  })
+  .catch(err => {
+    console.error('Database sync error:', err);
+  });
 
 io.on("connection", (socket) => {
   socket.on("join-room", (roomId) => {

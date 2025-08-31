@@ -280,4 +280,74 @@ router.get('/virtual-doctor/appointments',
   virtualDoctorController.getVirtualAppointments
 );
 
+
+
+/**
+ * @swagger
+ * /virtual-doctor/appointments/{id}/video-credentials:
+ *   get:
+ *     summary: Get video call credentials for virtual doctor
+ *     description: Get Azure Communication Services credentials for a virtual doctor to join a video call
+ *     tags: [Virtual Doctor]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Appointment ID
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *     responses:
+ *       200:
+ *         description: Video call credentials retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     roomId:
+ *                       type: string
+ *                       example: "uuid-here"
+ *                     userId:
+ *                       type: string
+ *                       example: "azure-user-id"
+ *                     token:
+ *                       type: string
+ *                       example: "azure-token"
+ *                     userRole:
+ *                       type: string
+ *                       example: "virtual-doctor"
+ *                     appointmentId:
+ *                       type: integer
+ *                       example: 1
+ *                     participantName:
+ *                       type: string
+ *                       example: "Dr. Virtual Smith"
+ *       400:
+ *         description: Invalid appointment type or status
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Virtual doctor not authorized
+ *       404:
+ *         description: Appointment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/virtual-doctor/appointments/:id/video-credentials', 
+  authenticate(['virtual-doctor']), 
+  virtualDoctorController.getVideoCallCredentials
+);
+
 module.exports = router;

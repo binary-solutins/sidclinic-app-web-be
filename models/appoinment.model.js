@@ -19,7 +19,7 @@ const Appointment = sequelize.define('Appointment', {
   },
   doctorId: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true, // Allow NULL for virtual appointments
     references: {
       model: Doctor,
       key: 'id'
