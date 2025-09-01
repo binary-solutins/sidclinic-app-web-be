@@ -350,4 +350,143 @@ router.get('/virtual-doctor/appointments/:id/video-credentials',
   virtualDoctorController.getVideoCallCredentials
 );
 
+/**
+ * @swagger
+ * /virtual-appointment/slots:
+ *   get:
+ *     summary: Get available time slots for virtual appointments
+ *     description: Retrieve available virtual appointment slots for a specific date based on admin settings
+ *     tags: [Virtual Doctor]
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: "2024-01-15"
+ *         description: Date for which to get available slots (YYYY-MM-DD format)
+ *     responses:
+ *       200:
+ *         description: Available time slots retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     date:
+ *                       type: string
+ *                       example: "2024-01-15"
+ *                     type:
+ *                       type: string
+ *                       example: "virtual"
+ *                     workingHours:
+ *                       type: object
+ *                       properties:
+ *                         start:
+ *                           type: string
+ *                           example: "09:00:00"
+ *                         end:
+ *                           type: string
+ *                           example: "18:00:00"
+ *                     slots:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/TimeSlot'
+ *       400:
+ *         description: Bad request - missing date or invalid configuration
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/virtual-appointment/slots', 
+  virtualDoctorController.getVirtualAppointmentSlots
+);
+
+/**
+ * @swagger
+ * /virtual-appointment/book:
+ *   post:
+ *     summary: Book a virtual appointment
+ *     description: Book a virtual appointment for a patient using admin-configured time slots
+ *     tags: [Virtual Doctor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - appointmentDateTime
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *                 description: Patient user ID
+ *                 example: 1
+ *               appointmentDateTime:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Appointment date and time (IST timezone)
+ *                 example: "2024-01-15T10:00:00.000Z"
+ *               notes:
+ *                 type: string
+ *                 description: Optional notes for the appointment
+ *                 example: "Patient has concerns about dental pain"
+ *     responses:
+ *       201:
+ *         description: Virtual appointment booked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 201
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual appointment booked successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     appointmentDateTime:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-01-15T10:00:00.000Z"
+ *                     type:
+ *                       type: string
+ *                       example: "virtual"
+ *                     status:
+ *                       type: string
+ *                       example: "pending"
+ *                     videoCallLink:
+ *                       type: string
+ *                       example: "/video-call/uuid-here"
+ *                     roomId:
+ *                       type: string
+ *                       example: "uuid-here"
+ *       400:
+ *         description: Bad request - validation error
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/virtual-appointment/book', 
+  virtualDoctorController.bookVirtualAppointment
+);
+
 module.exports = router;

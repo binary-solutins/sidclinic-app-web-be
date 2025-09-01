@@ -1,8 +1,10 @@
 const User = require("../models/user.model");
 const Appointment = require("../models/appoinment.model");
 const Doctor = require("../models/doctor.model");
+const AdminSetting = require("../models/adminSetting.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
+const { DateTime } = require('luxon');
 
 // Create virtual doctor function
 exports.createVirtualDoctor = async (req, res) => {
@@ -575,6 +577,400 @@ exports.getVideoCallCredentials = async (req, res) => {
     });
   } catch (error) {
     console.error('Get Video Call Credentials Error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: error.message,
+    });
+  }
+}; 
+
+// Get available time slots for virtual appointments
+exports.getVirtualAppointmentSlots = async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Date parameter is required',
+      });
+    }
+
+    // Get admin settings for virtual appointment times
+    const adminSetting = await AdminSetting.findOne({
+      where: { isActive: true },
+      order: [['createdAt', 'DESC']] // Get the most recent active setting
+    });
+
+    if (!adminSetting) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Virtual appointment settings not configured',
+      });
+    }
+
+    const requestedDate = DateTime.fromFormat(date, 'yyyy-MM-dd', { zone: 'Asia/Kolkata' });
+    const today = DateTime.now().setZone('Asia/Kolkata').startOf('day');
+
+    // Don't allow booking for past dates
+    if (requestedDate < today) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Cannot book appointments for past dates',
+      });
+    }
+
+    // Don't allow booking for weekends
+    const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
+    if (dayOfWeek === 6 || dayOfWeek === 7) {
+      return res.json({
+        status: 'success',
+        code: 200,
+        data: {
+          date: date,
+          slots: [],
+          message: 'No virtual appointments available on weekends'
+        }
+      });
+    }
+
+    // Parse admin's virtual appointment working hours
+    const [startHour, startMinute] = adminSetting.virtualAppointmentStartTime.split(':').map(Number);
+    const [endHour, endMinute] = adminSetting.virtualAppointmentEndTime.split(':').map(Number);
+
+    const startOfDay = requestedDate.set({
+      hour: startHour,
+      minute: startMinute,
+      second: 0,
+      millisecond: 0
+    });
+
+    const endOfDay = requestedDate.set({
+      hour: endHour,
+      minute: endMinute,
+      second: 0,
+      millisecond: 0
+    });
+
+    // Validate that end time is after start time
+    if (endOfDay <= startOfDay) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Invalid virtual appointment hours configuration',
+      });
+    }
+
+    // Get existing virtual appointments for the day
+    const existingAppointments = await Appointment.findAll({
+      where: {
+        type: 'virtual',
+        appointmentDateTime: { [Op.between]: [startOfDay.toJSDate(), endOfDay.toJSDate()] },
+        status: { [Op.notIn]: ['canceled', 'rejected'] }
+      }
+    });
+
+    const slots = [];
+    const slotDuration = 30; // 30 minutes
+
+    // Generate time slots using IST based on admin's virtual appointment hours
+    let currentTime = startOfDay;
+    while (currentTime < endOfDay) {
+      const slotEnd = currentTime.plus({ minutes: slotDuration });
+
+      // Don't create a slot if it would extend beyond end time
+      if (slotEnd > endOfDay) {
+        break;
+      }
+
+      // Check if there's an existing appointment in this slot
+      const existingAppointment = existingAppointments.find(appointment => {
+        const appointmentIST = DateTime.fromJSDate(appointment.appointmentDateTime).setZone('Asia/Kolkata');
+        return appointmentIST >= currentTime && appointmentIST < slotEnd;
+      });
+
+      const isAvailable = !existingAppointment;
+
+      // If it's today, only show slots that are at least 1 hour from now
+      let showSlot = true;
+      if (requestedDate.hasSame(today, 'day')) {
+        const oneHourFromNow = DateTime.now().setZone('Asia/Kolkata').plus({ hours: 1 });
+        showSlot = currentTime >= oneHourFromNow;
+      }
+
+      if (showSlot) {
+        slots.push({
+          start: currentTime.toISO(),
+          end: slotEnd.toISO(),
+          time: currentTime.toFormat('hh:mm a'),
+          available: isAvailable,
+          bookedCount: existingAppointment ? 1 : 0,
+          maxCapacity: 1
+        });
+      }
+
+      currentTime = slotEnd;
+    }
+
+    res.json({
+      status: 'success',
+      code: 200,
+      data: {
+        date: date,
+        type: 'virtual',
+        workingHours: {
+          start: adminSetting.virtualAppointmentStartTime,
+          end: adminSetting.virtualAppointmentEndTime
+        },
+        slots: slots
+      }
+    });
+  } catch (error) {
+    console.error('Get Virtual Appointment Slots Error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: error.message,
+    });
+  }
+}; 
+
+// Book virtual appointment
+exports.bookVirtualAppointment = async (req, res) => {
+  try {
+    const { userId, appointmentDateTime, notes } = req.body;
+
+    // Always interpret incoming appointmentDateTime as IST, regardless of format
+    let requestedTime;
+    if (appointmentDateTime.includes('T')) {
+      // ISO format - parse and force IST timezone
+      requestedTime = DateTime.fromISO(appointmentDateTime, { zone: 'Asia/Kolkata' });
+    } else {
+      // Other formats - parse with IST timezone
+      requestedTime = DateTime.fromFormat(appointmentDateTime, "yyyy-MM-dd HH:mm:ss", {
+        zone: 'Asia/Kolkata'
+      });
+    }
+
+    if (!requestedTime.isValid) {
+      requestedTime = DateTime.fromFormat(appointmentDateTime, "yyyy-MM-dd'T'HH:mm:ss.SSS", {
+        zone: 'Asia/Kolkata'
+      });
+    }
+
+    if (!requestedTime.isValid) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Invalid appointment date/time format',
+      });
+    }
+
+    const now = DateTime.now().setZone('Asia/Kolkata');
+    const oneHourFromNow = now.plus({ hours: 1 });
+
+    if (requestedTime < oneHourFromNow) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Appointment must be scheduled at least 1 hour in advance',
+      });
+    }
+
+    // Validate user
+    const user = await User.findByPk(userId);
+    if (!user || user.role !== 'user') {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Invalid user account',
+      });
+    }
+
+    // Get admin settings for virtual appointment times
+    const adminSetting = await AdminSetting.findOne({
+      where: { isActive: true },
+      order: [['createdAt', 'DESC']] // Get the most recent active setting
+    });
+
+    if (!adminSetting) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Virtual appointment settings not configured',
+      });
+    }
+
+    // Parse admin's virtual appointment working hours
+    const [startHour, startMinute] = adminSetting.virtualAppointmentStartTime.split(':').map(Number);
+    const [endHour, endMinute] = adminSetting.virtualAppointmentEndTime.split(':').map(Number);
+
+    const appointmentDay = requestedTime.weekday; // 1 = Monday, 7 = Sunday
+    const appointmentHour = requestedTime.hour;
+    const appointmentMinute = requestedTime.minute;
+
+    // Don't allow booking for weekends
+    if (appointmentDay === 6 || appointmentDay === 7) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Virtual appointments are not available on weekends',
+      });
+    }
+
+    // Check if appointment is within admin's configured working hours
+    const appointmentTime = appointmentHour * 60 + appointmentMinute;
+    const startTime = startHour * 60 + startMinute;
+    const endTime = endHour * 60 + endMinute;
+
+    if (appointmentTime < startTime || appointmentTime >= endTime) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: `Virtual appointments are only available between ${adminSetting.virtualAppointmentStartTime} and ${adminSetting.virtualAppointmentEndTime}`,
+      });
+    }
+
+    // Check time slot availability (30-minute blocks)
+    const slotStart = requestedTime.set({ minute: Math.floor(requestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
+    const slotEnd = slotStart.plus({ minutes: 30 });
+
+    // Check existing virtual appointments in this slot
+    const existingAppointment = await Appointment.findOne({
+      where: {
+        type: 'virtual',
+        doctorId: null,
+        appointmentDateTime: {
+          [Op.between]: [slotStart.toJSDate(), slotEnd.toJSDate()]
+        },
+        status: { [Op.notIn]: ['canceled', 'completed', 'rejected'] }
+      }
+    });
+
+    if (existingAppointment) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Time slot is already booked. Please choose another time.',
+      });
+    }
+
+    // Check if user already has a virtual appointment on same date
+    const dayStart = requestedTime.startOf('day');
+    const dayEnd = requestedTime.endOf('day');
+
+    const existingUserAppointment = await Appointment.findOne({
+      where: {
+        userId,
+        type: 'virtual',
+        doctorId: null,
+        appointmentDateTime: {
+          [Op.between]: [dayStart.toJSDate(), dayEnd.toJSDate()]
+        },
+        status: { [Op.notIn]: ['canceled', 'rejected'] }
+      }
+    });
+
+    if (existingUserAppointment) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'You already have a virtual appointment on the selected date',
+      });
+    }
+
+    // Build appointment data
+    const appointmentData = {
+      userId,
+      doctorId: null, // Virtual appointments have doctorId = null
+      appointmentDateTime: requestedTime.toJSDate(),
+      type: 'virtual',
+      status: 'pending',
+      notes,
+      bookingDate: new Date(),
+    };
+
+    // Setup video call for virtual appointment
+    try {
+      const { v4: uuidv4 } = require('uuid');
+      const { CommunicationIdentityClient } = require('@azure/communication-identity');
+      const communicationIdentityClient = new CommunicationIdentityClient(
+        process.env.AZURE_COMMUNICATION_CONNECTION_STRING
+      );
+
+      // Helper function to create Azure Communication user and token
+      const createAzureCommUser = async () => {
+        try {
+          const user = await communicationIdentityClient.createUser();
+          const tokenResponse = await communicationIdentityClient.getToken(user, ["voip"]);
+
+          return {
+            userId: user.communicationUserId,
+            token: tokenResponse.token,
+            expiresOn: tokenResponse.expiresOn
+          };
+        } catch (error) {
+          console.error('Error creating Azure Communication user:', error);
+          throw error;
+        }
+      };
+
+      const roomId = uuidv4();
+      const patientCommUser = await createAzureCommUser();
+      const doctorCommUser = await createAzureCommUser();
+
+      appointmentData.videoCallLink = `/video-call/${roomId}`;
+      appointmentData.roomId = roomId;
+      appointmentData.azurePatientUserId = patientCommUser.userId;
+      appointmentData.azurePatientToken = patientCommUser.token;
+      appointmentData.azurePatientTokenExpiry = patientCommUser.expiresOn;
+      appointmentData.azureDoctorUserId = doctorCommUser.userId;
+      appointmentData.azureDoctorToken = doctorCommUser.token;
+      appointmentData.azureDoctorTokenExpiry = doctorCommUser.expiresOn;
+    } catch (err) {
+      console.error('Azure Communication Services error:', err);
+      return res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: 'Failed to setup video call service. Please try again.',
+      });
+    }
+
+    // Save appointment
+    const appointment = await Appointment.create(appointmentData);
+
+    // Send notification to admin about new virtual appointment
+    try {
+      await emailService.sendNewVirtualAppointmentNotification({
+        appointmentId: appointment.id,
+        patientName: user.name,
+        appointmentDateTime: requestedTime.toFormat('dd/MM/yyyy hh:mm a'),
+        notes: notes || 'No notes provided'
+      });
+    } catch (emailError) {
+      console.error('Failed to send virtual appointment notification:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.status(201).json({
+      status: 'success',
+      code: 201,
+      message: 'Virtual appointment booked successfully',
+      data: {
+        id: appointment.id,
+        appointmentDateTime: requestedTime.toISO(),
+        type: 'virtual',
+        status: 'pending',
+        videoCallLink: appointment.videoCallLink,
+        roomId: appointment.roomId
+      }
+    });
+  } catch (error) {
+    console.error('Book Virtual Appointment Error:', error);
     res.status(500).json({
       status: 'error',
       code: 500,
