@@ -20,6 +20,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/user.model');
 const Doctor = require('../models/doctor.model');
+const { sendNewDoctorRegistrationNotification } = require('../services/email.services');
 
 // Use only the approved template exactly as provided
 const SMS_TEMPLATE = {
@@ -252,6 +253,25 @@ exports.register = async (req, res) => {
 
     const user = await User.create({ name, phone, password, gender, role });
     
+    // If user role is 'doctor', send admin notification email
+    if (role === 'doctor') {
+      try {
+        const emailData = {
+          name: user.name,
+          email: `${phone}@temp.com`, // Temporary email using phone
+          phone: user.phone,
+          specialization: 'Not specified yet', // Will be updated when doctor sets up profile
+          id: user.id
+        };
+        
+        await sendNewDoctorRegistrationNotification(emailData);
+        console.log('Admin notification email sent successfully for new doctor registration');
+      } catch (emailError) {
+        console.error('Failed to send admin notification email:', emailError);
+        // Don't fail the registration if email fails, just log the error
+      }
+    }
+    
     // If user role is 'user', automatically create a patient record
     if (role === 'user') {
       try {
@@ -267,6 +287,24 @@ exports.register = async (req, res) => {
       } catch (patientError) {
         console.error('Error creating patient record:', patientError);
         // Don't fail the registration if patient creation fails
+      }
+    }
+    
+    // If user role is 'admin', automatically create admin settings
+    if (role === 'admin') {
+      try {
+        const AdminSetting = require('../models/adminSetting.model');
+        await AdminSetting.create({
+          userId: user.id,
+          virtualAppointmentStartTime: '09:00:00',
+          virtualAppointmentEndTime: '18:00:00',
+          alertEmails: null,
+          isActive: true
+        });
+        console.log(`Admin settings created for user ${user.id}`);
+      } catch (adminSettingError) {
+        console.error('Error creating admin settings:', adminSettingError);
+        // Don't fail the registration if admin settings creation fails
       }
     }
     

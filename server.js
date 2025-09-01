@@ -21,6 +21,7 @@ const blogRoutes = require("./routes/blog.routes");
 const patientRoutes = require("./routes/patient.routes");
 const priceRoutes = require("./routes/price.route");
 const adminRoutes = require('./routes/admin.routes');
+const adminSettingRoutes = require('./routes/adminSetting.routes');
 const locationRoutes = require('./routes/location.routes');
 const queryRoutes = require('./routes/query.routes');
 const oralHealthScoreRoutes = require('./routes/oralHealthScore.routes');
@@ -64,7 +65,7 @@ sequelize
 
 // Database sync (temporary for schema update)
 
-sequelize.sync({ alter: false })
+sequelize.sync({ alter: true })
   .then(() => {
     console.log('Database synchronized with alter mode');
   })
@@ -111,6 +112,7 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/settings", adminSettingRoutes);
 app.use("/api/price", priceRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/queries", queryRoutes);

@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Appointment Request Submitted - SID Clinic</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous"></script>
     <style>
         * {
             margin: 0;
@@ -12,93 +14,126 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
+            color: #334155;
+            background-color: #f1f5f9;
             margin: 0;
-            padding: 20px 0;
+            padding: 40px 20px;
         }
         
         .container {
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 10px 40px rgba(35, 95, 139, 0.1);
+            border: 1px solid #e2e8f0;
         }
         
         .header {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
             color: white;
-            padding: 30px;
+            padding: 40px 30px;
             text-align: center;
             position: relative;
         }
         
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+        
         .logo {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
+            width: 180px;
+            height: 90px;
+            border-radius: 5%;
             background-color: white;
-            margin: 0 auto 20px;
+            margin: 0 auto 25px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
         }
         
         .logo img {
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             object-fit: contain;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
         }
         
         .header h1 {
             margin: 0;
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 8px;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
         }
         
         .header p {
             margin: 0;
-            opacity: 0.9;
+            opacity: 0.95;
             font-size: 16px;
+            font-weight: 400;
         }
         
         .content {
-            padding: 40px 30px;
+            padding: 45px 35px;
         }
         
         .greeting {
-            font-size: 18px;
-            color: #1e3a8a;
-            margin-bottom: 20px;
+            font-size: 20px;
+            color: #235f8b;
+            margin-bottom: 25px;
             font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        
+        .intro-text {
+            font-size: 16px;
+            line-height: 1.7;
+            margin-bottom: 30px;
+            color: #475569;
         }
         
         .status-badge {
-            display: inline-block;
-            background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 25px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #92400e;
+            padding: 12px 24px;
+            border-radius: 30px;
             font-size: 14px;
             font-weight: 600;
-            margin: 20px 0;
+            margin: 25px 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
         }
         
         .appointment-card {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 25px;
-            margin: 25px 0;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
             position: relative;
+            box-shadow: 0 4px 20px rgba(35, 95, 139, 0.08);
         }
         
         .appointment-card::before {
@@ -108,23 +143,27 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
-            border-radius: 12px 12px 0 0;
+            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
+            border-radius: 16px 16px 0 0;
         }
         
         .appointment-card h3 {
-            color: #1e3a8a;
-            margin-bottom: 20px;
-            font-size: 18px;
-            font-weight: 600;
+            color: #235f8b;
+            margin-bottom: 25px;
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.3px;
         }
         
         .detail-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 0;
+            border-bottom: 1px solid #f1f5f9;
         }
         
         .detail-row:last-child {
@@ -133,119 +172,207 @@
         
         .detail-label {
             font-weight: 600;
-            color: #475569;
-            font-size: 14px;
+            color: #64748b;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .detail-value {
-            color: #1e3a8a;
-            font-weight: 500;
+            color: #235f8b;
+            font-weight: 600;
             text-align: right;
-            font-size: 14px;
+            font-size: 15px;
         }
         
         .appointment-id {
-            background-color: #1e3a8a;
+            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
             color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 13px;
             font-weight: 600;
             display: inline-block;
-            margin-top: 10px;
+            margin-top: 20px;
+            letter-spacing: 0.5px;
         }
         
-        .info-box {
-            background-color: #eff6ff;
-            border-left: 4px solid #3b82f6;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 8px;
+        .info-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
         }
         
-        .info-box h4 {
-            color: #1e3a8a;
-            margin-bottom: 10px;
-            font-size: 16px;
+        .info-section h4 {
+            color: #235f8b;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
-        .info-box ul {
+        .info-list {
+            list-style: none;
             margin: 0;
-            padding-left: 20px;
+            padding: 0;
         }
         
-        .info-box li {
-            margin-bottom: 8px;
+        .info-list li {
+            margin-bottom: 12px;
             color: #475569;
+            font-size: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            line-height: 1.6;
+        }
+        
+        .info-list li i {
+            color: #235f8b;
+            margin-top: 2px;
+            font-size: 14px;
+        }
+        
+        .important-notes {
+            background: #fef3c7;
+            border: 1px solid #fde68a;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .important-notes h4 {
+            color: #92400e;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .cta-section {
+            text-align: center;
+            margin: 35px 0;
         }
         
         .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
             color: white;
-            padding: 15px 30px;
+            padding: 16px 32px;
             text-decoration: none;
-            border-radius: 25px;
+            border-radius: 30px;
             font-weight: 600;
-            margin: 25px 0;
+            font-size: 15px;
             transition: all 0.3s ease;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 6px 25px rgba(35, 95, 139, 0.3);
         }
         
         .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 35px rgba(35, 95, 139, 0.4);
         }
         
         .footer {
-            background-color: #1e293b;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             color: white;
-            padding: 30px;
+            padding: 40px 35px;
             text-align: center;
         }
         
         .footer h3 {
-            color: #3b82f6;
-            margin-bottom: 15px;
-            font-size: 18px;
+            color: #60a5fa;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
         
         .footer p {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             opacity: 0.9;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #374151;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
             font-size: 14px;
+            opacity: 0.9;
         }
         
-        .contact-info {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #334155;
+        .contact-item i {
+            color: #60a5fa;
+            font-size: 16px;
         }
         
-        .contact-info p {
-            margin-bottom: 5px;
-            font-size: 13px;
+        .disclaimer {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #374151;
+            opacity: 0.7;
+            font-size: 12px;
+            font-style: italic;
         }
         
         @media (max-width: 600px) {
+            body {
+                padding: 20px 10px;
+            }
+            
             .container {
-                margin: 0 10px;
-                border-radius: 8px;
+                border-radius: 12px;
             }
             
             .header, .content, .footer {
-                padding: 20px;
+                padding: 25px 20px;
             }
             
             .detail-row {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 5px;
+                gap: 8px;
+                padding: 12px 0;
             }
             
             .detail-value {
                 text-align: left;
+            }
+            
+            .contact-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .greeting {
+                font-size: 18px;
             }
         }
     </style>
@@ -256,80 +383,154 @@
             <div class="logo">
                 <img src="https://sidclinic.com/logo.jpeg" alt="SID Clinic Logo">
             </div>
-            <h1>📋 Appointment Request Submitted</h1>
-            <p>Your appointment request has been successfully submitted</p>
+            <div class="header-content">
+                <h1>Appointment Request Submitted</h1>
+                <p>Your appointment request has been successfully received and is being processed</p>
+            </div>
         </div>
         
         <div class="content">
             <div class="greeting">Dear {{patientName}},</div>
             
-            <p>Thank you for choosing <strong>SID Clinic</strong> for your healthcare needs. Your appointment request has been successfully submitted and is currently under review.</p>
+            <p class="intro-text">Thank you for choosing <strong>SID Clinic</strong> for your healthcare needs. Your appointment request has been successfully submitted and is currently under review by our medical team.</p>
             
-            <div class="status-badge">⏳ Pending Confirmation</div>
+            <div class="status-badge">
+                <i class="fas fa-clock"></i>
+                Pending Confirmation
+            </div>
             
             <div class="appointment-card">
-                <h3>📅 Appointment Details</h3>
+                <h3>
+                    <i class="fas fa-calendar-check"></i>
+                    Appointment Details
+                </h3>
                 <div class="detail-row">
-                    <span class="detail-label">👨‍⚕️ Doctor:</span>
+                    <span class="detail-label">
+                        <i class="fas fa-user-md"></i>
+                        Doctor
+                    </span>
                     <span class="detail-value">Dr. {{doctorName}}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">📅 Date:</span>
+                    <span class="detail-label">
+                        <i class="fas fa-calendar-alt"></i>
+                        Date
+                    </span>
                     <span class="detail-value">{{appointmentDate}}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">🕐 Time:</span>
+                    <span class="detail-label">
+                        <i class="fas fa-clock"></i>
+                        Time
+                    </span>
                     <span class="detail-value">{{appointmentTime}}</span>
                 </div>
                 <div class="detail-row">
-                    <span class="detail-label">🏥 Type:</span>
+                    <span class="detail-label">
+                        <i class="fas fa-stethoscope"></i>
+                        Appointment Type
+                    </span>
                     <span class="detail-value">{{appointmentType}}</span>
                 </div>
-                <div class="appointment-id">ID: {{appointmentId}}</div>
+                <div class="appointment-id">
+                    <i class="fas fa-hashtag"></i>
+                    Reference ID: {{appointmentId}}
+                </div>
             </div>
             
-            <div class="info-box">
-                <h4>📋 What happens next?</h4>
-                <ul>
-                    <li>Dr. {{doctorName}} will review your appointment request</li>
-                    <li>You'll receive a confirmation email once approved</li>
-                    <li>Any additional instructions will be provided</li>
-                    <li>You can track your appointment status in your dashboard</li>
+            <div class="info-section">
+                <h4>
+                    <i class="fas fa-info-circle"></i>
+                    Next Steps
+                </h4>
+                <ul class="info-list">
+                    <li>
+                        <i class="fas fa-search"></i>
+                        Dr. {{doctorName}} will review your appointment request within 24 hours
+                    </li>
+                    <li>
+                        <i class="fas fa-envelope-check"></i>
+                        You will receive a confirmation email once your appointment is approved
+                    </li>
+                    <li>
+                        <i class="fas fa-file-medical"></i>
+                        Any pre-appointment instructions will be provided upon confirmation
+                    </li>
+                    <li>
+                        <i class="fas fa-chart-line"></i>
+                        Track your appointment status through your patient dashboard
+                    </li>
                 </ul>
             </div>
             
-            <p><strong>Important Notes:</strong></p>
-            <ul style="margin: 15px 0; padding-left: 20px; color: #475569;">
-                <li>Please arrive 15 minutes before your scheduled time</li>
-                <li>Bring any relevant medical documents or test results</li>
-                <li>If you need to reschedule, please do so at least 24 hours in advance</li>
-            </ul>
-            
-            <div style="text-align: center;">
-                <a href="{{dashboardUrl}}" class="cta-button">View Appointment Status</a>
+            <div class="important-notes">
+                <h4>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Important Guidelines
+                </h4>
+                <ul class="info-list">
+                    <li>
+                        <i class="fas fa-clock"></i>
+                        Please arrive 15 minutes before your scheduled appointment time
+                    </li>
+                    <li>
+                        <i class="fas fa-folder-open"></i>
+                        Bring any relevant medical documents, insurance cards, and test results
+                    </li>
+                    <li>
+                        <i class="fas fa-calendar-times"></i>
+                        For rescheduling requests, please provide at least 24 hours advance notice
+                    </li>
+                    <li>
+                        <i class="fas fa-id-card"></i>
+                        Valid photo identification is required for all appointments
+                    </li>
+                </ul>
             </div>
             
-            <p style="margin-top: 25px; color: #64748b; font-size: 14px;">
-                If you have any questions or need to make changes to your appointment, please don't hesitate to contact our support team.
+            <div class="cta-section">
+                <a href="{{dashboardUrl}}" class="cta-button">
+                    <i class="fas fa-external-link-alt"></i>
+                    View Appointment Status
+                </a>
+            </div>
+            
+            <p style="margin-top: 30px; color: #64748b; font-size: 14px; text-align: center; font-style: italic;">
+                For any questions or assistance regarding your appointment, please contact our patient support team using the information below.
             </p>
         </div>
         
         <div class="footer">
-            <h3>🏥 SID Clinic</h3>
-            <p>Providing quality healthcare services with compassion and excellence</p>
+            <h3>
+                <i class="fas fa-hospital"></i>
+                SID Clinic
+            </h3>
+            <p>Committed to providing exceptional healthcare services with professionalism, compassion, and clinical excellence.</p>
             
-            <div class="contact-info">
-                <p>📧 support@sidclinic.com</p>
-                <p>📞 +1 (555) 123-4567</p>
-                <p>🌐 www.sidclinic.com</p>
-                <p style="margin-top: 15px; opacity: 0.7; font-size: 12px;">
-                    This is an automated message. Please do not reply to this email.
-                </p>
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <span>Office@sidclinic.com</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <span>9274557987</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-globe"></i>
+                    <span>www.sidclinic.com</span>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Visit Our Location</span>
+                </div>
+            </div>
+            
+            <div class="disclaimer">
+                This is an automated notification. Please do not reply directly to this email.
+                For assistance, please use our official contact channels listed above.
             </div>
         </div>
     </div>
 </body>
 </html>
-
-
-

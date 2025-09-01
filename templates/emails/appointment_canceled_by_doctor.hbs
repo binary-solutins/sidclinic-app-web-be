@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appointment Canceled by Doctor</title>
+    <title>Appointment Canceled by Doctor - SID Clinic</title>
     <style>
         * {
             margin: 0;
@@ -12,128 +12,228 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background-color: #f4f4f4;
+            color: #334155;
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 40px 20px;
         }
         
-        .email-container {
-            max-width: 600px;
+        .container {
+            max-width: 650px;
             margin: 0 auto;
             background-color: #ffffff;
-            border-radius: 8px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 40px rgba(35, 95, 139, 0.1);
+            border: 1px solid #e2e8f0;
         }
         
         .header {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            padding: 30px 20px;
+            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
+            color: white;
+            padding: 40px 30px;
             text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
         }
         
         .logo {
-            max-width: 150px;
-            height: auto;
-            margin-bottom: 15px;
+            width: 180px;
+            height: 90px;
+            border-radius: 5%;
+            background-color: white;
+            margin: 0 auto 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo img {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
         }
         
         .header h1 {
-            color: #ffffff;
-            font-size: 24px;
-            font-weight: 600;
             margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+        
+        .header p {
+            margin: 0;
+            opacity: 0.95;
+            font-size: 16px;
+            font-weight: 400;
         }
         
         .content {
-            padding: 40px 30px;
+            padding: 45px 35px;
         }
         
         .status-badge {
-            display: inline-block;
-            background-color: #dc2626;
-            color: #ffffff;
-            padding: 8px 16px;
-            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
             font-size: 14px;
             font-weight: 600;
+            margin: 0 0 25px 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+        }
+        
+        .status-icon {
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #dc2626;
+            font-size: 10px;
+            font-weight: bold;
         }
         
         .greeting {
-            font-size: 18px;
-            color: #1f2937;
-            margin-bottom: 20px;
-            font-weight: 500;
+            font-size: 20px;
+            color: #235f8b;
+            margin-bottom: 25px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
         }
         
-        .message {
+        .intro-text {
             font-size: 16px;
-            color: #4b5563;
-            margin-bottom: 30px;
             line-height: 1.7;
+            margin-bottom: 30px;
+            color: #475569;
         }
         
-        .doctor-info {
-            background-color: #f0f9ff;
+        .doctor-card {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
             border: 1px solid #bae6fd;
-            border-radius: 8px;
-            padding: 20px;
+            border-radius: 16px;
+            padding: 25px;
             margin: 25px 0;
+            position: relative;
         }
         
-        .doctor-info h3 {
-            color: #1e3a8a;
+        .doctor-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .doctor-card h3 {
+            color: #235f8b;
             margin-bottom: 15px;
-            font-size: 16px;
+            font-size: 18px;
+            font-weight: 700;
             display: flex;
             align-items: center;
+            gap: 12px;
         }
         
-        .doctor-info h3::before {
-            content: "👨‍⚕️";
-            margin-right: 10px;
-            font-size: 18px;
+        .doctor-icon {
+            width: 24px;
+            height: 24px;
+            background: #235f8b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
         }
         
         .doctor-name {
             font-size: 18px;
             font-weight: 600;
-            color: #1e3a8a;
+            color: #1e293b;
         }
         
-        .cancellation-details {
-            background-color: #fef2f2;
+        .cancellation-card {
+            background: #ffffff;
             border: 1px solid #fecaca;
-            border-radius: 8px;
-            padding: 25px;
-            margin: 25px 0;
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(220, 38, 38, 0.08);
         }
         
-        .details-title {
-            font-size: 18px;
-            font-weight: 600;
+        .cancellation-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .cancellation-card h3 {
             color: #dc2626;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
+            font-size: 20px;
+            font-weight: 700;
             display: flex;
             align-items: center;
+            gap: 12px;
         }
         
-        .details-title::before {
-            content: "❌";
-            margin-right: 10px;
-            font-size: 20px;
+        .cancel-icon {
+            width: 24px;
+            height: 24px;
+            background: #dc2626;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
         }
         
         .detail-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #fecaca;
+            padding: 16px 0;
+            border-bottom: 1px solid #f1f5f9;
         }
         
         .detail-row:last-child {
@@ -142,200 +242,434 @@
         
         .detail-label {
             font-weight: 600;
-            color: #374151;
-            min-width: 120px;
+            color: #64748b;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .detail-value {
-            color: #6b7280;
+            color: #1e293b;
+            font-weight: 600;
             text-align: right;
-            flex: 1;
+            font-size: 15px;
+        }
+        
+        .icon-circle {
+            width: 20px;
+            height: 20px;
+            background: #235f8b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
         }
         
         .cancel-reason {
-            background-color: #fef3c7;
+            background: #fef3c7;
             border: 1px solid #fde68a;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 20px 0;
-        }
-        
-        .cancel-reason strong {
-            color: #92400e;
-        }
-        
-        .appointment-id {
-            background-color: #f1f5f9;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            padding: 12px;
-            margin: 20px 0;
-            text-align: center;
-        }
-        
-        .appointment-id strong {
-            color: #1e3a8a;
-        }
-        
-        .next-steps {
-            background-color: #eff6ff;
-            border: 1px solid #bfdbfe;
-            border-radius: 6px;
+            border-radius: 12px;
             padding: 20px;
             margin: 25px 0;
         }
         
-        .next-steps h3 {
-            color: #1e3a8a;
-            margin-bottom: 15px;
+        .cancel-reason h4 {
+            color: #92400e;
+            margin-bottom: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .warning-icon {
+            width: 20px;
+            height: 20px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .appointment-id-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        
+        .appointment-id-section strong {
+            color: #235f8b;
             font-size: 16px;
         }
         
-        .next-steps ul {
-            margin-left: 20px;
-            color: #374151;
+        .next-steps {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 30px;
+            margin: 30px 0;
+            box-shadow: 0 4px 20px rgba(35, 95, 139, 0.05);
         }
         
-        .next-steps li {
-            margin-bottom: 8px;
+        .next-steps h3 {
+            color: #235f8b;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .steps-icon {
+            width: 24px;
+            height: 24px;
+            background: #235f8b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        
+        .steps-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .steps-list li {
+            margin-bottom: 15px;
+            color: #475569;
+            font-size: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            line-height: 1.6;
+        }
+        
+        .step-number {
+            width: 24px;
+            height: 24px;
+            background: #235f8b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        .cta-section {
+            text-align: center;
+            margin: 35px 0;
         }
         
         .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
+            color: white;
+            padding: 16px 32px;
             text-decoration: none;
-            padding: 14px 28px;
-            border-radius: 6px;
+            border-radius: 30px;
             font-weight: 600;
-            text-align: center;
-            margin: 20px 0;
+            font-size: 15px;
             transition: all 0.3s ease;
+            box-shadow: 0 6px 25px rgba(35, 95, 139, 0.3);
         }
         
         .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 35px rgba(35, 95, 139, 0.4);
+        }
+        
+        .button-icon {
+            width: 16px;
+            height: 16px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
         }
         
         .footer {
-            background-color: #f8fafc;
-            padding: 25px 30px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 40px 35px;
             text-align: center;
-            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer h3 {
+            color: #60a5fa;
+            margin-bottom: 20px;
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .footer-icon {
+            width: 24px;
+            height: 24px;
+            background: #60a5fa;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e293b;
+            font-size: 12px;
+            font-weight: bold;
         }
         
         .footer p {
-            color: #6b7280;
-            font-size: 14px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            opacity: 0.9;
+            font-size: 15px;
+            line-height: 1.6;
         }
         
-        .contact-info {
-            color: #1e3a8a;
-            font-weight: 500;
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #374151;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .contact-icon {
+            width: 20px;
+            height: 20px;
+            background: #60a5fa;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e293b;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .disclaimer {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #374151;
+            opacity: 0.7;
+            font-size: 12px;
+            font-style: italic;
         }
         
         @media (max-width: 600px) {
-            .content {
-                padding: 25px 20px;
+            body {
+                padding: 20px 10px;
             }
             
-            .header {
-                padding: 20px 15px;
+            .container {
+                border-radius: 12px;
+            }
+            
+            .header, .content, .footer {
+                padding: 25px 20px;
             }
             
             .detail-row {
                 flex-direction: column;
                 align-items: flex-start;
-                text-align: left;
+                gap: 8px;
+                padding: 12px 0;
             }
             
             .detail-value {
                 text-align: left;
-                margin-top: 5px;
+            }
+            
+            .contact-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .greeting {
+                font-size: 18px;
             }
         }
     </style>
 </head>
 <body>
-    <div class="email-container">
+    <div class="container">
         <div class="header">
-            <img src="https://sidclinic.com/logo.jpeg" alt="SID Clinic Logo" class="logo">
-            <h1>Appointment Canceled by Doctor</h1>
+            <div class="logo">
+                <img src="https://sidclinic.com/logo.jpeg" alt="SID Clinic Logo">
+            </div>
+            <div class="header-content">
+                <h1>Appointment Canceled by Doctor</h1>
+                <p>We sincerely apologize for any inconvenience this may cause</p>
+            </div>
         </div>
         
         <div class="content">
-            <div class="status-badge">❌ Appointment Canceled</div>
+            <div class="status-badge">
+                <div class="status-icon">✕</div>
+                Appointment Canceled
+            </div>
             
             <div class="greeting">Dear {{recipientName}},</div>
             
-            <div class="message">
-                We regret to inform you that your upcoming appointment has been canceled by your doctor. 
-                We understand this may be inconvenient, and we apologize for any disruption to your schedule.
-            </div>
+            <p class="intro-text">
+                We regret to inform you that your upcoming appointment has been canceled by your healthcare provider. 
+                We understand this may cause inconvenience to your schedule, and we sincerely apologize for any disruption this may cause.
+            </p>
             
-            <div class="doctor-info">
-                <h3>Doctor Information</h3>
+            <div class="doctor-card">
+                <h3>
+                    <div class="doctor-icon">Dr</div>
+                    Canceling Physician
+                </h3>
                 <div class="doctor-name">Dr. {{cancelerName}}</div>
             </div>
             
-            <div class="cancellation-details">
-                <div class="details-title">Canceled Appointment Details</div>
+            <div class="cancellation-card">
+                <h3>
+                    <div class="cancel-icon">✕</div>
+                    Canceled Appointment Details
+                </h3>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Date:</span>
+                    <span class="detail-label">
+                        <div class="icon-circle">📅</div>
+                        Date
+                    </span>
                     <span class="detail-value">{{appointmentDate}}</span>
                 </div>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Time:</span>
+                    <span class="detail-label">
+                        <div class="icon-circle">🕐</div>
+                        Time
+                    </span>
                     <span class="detail-value">{{appointmentTime}}</span>
                 </div>
                 
                 <div class="detail-row">
-                    <span class="detail-label">Appointment ID:</span>
-                    <span class="detail-value">#{{appointmentId}}</span>
+                    <span class="detail-label">
+                        <div class="icon-circle">#</div>
+                        Appointment ID
+                    </span>
+                    <span class="detail-value">{{appointmentId}}</span>
                 </div>
             </div>
             
             {{#if cancelReason}}
             <div class="cancel-reason">
-                <strong>Reason for Cancellation:</strong><br>
-                {{cancelReason}}
+                <h4>
+                    <div class="warning-icon">!</div>
+                    Reason for Cancellation
+                </h4>
+                <p style="color: #92400e; font-size: 15px; line-height: 1.6; margin: 0;">{{cancelReason}}</p>
             </div>
             {{/if}}
             
             <div class="next-steps">
-                <h3>What You Can Do Next:</h3>
-                <ul>
-                    <li>Book a new appointment with the same doctor at a different time</li>
-                    <li>Choose another available doctor for your consultation</li>
-                    <li>Contact our support team for assistance with rescheduling</li>
-                    <li>Check our doctor availability calendar for alternative options</li>
+                <h3>
+                    <div class="steps-icon">→</div>
+                    What You Can Do Next
+                </h3>
+                <ul class="steps-list">
+                    <li>
+                        <div class="step-number">1</div>
+                        Schedule a new appointment with Dr. {{cancelerName}} at an alternative time
+                    </li>
+                    <li>
+                        <div class="step-number">2</div>
+                        Browse our available physicians and book with another specialist
+                    </li>
+                    <li>
+                        <div class="step-number">3</div>
+                        Contact our patient support team for personalized assistance
+                    </li>
+                    <li>
+                        <div class="step-number">4</div>
+                        Check our real-time availability calendar for immediate openings
+                    </li>
                 </ul>
             </div>
             
-            <div class="appointment-id">
-                <strong>Appointment ID:</strong> #{{appointmentId}}
+            <div class="appointment-id-section">
+                <strong>Reference ID for Future Communications: {{appointmentId}}</strong>
             </div>
             
-            <a href="{{dashboardUrl}}" class="cta-button">Book New Appointment</a>
-            
-            <div class="message">
-                We apologize for any inconvenience this may have caused. Our team is here to help 
-                you find an alternative appointment that works for your schedule.
+            <div class="cta-section">
+                <a href="{{dashboardUrl}}" class="cta-button">
+                    <div class="button-icon">+</div>
+                    Schedule New Appointment
+                </a>
             </div>
+            
+            <p style="margin-top: 30px; color: #64748b; font-size: 14px; text-align: center; font-style: italic;">
+                Our patient care team is standing by to assist you with rescheduling or addressing any concerns you may have.
+            </p>
         </div>
         
         <div class="footer">
-            <p>Thank you for choosing SID Clinic for your healthcare needs.</p>
-            <p class="contact-info">Need help? Contact us at support@sidclinic.com</p>
-            <p>© 2024 SID Clinic. All rights reserved.</p>
+            <h3>
+                <div class="footer-icon">🏥</div>
+                SID Clinic
+            </h3>
+            <p>Dedicated to providing exceptional healthcare services with integrity, professionalism, and patient-centered care.</p>
+            
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <div class="contact-icon">@</div>
+                    <span>Office@sidclinic.com</span>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-icon">📞</div>
+                    <span>9274557987</span>
+                </div>
+                <div class="contact-item">
+                    <div class="contact-icon">🌐</div>
+                    <span>www.sidclinic.com</span>
+                </div>
+            </div>
+            
+            <div class="disclaimer">
+                This is an automated notification. Please do not reply directly to this email.
+                For assistance, please contact us through our official channels listed above.
+            </div>
         </div>
     </div>
 </body>
 </html>
-
-
-

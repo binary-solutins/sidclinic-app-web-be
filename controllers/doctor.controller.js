@@ -338,6 +338,8 @@ exports.setupProfile = async (req, res) => {
             attributes: ['name', 'phone', 'gender']
           }]
         });
+
+
         
         res.status(201).json({ 
           status: 'success',

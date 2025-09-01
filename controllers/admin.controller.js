@@ -546,6 +546,24 @@ exports.createOrUpdateUser = async (req, res) => {
           // Don't fail the user creation if patient creation fails
         }
       }
+      
+      // If user role is 'admin', automatically create admin settings
+      if (role === 'admin') {
+        try {
+          const AdminSetting = require('../models/adminSetting.model');
+          await AdminSetting.create({
+            userId: user.id,
+            virtualAppointmentStartTime: '09:00:00',
+            virtualAppointmentEndTime: '18:00:00',
+            alertEmails: null,
+            isActive: true
+          });
+          console.log(`Admin settings created for user ${user.id}`);
+        } catch (adminSettingError) {
+          console.error('Error creating admin settings:', adminSettingError);
+          // Don't fail the user creation if admin settings creation fails
+        }
+      }
 
       res.status(201).json({
         status: "success",

@@ -432,6 +432,29 @@ class EmailService {
           <p>We understand this may be disappointing, and we want to assure you that this decision was made after careful review of your application and supporting documentation.</p>
           <p>If you believe this decision is in error or have additional information to provide, please contact our support team immediately.</p>
         </div>
+      `),
+
+      new_doctor_registration: handlebars.compile(`
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3b82f6;">New Doctor Registration</h2>
+          <p>Dear Administrator,</p>
+          <p>A new physician has registered on SID Clinic and requires your review and approval.</p>
+          <div style="background-color: #f5f5f5; padding: 15px; margin: 20px 0; border-radius: 5px;">
+            <h3>Registration Details:</h3>
+            <p><strong>Doctor Name:</strong> Dr. {{doctorName}}</p>
+            <p><strong>Email:</strong> {{doctorEmail}}</p>
+            <p><strong>Phone:</strong> {{doctorPhone}}</p>
+            <p><strong>Specialization:</strong> {{specialization}}</p>
+            <p><strong>Registration Date:</strong> {{registrationDate}}</p>
+            <p><strong>Application ID:</strong> {{applicationId}}</p>
+          </div>
+          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+            <h3>Action Required:</h3>
+            <p>This doctor's application is currently pending approval. Please review their credentials, documents, and information before making a decision.</p>
+          </div>
+          <p>Please log in to your admin dashboard to review and approve this application.</p>
+          <p><a href="https://admin.sidclinic.com/doctors" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Review Application</a></p>
+        </div>
       `)
     };
 
@@ -472,7 +495,8 @@ class EmailService {
       doctor_activated: `Account Activated - Welcome Back Dr. ${data.doctorName}`,
       doctor_suspended: `Account Suspended - Important Notice`,
       doctor_approved: `Account Approved - Welcome Dr. ${data.doctorName}`,
-      doctor_disapproved: `Account Disapproved - Important Notice`
+      doctor_disapproved: `Account Disapproved - Important Notice`,
+      new_doctor_registration: `New Doctor Registration - Action Required - Dr. ${data.doctorName}`
     };
 
     return subjects[templateType] || 'Healthcare Notification';
@@ -672,6 +696,92 @@ class EmailService {
       return { success: false, error: error.message };
     }
   }
+
+  // Send admin notification for new doctor registration
+  async sendNewDoctorRegistrationNotification(doctorData) {
+    try {
+      // Import AdminSetting model
+      const AdminSetting = require('../models/adminSetting.model');
+      
+      // Get admin settings to find alert emails
+      const adminSettings = await AdminSetting.findOne({
+        where: { isActive: true }
+      });
+
+      if (!adminSettings || !adminSettings.alertEmails) {
+        console.log('No admin alert emails configured');
+        return { success: false, error: 'No admin alert emails configured' };
+      }
+
+      // Parse alert emails (comma-separated)
+      const alertEmails = adminSettings.alertEmails
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => email && this.isValidEmail(email));
+
+      if (alertEmails.length === 0) {
+        console.log('No valid admin alert emails found');
+        return { success: false, error: 'No valid admin alert emails found' };
+      }
+
+      // Prepare email data
+      const emailData = {
+        doctorName: doctorData.name || doctorData.doctorName,
+        doctorEmail: doctorData.email,
+        doctorPhone: doctorData.phone || doctorData.phoneNumber,
+        specialization: doctorData.specialization || doctorData.speciality,
+        registrationDate: new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        applicationId: doctorData.id || `DR-${Date.now()}`
+      };
+
+      // Send email to all admin alert emails
+      const results = [];
+      for (const email of alertEmails) {
+        try {
+          const result = await this.sendAppointmentEmail(
+            email,
+            'new_doctor_registration',
+            emailData
+          );
+          results.push({
+            email,
+            ...result
+          });
+        } catch (error) {
+          results.push({
+            email,
+            success: false,
+            error: error.message
+          });
+        }
+      }
+
+      console.log(`Sent new doctor registration notifications to ${results.filter(r => r.success).length} admin emails`);
+      return {
+        success: true,
+        results,
+        totalSent: results.filter(r => r.success).length,
+        totalFailed: results.filter(r => !r.success).length
+      };
+
+    } catch (error) {
+      console.error('Failed to send new doctor registration notification:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Validate email format
+  isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
 }
 
 // Create singleton instance
@@ -685,5 +795,6 @@ module.exports = {
   sendAppointmentReminders: () => emailService.sendAppointmentReminders(),
   sendPatientEmail: (patient, templateType, data) => emailService.sendPatientEmail(patient, templateType, data),
   sendDoctorEmail: (doctor, templateType, data) => emailService.sendDoctorEmail(doctor, templateType, data),
+  sendNewDoctorRegistrationNotification: (doctorData) => emailService.sendNewDoctorRegistrationNotification(doctorData),
   testEmailConfiguration: () => emailService.testEmailConfiguration()
 };

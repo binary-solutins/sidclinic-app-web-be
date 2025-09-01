@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doctor Approved - SID Clinic</title>
+    <title>New Doctor Registration - SID Clinic</title>
     <style>
         * {
             margin: 0;
@@ -26,12 +26,12 @@
             background-color: #ffffff;
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(35, 95, 139, 0.1);
+            box-shadow: 0 10px 40px rgba(59, 130, 246, 0.1);
             border: 1px solid #e2e8f0;
         }
         
         .header {
-            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             padding: 40px 30px;
             text-align: center;
@@ -97,7 +97,7 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             padding: 12px 24px;
             border-radius: 30px;
@@ -106,7 +106,7 @@
             margin: 0 0 25px 0;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
         }
         
         .status-icon {
@@ -117,14 +117,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #059669;
+            color: #3b82f6;
             font-size: 10px;
             font-weight: bold;
         }
         
         .greeting {
             font-size: 20px;
-            color: #235f8b;
+            color: #1e40af;
             margin-bottom: 25px;
             font-weight: 600;
             letter-spacing: -0.3px;
@@ -138,8 +138,8 @@
         }
         
         .doctor-card {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            border: 1px solid #bae6fd;
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #bfdbfe;
             border-radius: 16px;
             padding: 25px;
             margin: 25px 0;
@@ -153,12 +153,12 @@
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             border-radius: 16px 16px 0 0;
         }
         
         .doctor-card h3 {
-            color: #235f8b;
+            color: #1e40af;
             margin-bottom: 15px;
             font-size: 18px;
             font-weight: 700;
@@ -170,13 +170,14 @@
         .doctor-icon {
             width: 24px;
             height: 24px;
-            background: #235f8b;
+            background: #3b82f6;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-size: 12px;
+            font-weight: bold;
         }
         
         .doctor-name {
@@ -185,29 +186,29 @@
             color: #1e293b;
         }
         
-        .approval-card {
+        .registration-card {
             background: #ffffff;
-            border: 1px solid #bbf7d0;
+            border: 1px solid #bfdbfe;
             border-radius: 16px;
             padding: 30px;
             margin: 30px 0;
             position: relative;
-            box-shadow: 0 4px 20px rgba(5, 150, 105, 0.08);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.08);
         }
         
-        .approval-card::before {
+        .registration-card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             border-radius: 16px 16px 0 0;
         }
         
-        .approval-card h3 {
-            color: #059669;
+        .registration-card h3 {
+            color: #3b82f6;
             margin-bottom: 25px;
             font-size: 20px;
             font-weight: 700;
@@ -216,16 +217,17 @@
             gap: 12px;
         }
         
-        .approve-icon {
+        .register-icon {
             width: 24px;
             height: 24px;
-            background: #059669;
+            background: #3b82f6;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-size: 14px;
+            font-weight: bold;
         }
         
         .detail-row {
@@ -259,7 +261,7 @@
         .icon-circle {
             width: 20px;
             height: 20px;
-            background: #235f8b;
+            background: #3b82f6;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -268,16 +270,16 @@
             font-size: 10px;
         }
         
-        .approval-message {
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
+        .action-required {
+            background: #fef3c7;
+            border: 1px solid #fde68a;
             border-radius: 12px;
             padding: 20px;
             margin: 25px 0;
         }
         
-        .approval-message h4 {
-            color: #065f46;
+        .action-required h4 {
+            color: #92400e;
             margin-bottom: 12px;
             font-size: 16px;
             font-weight: 700;
@@ -286,10 +288,10 @@
             gap: 8px;
         }
         
-        .success-icon {
+        .action-icon {
             width: 20px;
             height: 20px;
-            background: #059669;
+            background: #f59e0b;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -305,11 +307,11 @@
             border-radius: 16px;
             padding: 30px;
             margin: 30px 0;
-            box-shadow: 0 4px 20px rgba(35, 95, 139, 0.05);
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.05);
         }
         
         .next-steps h3 {
-            color: #235f8b;
+            color: #1e40af;
             margin-bottom: 20px;
             font-size: 18px;
             font-weight: 700;
@@ -321,7 +323,7 @@
         .steps-icon {
             width: 24px;
             height: 24px;
-            background: #235f8b;
+            background: #3b82f6;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -349,7 +351,7 @@
         .step-number {
             width: 24px;
             height: 24px;
-            background: #235f8b;
+            background: #3b82f6;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -370,7 +372,7 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            background: linear-gradient(135deg, #235f8b 0%, #1a4f7a 100%);
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
             color: white;
             padding: 16px 32px;
             text-decoration: none;
@@ -378,12 +380,12 @@
             font-weight: 600;
             font-size: 15px;
             transition: all 0.3s ease;
-            box-shadow: 0 6px 25px rgba(35, 95, 139, 0.3);
+            box-shadow: 0 6px 25px rgba(59, 130, 246, 0.3);
         }
         
         .cta-button:hover {
             transform: translateY(-3px);
-            box-shadow: 0 10px 35px rgba(35, 95, 139, 0.4);
+            box-shadow: 0 10px 35px rgba(59, 130, 246, 0.4);
         }
         
         .button-icon {
@@ -521,52 +523,60 @@
                 <img src="https://sidclinic.com/logo.jpeg" alt="SID Clinic Logo">
             </div>
             <div class="header-content">
-                <h1>Doctor Application Approved</h1>
-                <p>Welcome to the SID Clinic family!</p>
+                <h1>New Doctor Registration</h1>
+                <p>Action required: Review and approve new physician application</p>
             </div>
         </div>
         
         <div class="content">
             <div class="status-badge">
-                <div class="status-icon">✓</div>
-                Application Approved
+                <div class="status-icon">!</div>
+                Pending Approval
             </div>
             
-            <div class="greeting">Dear Dr. {{doctorName}},</div>
+            <div class="greeting">Dear Administrator,</div>
             
             <p class="intro-text">
-                Congratulations! We are pleased to inform you that your application to join SID Clinic has been approved. 
-                After careful review of your credentials and qualifications, we are confident that you will be an excellent addition to our healthcare team.
+                A new physician has registered on SID Clinic and requires your review and approval. 
+                Please review the application details below and take appropriate action to approve or reject the registration.
             </p>
             
             <div class="doctor-card">
                 <h3>
                     <div class="doctor-icon">Dr</div>
-                    Approved Physician
+                    New Applicant
                 </h3>
                 <div class="doctor-name">Dr. {{doctorName}}</div>
             </div>
             
-            <div class="approval-card">
+            <div class="registration-card">
                 <h3>
-                    <div class="approve-icon">✓</div>
-                    Approval Details
+                    <div class="register-icon">📋</div>
+                    Registration Details
                 </h3>
                 
                 <div class="detail-row">
                     <span class="detail-label">
-                        <div class="icon-circle">📅</div>
-                        Approval Date
+                        <div class="icon-circle">👨‍⚕️</div>
+                        Doctor Name
                     </span>
-                    <span class="detail-value">{{approvalDate}}</span>
+                    <span class="detail-value">Dr. {{doctorName}}</span>
                 </div>
                 
                 <div class="detail-row">
                     <span class="detail-label">
-                        <div class="icon-circle">🆔</div>
-                        Doctor ID
+                        <div class="icon-circle">📧</div>
+                        Email
                     </span>
-                    <span class="detail-value">{{doctorId}}</span>
+                    <span class="detail-value">{{doctorEmail}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">
+                        <div class="icon-circle">📱</div>
+                        Phone
+                    </span>
+                    <span class="detail-value">{{doctorPhone}}</span>
                 </div>
                 
                 <div class="detail-row">
@@ -576,50 +586,69 @@
                     </span>
                     <span class="detail-value">{{specialization}}</span>
                 </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">
+                        <div class="icon-circle">📅</div>
+                        Registration Date
+                    </span>
+                    <span class="detail-value">{{registrationDate}}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">
+                        <div class="icon-circle">🆔</div>
+                        Application ID
+                    </span>
+                    <span class="detail-value">{{applicationId}}</span>
+                </div>
             </div>
             
-            <div class="approval-message">
+            <div class="action-required">
                 <h4>
-                    <div class="success-icon">✓</div>
-                    Welcome Message
+                    <div class="action-icon">⚠</div>
+                    Action Required
                 </h4>
-                <p style="color: #065f46; font-size: 15px; line-height: 1.6; margin: 0;">{{welcomeMessage}}</p>
+                <p style="color: #92400e; font-size: 15px; line-height: 1.6; margin: 0;">
+                    This doctor's application is currently pending approval. Please review their credentials, 
+                    documents, and information before making a decision. The doctor cannot access the platform until approved.
+                </p>
             </div>
             
             <div class="next-steps">
                 <h3>
                     <div class="steps-icon">→</div>
-                    Next Steps to Get Started
+                    Review Process
                 </h3>
                 <ul class="steps-list">
                     <li>
                         <div class="step-number">1</div>
-                        Complete your profile setup and upload required documents
+                        Review the doctor's profile and submitted documents
                     </li>
                     <li>
                         <div class="step-number">2</div>
-                        Set your availability schedule and consultation hours
+                        Verify their medical credentials and licenses
                     </li>
                     <li>
                         <div class="step-number">3</div>
-                        Review our platform guidelines and best practices
+                        Check their specialization and experience
                     </li>
                     <li>
                         <div class="step-number">4</div>
-                        Start accepting patient appointments and consultations
+                        Approve or reject the application based on your assessment
                     </li>
                 </ul>
             </div>
             
             <div class="cta-section">
-                <a href="{{dashboardUrl}}" class="cta-button">
+                <a href="https://admin.sidclinic.com/doctors" class="cta-button">
                     <div class="button-icon">→</div>
-                    Access Your Dashboard
+                    Review Application
                 </a>
             </div>
             
             <p style="margin-top: 30px; color: #64748b; font-size: 14px; text-align: center; font-style: italic;">
-                Our team is here to support you every step of the way. Welcome to SID Clinic!
+                Please review this application promptly to ensure timely onboarding of qualified healthcare providers.
             </p>
         </div>
         
@@ -652,4 +681,5 @@
         </div>
     </div>
 </body>
-</html> 
+</html>
+
