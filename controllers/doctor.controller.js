@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const FormData = require('form-data');
 const { Op } = require('sequelize');
+const { sendNewDoctorRegistrationNotification } = require('../services/email.services');
 
 // Configure Appwrite
 const client = new Client();
@@ -339,8 +340,23 @@ exports.setupProfile = async (req, res) => {
           }]
         });
 
+        // Send email notification to admin when doctor profile is completed
+        try {
+          const emailData = {
+            name: newDoctor.User.name,
+            email: newDoctor.email,
+            phone: newDoctor.User.phone,
+            specialization: newDoctor.specialty || 'Not specified',
+            id: newDoctor.id
+          };
+          
+          await sendNewDoctorRegistrationNotification(emailData);
+          console.log('Admin notification email sent successfully for completed doctor profile');
+        } catch (emailError) {
+          console.error('Failed to send admin notification email:', emailError);
+          // Don't fail the profile creation if email fails, just log the error
+        }
 
-        
         res.status(201).json({ 
           status: 'success',
           code: 201,

@@ -20,7 +20,6 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/user.model');
 const Doctor = require('../models/doctor.model');
-const { sendNewDoctorRegistrationNotification } = require('../services/email.services');
 
 // Use only the approved template exactly as provided
 const SMS_TEMPLATE = {
@@ -253,24 +252,7 @@ exports.register = async (req, res) => {
 
     const user = await User.create({ name, phone, password, gender, role });
     
-    // If user role is 'doctor', send admin notification email
-    if (role === 'doctor') {
-      try {
-        const emailData = {
-          name: user.name,
-          email: `${phone}@temp.com`, // Temporary email using phone
-          phone: user.phone,
-          specialization: 'Not specified yet', // Will be updated when doctor sets up profile
-          id: user.id
-        };
-        
-        await sendNewDoctorRegistrationNotification(emailData);
-        console.log('Admin notification email sent successfully for new doctor registration');
-      } catch (emailError) {
-        console.error('Failed to send admin notification email:', emailError);
-        // Don't fail the registration if email fails, just log the error
-      }
-    }
+    // Note: Admin notification email will be sent when doctor completes profile setup
     
     // If user role is 'user', automatically create a patient record
     if (role === 'user') {
