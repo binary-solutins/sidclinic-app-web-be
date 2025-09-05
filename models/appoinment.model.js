@@ -2,6 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/db');
 const User = require('./user.model');
 const Doctor = require('./doctor.model');
+const VirtualDoctor = require('./virtualDoctor.model');
 
 const Appointment = sequelize.define('Appointment', {
   id: {
@@ -22,6 +23,14 @@ const Appointment = sequelize.define('Appointment', {
     allowNull: true, // Allow NULL for virtual appointments
     references: {
       model: Doctor,
+      key: 'id'
+    }
+  },
+  virtualDoctorId: {
+    type: DataTypes.INTEGER,
+    allowNull: true, // Allow NULL for physical appointments
+    references: {
+      model: VirtualDoctor,
       key: 'id'
     }
   },
@@ -239,6 +248,12 @@ const Appointment = sequelize.define('Appointment', {
     },
     {
       fields: ['doctorId', 'appointmentDateTime']
+    },
+    {
+      fields: ['virtualDoctorId']
+    },
+    {
+      fields: ['virtualDoctorId', 'appointmentDateTime']
     }
   ]
 });
@@ -259,6 +274,15 @@ Doctor.hasMany(Appointment, {
 Appointment.belongsTo(Doctor, {
   foreignKey: 'doctorId',
   as: 'doctor'
+});
+
+VirtualDoctor.hasMany(Appointment, {
+  foreignKey: 'virtualDoctorId',
+  onDelete: 'CASCADE'
+});
+Appointment.belongsTo(VirtualDoctor, {
+  foreignKey: 'virtualDoctorId',
+  as: 'virtualDoctor'
 });
 
 Appointment.prototype.canBeRescheduled = function () {

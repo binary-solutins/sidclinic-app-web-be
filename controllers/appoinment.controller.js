@@ -1,6 +1,7 @@
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 const { Appointment, User, Doctor, Notification } = require('../models');
+const VirtualDoctor = require('../models/virtualDoctor.model');
 const { sendUserNotification } = require('../services/firebase.services');
 const { sendAppointmentEmail } = require('../services/email.services');
 const { CommunicationIdentityClient } = require('@azure/communication-identity');
@@ -31,7 +32,7 @@ module.exports = {
 
   bookAppointment: async (req, res) => {
     try {
-      const { userId, doctorId, appointmentDateTime, type = 'physical', notes } = req.body;
+      const { userId, doctorId, appointmentDateTime, type = 'physical', notes, virtualDoctorId } = req.body;
 
       // Always interpret incoming appointmentDateTime as IST, regardless of format
       let requestedTime;
@@ -85,7 +86,24 @@ module.exports = {
 
              // Validate doctor (skip validation for virtual appointments with doctorId = null)
        let doctor = null;
-       if (doctorId !== null && doctorId !== 0) {
+       let virtualDoctor = null;
+       
+       if (type === 'virtual') {
+         // For virtual appointments, validate virtual doctor if provided
+         if (virtualDoctorId) {
+           virtualDoctor = await VirtualDoctor.findByPk(virtualDoctorId, {
+             include: [{ model: User, as: 'User' }]
+           });
+           if (!virtualDoctor || !virtualDoctor.isApproved || !virtualDoctor.is_active) {
+             return res.status(400).json({
+               status: 'error',
+               code: 400,
+               message: 'Virtual doctor not available',
+             });
+           }
+         }
+       } else if (doctorId !== null && doctorId !== 0) {
+         // For physical appointments, validate regular doctor
          doctor = await Doctor.findByPk(doctorId, {
            include: [{ model: User, as: 'User' }],
          });
@@ -132,11 +150,18 @@ module.exports = {
           status: { [Op.notIn]: ['canceled', 'completed', 'rejected'] }
         };
 
-        if (doctorId !== null && doctorId !== 0) {
-          whereCondition.doctorId = doctorId;
-        } else {
-          whereCondition.doctorId = null; // Virtual appointments
+        if (type === 'virtual') {
           whereCondition.type = 'virtual';
+          if (virtualDoctorId) {
+            // Check availability for specific virtual doctor
+            whereCondition.virtualDoctorId = virtualDoctorId;
+          } else {
+            // Check global virtual appointment count (no specific doctor assigned)
+            whereCondition.doctorId = null;
+            whereCondition.virtualDoctorId = null;
+          }
+        } else if (doctorId !== null && doctorId !== 0) {
+          whereCondition.doctorId = doctorId;
         }
 
        const existingCount = await Appointment.count({ where: whereCondition });
@@ -158,7 +183,8 @@ module.exports = {
                const existingUserAppointment = await Appointment.findOne({
           where: {
             userId,
-            doctorId: doctorId !== null && doctorId !== 0 ? doctorId : null,
+            doctorId: type === 'virtual' ? null : (doctorId !== null && doctorId !== 0 ? doctorId : null),
+            virtualDoctorId: type === 'virtual' ? virtualDoctorId : null,
             appointmentDateTime: {
               [Op.between]: [dayStart.toJSDate(), dayEnd.toJSDate()]
             },
@@ -167,9 +193,18 @@ module.exports = {
         });
 
         if (existingUserAppointment) {
-          const message = doctorId !== null && doctorId !== 0
-            ? 'You already have an appointment with this doctor on the selected date'
-            : 'You already have a virtual appointment on the selected date';
+          let message;
+          if (type === 'virtual') {
+            if (virtualDoctorId) {
+              message = 'You already have a virtual appointment with this virtual doctor on the selected date';
+            } else {
+              message = 'You already have a virtual appointment on the selected date';
+            }
+          } else {
+            message = doctorId !== null && doctorId !== 0
+              ? 'You already have an appointment with this doctor on the selected date'
+              : 'You already have an appointment on the selected date';
+          }
           
           return res.status(400).json({
             status: 'error',
@@ -181,7 +216,8 @@ module.exports = {
       // Build appointment data - convert IST DateTime to JS Date for DB storage
       const appointmentData = {
         userId,
-        doctorId,
+        doctorId: type === 'virtual' ? null : doctorId,
+        virtualDoctorId: type === 'virtual' ? virtualDoctorId : null,
         appointmentDateTime: requestedTime.toJSDate(), // Convert IST DateTime to JS Date
         type,
         status: 'pending',
@@ -203,7 +239,6 @@ module.exports = {
           appointmentData.azureDoctorUserId = doctorCommUser.userId;
           appointmentData.azureDoctorToken = doctorCommUser.token;
           appointmentData.azureDoctorTokenExpiry = doctorCommUser.expiresOn;
-          appointmentData.doctorId = null; // Virtual appointments have doctorId = null
         } catch (err) {
           console.error('Azure Communication Services error:', err);
           return res.status(500).json({
@@ -237,7 +272,9 @@ module.exports = {
          'appointment_requested',
          {
            patientName: String(user.name || ''),
-                       doctorName: doctorId !== null && doctorId !== 0 ? String(doctor.User.name || '') : 'Virtual Doctor',
+           doctorName: type === 'virtual' 
+             ? (virtualDoctor ? String(virtualDoctor.User.name || '') : 'Virtual Doctor')
+             : (doctorId !== null && doctorId !== 0 ? String(doctor.User.name || '') : 'Doctor'),
            appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
            appointmentTime: requestedTime.toFormat('hh:mm a'),
            appointmentType: String(type),
@@ -245,22 +282,38 @@ module.exports = {
          }
        );
 
-               // Send email to doctor only if it's not a virtual appointment (doctorId !== null)
-        if (doctorId !== null && doctorId !== 0 && doctor) {
-         await sendAppointmentEmail(
-           doctor.email,
-           'new_appointment_request',
-           {
-             doctorName: String(doctor.User.name || ''),
-             patientName: String(user.name || ''),
-             appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
-             appointmentTime: requestedTime.toFormat('hh:mm a'),
-             appointmentType: String(type),
-             appointmentId: appointment.id.toString(),
-             notes: String(notes || 'No additional notes')
-           }
-         );
-       }
+               // Send email to doctor/virtual doctor
+        if (type === 'virtual' && virtualDoctor) {
+          // Send email to virtual doctor
+          await sendAppointmentEmail(
+            virtualDoctor.email,
+            'new_appointment_request',
+            {
+              doctorName: String(virtualDoctor.User.name || ''),
+              patientName: String(user.name || ''),
+              appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
+              appointmentTime: requestedTime.toFormat('hh:mm a'),
+              appointmentType: String(type),
+              appointmentId: appointment.id.toString(),
+              notes: String(notes || 'No additional notes')
+            }
+          );
+        } else if (doctorId !== null && doctorId !== 0 && doctor) {
+          // Send email to regular doctor
+          await sendAppointmentEmail(
+            doctor.email,
+            'new_appointment_request',
+            {
+              doctorName: String(doctor.User.name || ''),
+              patientName: String(user.name || ''),
+              appointmentDate: requestedTime.toFormat('dd LLL yyyy'),
+              appointmentTime: requestedTime.toFormat('hh:mm a'),
+              appointmentType: String(type),
+              appointmentId: appointment.id.toString(),
+              notes: String(notes || 'No additional notes')
+            }
+          );
+        }
 
 
       // Format response data with IST times
@@ -302,6 +355,7 @@ module.exports = {
       const appointment = await Appointment.findByPk(appointmentId, {
         include: [
           { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: VirtualDoctor, as: 'virtualDoctor', include: [{ model: User, as: 'User' }] },
           { model: User, as: 'patient' }
         ]
       });
@@ -333,9 +387,10 @@ module.exports = {
              // Check if user is authorized (patient, assigned doctor, or virtual doctor)
        const isPatient = req.user.id === appointment.userId;
        const isAssignedDoctor = appointment.doctorId !== null && req.user.id === appointment.doctor?.User?.id;
+       const isAssignedVirtualDoctor = appointment.virtualDoctorId !== null && req.user.id === appointment.virtualDoctor?.User?.id;
        const isVirtualDoctor = req.user.role === 'virtual-doctor';
 
-      if (!isPatient && !isAssignedDoctor && !isVirtualDoctor) {
+      if (!isPatient && !isAssignedDoctor && !isAssignedVirtualDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
@@ -360,7 +415,7 @@ module.exports = {
       // Handle virtual doctor - use stored doctor token for virtual appointments
       let virtualDoctorToken = null;
       let virtualDoctorUserId = null;
-      if (isVirtualDoctor) {
+      if (isVirtualDoctor || isAssignedVirtualDoctor) {
         // For virtual appointments, use the stored doctor token
         if (appointment.azureDoctorUserId && appointment.azureDoctorToken) {
           // Check if token is expired and refresh if needed
@@ -429,7 +484,7 @@ module.exports = {
           appointmentId: appointment.id,
           participantName: appointment.doctor.User.name
         };
-      } else if (isVirtualDoctor) {
+      } else if (isVirtualDoctor || isAssignedVirtualDoctor) {
         credentials = {
           roomId: appointment.roomId,
           userId: virtualDoctorUserId,
@@ -1714,6 +1769,7 @@ module.exports = {
       const appointment = await Appointment.findByPk(req.params.id, {
         include: [
           { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: VirtualDoctor, as: 'virtualDoctor', include: [{ model: User, as: 'User' }] },
           { model: User, as: 'patient' }
         ]
       });
@@ -1735,12 +1791,15 @@ module.exports = {
         });
       }
 
-      // Check if the requesting user is a virtual doctor
-      if (req.user.role !== 'virtual-doctor') {
+      // Check if the requesting user is the assigned virtual doctor or any virtual doctor
+      const isAssignedVirtualDoctor = appointment.virtualDoctorId !== null && req.user.id === appointment.virtualDoctor?.User?.id;
+      const isVirtualDoctor = req.user.role === 'virtual-doctor';
+      
+      if (!isAssignedVirtualDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
-          message: 'Only virtual doctors can confirm virtual appointments',
+          message: 'Only the assigned virtual doctor or any virtual doctor can confirm virtual appointments',
         });
       }
 
@@ -1756,6 +1815,15 @@ module.exports = {
       appointment.status = 'confirmed';
       appointment.confirmedAt = new Date();
       appointment.confirmedBy = req.user.id; // Track who confirmed it
+      
+      // If no specific virtual doctor was assigned, assign the confirming doctor
+      if (appointment.virtualDoctorId === null) {
+        const virtualDoctor = await VirtualDoctor.findOne({ where: { userId: req.user.id } });
+        if (virtualDoctor) {
+          appointment.virtualDoctorId = virtualDoctor.id;
+        }
+      }
+      
       await appointment.save();
 
       // Send confirmation email to patient
@@ -1764,7 +1832,7 @@ module.exports = {
         'appointment_confirmed',
         {
           patientName: appointment.patient.name,
-          doctorName: 'Virtual Doctor', // For virtual appointments
+          doctorName: req.user.name || 'Virtual Doctor', // For virtual appointments
           appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
@@ -1820,12 +1888,15 @@ module.exports = {
         });
       }
 
-      // Check if the requesting user is a virtual doctor
-      if (req.user.role !== 'virtual-doctor') {
+      // Check if the requesting user is the assigned virtual doctor or any virtual doctor
+      const isAssignedVirtualDoctor = appointment.virtualDoctorId !== null && req.user.id === appointment.virtualDoctor?.User?.id;
+      const isVirtualDoctor = req.user.role === 'virtual-doctor';
+      
+      if (!isAssignedVirtualDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
-          message: 'Only virtual doctors can reject virtual appointments',
+          message: 'Only the assigned virtual doctor or any virtual doctor can reject virtual appointments',
         });
       }
 
@@ -1842,6 +1913,12 @@ module.exports = {
       appointment.rejectionReason = rejectionReason;
       appointment.rejectedAt = new Date();
       appointment.rejectedBy = req.user.id; // Track who rejected it
+      
+      // If no specific virtual doctor was assigned, assign the rejecting doctor
+      if (appointment.virtualDoctorId === null) {
+        appointment.virtualDoctorId = req.user.id;
+      }
+      
       await appointment.save();
 
       await sendAppointmentEmail(
@@ -1849,7 +1926,7 @@ module.exports = {
         'appointment_rejected',
         {
           patientName: appointment.patient.name,
-          doctorName: 'Virtual Doctor', // For virtual appointments
+          doctorName: req.user.name || 'Virtual Doctor', // For virtual appointments
           appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
@@ -1903,12 +1980,15 @@ module.exports = {
         });
       }
 
-      // Check if the requesting user is a virtual doctor
-      if (req.user.role !== 'virtual-doctor') {
+      // Check if the requesting user is the assigned virtual doctor or any virtual doctor
+      const isAssignedVirtualDoctor = appointment.virtualDoctorId !== null && req.user.id === appointment.virtualDoctor?.User?.id;
+      const isVirtualDoctor = req.user.role === 'virtual-doctor';
+      
+      if (!isAssignedVirtualDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
-          message: 'Only virtual doctors can approve virtual appointment reschedules',
+          message: 'Only the assigned virtual doctor or any virtual doctor can approve virtual appointment reschedules',
         });
       }
 
@@ -1925,6 +2005,12 @@ module.exports = {
       appointment.status = 'confirmed';
       appointment.rescheduleApprovedAt = new Date();
       appointment.rescheduleApprovedBy = req.user.id; // Track who approved it
+      
+      // If no specific virtual doctor was assigned, assign the approving doctor
+      if (appointment.virtualDoctorId === null) {
+        appointment.virtualDoctorId = req.user.id;
+      }
+      
       await appointment.save();
 
       // Send approval email to patient
@@ -1933,7 +2019,7 @@ module.exports = {
         'reschedule_approved',
         {
           patientName: String(appointment.patient.name),
-          doctorName: 'Virtual Doctor', // For virtual appointments
+          doctorName: req.user.name || 'Virtual Doctor', // For virtual appointments
           newDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
@@ -1989,12 +2075,15 @@ module.exports = {
         });
       }
 
-      // Check if the requesting user is a virtual doctor
-      if (req.user.role !== 'virtual-doctor') {
+      // Check if the requesting user is the assigned virtual doctor or any virtual doctor
+      const isAssignedVirtualDoctor = appointment.virtualDoctorId !== null && req.user.id === appointment.virtualDoctor?.User?.id;
+      const isVirtualDoctor = req.user.role === 'virtual-doctor';
+      
+      if (!isAssignedVirtualDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
-          message: 'Only virtual doctors can reject virtual appointment reschedules',
+          message: 'Only the assigned virtual doctor or any virtual doctor can reject virtual appointment reschedules',
         });
       }
 
@@ -2013,6 +2102,12 @@ module.exports = {
       appointment.rescheduleRejectedAt = new Date();
       appointment.rescheduleRejectedBy = req.user.id; // Track who rejected it
       appointment.requestedDateTime = null;
+      
+      // If no specific virtual doctor was assigned, assign the rejecting doctor
+      if (appointment.virtualDoctorId === null) {
+        appointment.virtualDoctorId = req.user.id;
+      }
+      
       await appointment.save();
 
       await sendAppointmentEmail(
@@ -2020,7 +2115,7 @@ module.exports = {
         'reschedule_rejected',
         {
           patientName: String(appointment.patient.name),
-          doctorName: 'Virtual Doctor', // For virtual appointments
+          doctorName: req.user.name || 'Virtual Doctor', // For virtual appointments
           originalDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
@@ -2075,12 +2170,15 @@ module.exports = {
         });
       }
 
-      // Check if the requesting user is a virtual doctor
-      if (req.user.role !== 'virtual-doctor') {
+      // Check if the requesting user is the assigned virtual doctor or any virtual doctor
+      const isAssignedVirtualDoctor = appointment.virtualDoctorId !== null && req.user.id === appointment.virtualDoctor?.User?.id;
+      const isVirtualDoctor = req.user.role === 'virtual-doctor';
+      
+      if (!isAssignedVirtualDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
-          message: 'Only virtual doctors can cancel virtual appointments',
+          message: 'Only the assigned virtual doctor or any virtual doctor can cancel virtual appointments',
         });
       }
 
@@ -2099,6 +2197,12 @@ module.exports = {
       appointment.canceledBy = 'virtual-doctor';
       appointment.canceledAt = new Date();
       appointment.canceledByUserId = req.user.id; // Track who canceled it
+      
+      // If no specific virtual doctor was assigned, assign the canceling doctor
+      if (appointment.virtualDoctorId === null) {
+        appointment.virtualDoctorId = req.user.id;
+      }
+      
       await appointment.save();
 
       // Send cancellation email to patient
@@ -2107,7 +2211,7 @@ module.exports = {
         'appointment_canceled_by_doctor',
         {
           recipientName: appointment.patient.name,
-          cancelerName: 'Virtual Doctor',
+          cancelerName: req.user.name || 'Virtual Doctor',
           appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
@@ -2121,10 +2225,10 @@ module.exports = {
 
       // Send confirmation email to virtual doctor
       await sendAppointmentEmail(
-        req.user.phone, // Using phone as email for virtual doctors
+        req.user.email || req.user.phone, // Use email if available, fallback to phone
         'cancellation_confirmation_doctor',
         {
-          cancelerName: 'Virtual Doctor',
+          cancelerName: req.user.name || 'Virtual Doctor',
           otherPartyName: appointment.patient.name,
           appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
@@ -2179,12 +2283,15 @@ module.exports = {
         });
       }
 
-      // Check if the requesting user is a virtual doctor
-      if (req.user.role !== 'virtual-doctor') {
+      // Check if the requesting user is the assigned virtual doctor or any virtual doctor
+      const isAssignedVirtualDoctor = appointment.virtualDoctorId !== null && req.user.id === appointment.virtualDoctor?.User?.id;
+      const isVirtualDoctor = req.user.role === 'virtual-doctor';
+      
+      if (!isAssignedVirtualDoctor && !isVirtualDoctor) {
         return res.status(403).json({
           status: 'error',
           code: 403,
-          message: 'Only virtual doctors can complete virtual appointments',
+          message: 'Only the assigned virtual doctor or any virtual doctor can complete virtual appointments',
         });
       }
 
@@ -2202,6 +2309,12 @@ module.exports = {
       appointment.prescription = prescription;
       appointment.completedAt = new Date();
       appointment.completedBy = req.user.id; // Track who completed it
+      
+      // If no specific virtual doctor was assigned, assign the completing doctor
+      if (appointment.virtualDoctorId === null) {
+        appointment.virtualDoctorId = req.user.id;
+      }
+      
       await appointment.save();
 
       await sendAppointmentEmail(
@@ -2209,7 +2322,7 @@ module.exports = {
         'appointment_completed',
         {
           patientName: appointment.patient.name,
-          doctorName: 'Virtual Doctor', // For virtual appointments
+          doctorName: req.user.name || 'Virtual Doctor', // For virtual appointments
           appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
@@ -2255,6 +2368,15 @@ module.exports = {
         type: 'virtual', // Only virtual appointments
         doctorId: null // Virtual appointments have no assigned doctor
       };
+      
+      // If the virtual doctor wants to see only their assigned appointments
+      const { assignedOnly } = req.query;
+      if (assignedOnly === 'true') {
+        const virtualDoctor = await VirtualDoctor.findOne({ where: { userId: req.user.id } });
+        if (virtualDoctor) {
+          where.virtualDoctorId = virtualDoctor.id;
+        }
+      }
       
       if (status) where.status = status;
 
@@ -2340,6 +2462,15 @@ module.exports = {
           message: 'Only virtual doctors can access virtual appointments',
         });
       }
+      
+      // Check if the virtual doctor is assigned to this appointment (if appointment has an assigned doctor)
+      if (appointment.virtualDoctorId !== null && appointment.virtualDoctorId !== req.user.id) {
+        return res.status(403).json({
+          status: 'error',
+          code: 403,
+          message: 'You are not assigned to this virtual appointment',
+        });
+      }
 
       res.json({
         status: 'success',
@@ -2422,6 +2553,52 @@ module.exports = {
       });
     } catch (error) {
       console.error('Get Virtual Appointment Stats Error:', error);
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  // New API to get available virtual doctors for booking
+  getAvailableVirtualDoctors: async (req, res) => {
+    try {
+      const { specialty } = req.query;
+
+      const whereCondition = {
+        isApproved: true,
+        is_active: true
+      };
+
+      if (specialty) {
+        whereCondition.specialty = specialty;
+      }
+
+      const virtualDoctors = await VirtualDoctor.findAll({
+        where: whereCondition,
+        include: [
+          { 
+            model: User, 
+            as: 'User', 
+            attributes: ['id', 'name', 'email', 'phone'] 
+          }
+        ],
+        attributes: [
+          'id', 'degree', 'specialty', 'subSpecialties', 'yearsOfExperience',
+          'consultationFee', 'languages', 'bio', 'qualifications',
+          'virtualConsultationTypes', 'isAvailableForEmergency', 'emergencyFee',
+          'maxPatientsPerDay', 'averageConsultationTime'
+        ]
+      });
+
+      res.json({
+        status: 'success',
+        code: 200,
+        data: virtualDoctors,
+      });
+    } catch (error) {
+      console.error('Get Available Virtual Doctors Error:', error);
       res.status(500).json({
         status: 'error',
         code: 500,

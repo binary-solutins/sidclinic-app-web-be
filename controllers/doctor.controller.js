@@ -430,6 +430,48 @@ exports.findDoctorsByCity = async (req, res) => {
 
 exports.getAllDoctors = async (req, res) => {
   try {
+    const { isVirtual } = req.query;
+    
+    // If isVirtual flag is 1, return virtual doctors
+    if (isVirtual === '1') {
+      const VirtualDoctor = require('../models/virtualDoctor.model');
+      
+      const virtualDoctors = await VirtualDoctor.findAll({
+        where: {
+          isApproved: true,
+          is_active: true
+        },
+        include: [{
+          model: User,
+          as: 'User',
+          attributes: ['name', 'phone', 'gender']
+        }],
+        attributes: [
+          'id', 'degree', 'specialty', 'subSpecialties', 'yearsOfExperience',
+          'consultationFee', 'languages', 'bio', 'qualifications',
+          'virtualConsultationTypes', 'isAvailableForEmergency', 'emergencyFee',
+          'maxPatientsPerDay', 'averageConsultationTime', 'timezone'
+        ]
+      });
+
+      if (virtualDoctors.length === 0) {
+        return res.status(404).json({ 
+          status: 'error',
+          code: 404,
+          message: 'No virtual doctors found',
+          data: []
+        });
+      }
+
+      return res.json({
+        status: 'success',
+        code: 200,
+        message: 'Virtual doctors retrieved successfully',
+        data: virtualDoctors
+      });
+    }
+    
+    // Default behavior - return regular doctors
     const doctors = await Doctor.findAll({
       where: {
         isApproved: true,

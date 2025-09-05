@@ -842,6 +842,13 @@ router.put('/toggle-status/:id', authenticate(), authorize('admin'), adminContro
  *   get:
  *     summary: Get all approved and active doctors
  *     tags: [Doctors]
+ *     parameters:
+ *       - in: query
+ *         name: isVirtual
+ *         schema:
+ *           type: integer
+ *           enum: [0, 1]
+ *         description: Filter by doctor type. 1 = Virtual doctors only, 0 or not provided = Regular doctors only
  *     responses:
  *       200:
  *         description: List of all approved and active doctors
