@@ -430,48 +430,7 @@ exports.findDoctorsByCity = async (req, res) => {
 
 exports.getAllDoctors = async (req, res) => {
   try {
-    const { isVirtual } = req.query;
-    
-    // If isVirtual flag is 1, return virtual doctors
-    if (isVirtual === '1') {
-      const VirtualDoctor = require('../models/virtualDoctor.model');
-      
-      const virtualDoctors = await VirtualDoctor.findAll({
-        where: {
-          isApproved: true,
-          is_active: true
-        },
-        include: [{
-          model: User,
-          as: 'User',
-          attributes: ['name', 'phone', 'gender']
-        }],
-        attributes: [
-          'id', 'degree', 'specialty', 'subSpecialties', 'yearsOfExperience',
-          'consultationFee', 'languages', 'bio', 'qualifications',
-          'virtualConsultationTypes', 'isAvailableForEmergency', 'emergencyFee',
-          'maxPatientsPerDay', 'averageConsultationTime', 'timezone'
-        ]
-      });
-
-      if (virtualDoctors.length === 0) {
-        return res.status(404).json({ 
-          status: 'error',
-          code: 404,
-          message: 'No virtual doctors found',
-          data: []
-        });
-      }
-
-      return res.json({
-        status: 'success',
-        code: 200,
-        message: 'Virtual doctors retrieved successfully',
-        data: virtualDoctors
-      });
-    }
-    
-    // Default behavior - return regular doctors
+    // Return all approved and active doctors (regular doctors only)
     const doctors = await Doctor.findAll({
       where: {
         isApproved: true,
@@ -480,8 +439,9 @@ exports.getAllDoctors = async (req, res) => {
       include: [{
         model: User,
         as: 'User',
-        attributes: ['name', 'phone', 'gender']
-      }]
+        attributes: ['id', 'name', 'phone', 'gender', 'createdAt']
+      }],
+      order: [['createdAt', 'DESC']]
     });
 
     if (doctors.length === 0) {
@@ -499,6 +459,24 @@ exports.getAllDoctors = async (req, res) => {
       message: 'All doctors retrieved successfully',
       data: doctors
     });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error',
+      code: 500,
+      message: error.message,
+      data: null
+    });
+  }
+};
+
+// Get all virtual doctors with complete information
+exports.getAllVirtualDoctors = async (req, res) => {
+  try {
+    // Get all virtual doctors from the virtual doctor controller
+    const virtualDoctorController = require('./virtualDoctor.controller');
+    
+    // Call the existing getAllVirtualDoctors function
+    await virtualDoctorController.getAllVirtualDoctors(req, res);
   } catch (error) {
     res.status(500).json({ 
       status: 'error',

@@ -453,6 +453,190 @@ const options = {
               example: ['https://appwrite.io/storage/buckets/bucket_id/files/file_id/view']
             }
           }
+        },
+        VirtualDoctor: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+              example: 1,
+              description: 'Doctor record ID'
+            },
+            userId: {
+              type: 'integer',
+              example: 1,
+              description: 'User record ID'
+            },
+            name: {
+              type: 'string',
+              example: 'Dr. Virtual Smith'
+            },
+            phone: {
+              type: 'string',
+              example: '+1234567890'
+            },
+            gender: {
+              type: 'string',
+              enum: ['Male', 'Female', 'Other'],
+              example: 'Male'
+            },
+            role: {
+              type: 'string',
+              example: 'virtual-doctor'
+            },
+            specialty: {
+              type: 'string',
+              example: 'General Medicine'
+            },
+            degree: {
+              type: 'string',
+              example: 'MBBS'
+            },
+            registrationNumber: {
+              type: 'string',
+              example: 'VIRTUAL-1705123456789',
+              description: 'Medical registration number'
+            },
+            clinicName: {
+              type: 'string',
+              example: 'Virtual Health Clinic'
+            },
+            yearsOfExperience: {
+              type: 'integer',
+              example: 5
+            },
+            isApproved: {
+              type: 'boolean',
+              example: true,
+              description: 'Auto-approved for virtual doctors'
+            },
+            is_active: {
+              type: 'boolean',
+              example: true
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-01-15T10:30:00Z'
+            },
+            notificationEnabled: {
+              type: 'boolean',
+              example: true
+            }
+          }
+        },
+        CreateVirtualDoctorRequest: {
+          type: 'object',
+          required: ['name', 'phone', 'gender', 'password'],
+          properties: {
+            name: {
+              type: 'string',
+              description: 'Virtual doctor\'s full name',
+              example: 'Dr. Virtual Smith'
+            },
+            phone: {
+              type: 'string',
+              description: 'Virtual doctor\'s phone number',
+              example: '+1234567890'
+            },
+            password: {
+              type: 'string',
+              format: 'password',
+              description: 'Virtual doctor\'s password',
+              example: 'virtual123'
+            },
+            gender: {
+              type: 'string',
+              enum: ['Male', 'Female', 'Other'],
+              description: 'Virtual doctor\'s gender',
+              example: 'Male'
+            },
+            specialty: {
+              type: 'string',
+              description: 'Virtual doctor\'s medical specialty',
+              default: 'General Medicine',
+              example: 'General Medicine'
+            },
+            degree: {
+              type: 'string',
+              description: 'Virtual doctor\'s medical degree',
+              default: 'MBBS',
+              example: 'MBBS'
+            },
+            registrationNumber: {
+              type: 'string',
+              description: 'Medical registration number (auto-generated if not provided)',
+              default: 'VIRTUAL-{timestamp}',
+              example: 'VIRTUAL-1705123456789'
+            },
+            yearsOfExperience: {
+              type: 'integer',
+              description: 'Years of medical experience',
+              default: 0,
+              example: 5
+            },
+            clinicName: {
+              type: 'string',
+              description: 'Virtual clinic name',
+              default: 'Virtual Clinic',
+              example: 'Virtual Health Clinic'
+            },
+            clinicContactNumber: {
+              type: 'string',
+              description: 'Clinic contact number (defaults to phone if not provided)',
+              example: '+1234567890'
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+              description: 'Virtual doctor\'s email (defaults to phone@virtual.com if not provided)',
+              example: 'dr.virtual@clinic.com'
+            },
+            address: {
+              type: 'string',
+              description: 'Virtual clinic address',
+              default: 'Virtual Address',
+              example: '123 Virtual Street, Digital City'
+            },
+            country: {
+              type: 'string',
+              description: 'Country',
+              default: 'India',
+              example: 'India'
+            },
+            state: {
+              type: 'string',
+              description: 'State',
+              default: 'Virtual State',
+              example: 'Maharashtra'
+            },
+            city: {
+              type: 'string',
+              description: 'City',
+              default: 'Virtual City',
+              example: 'Mumbai'
+            },
+            locationPin: {
+              type: 'string',
+              description: 'Location PIN code',
+              default: '000000',
+              example: '400001'
+            },
+            startTime: {
+              type: 'string',
+              format: 'time',
+              description: 'Virtual clinic start time (HH:MM:SS format)',
+              default: '09:00:00',
+              example: '09:00:00'
+            },
+            endTime: {
+              type: 'string',
+              format: 'time',
+              description: 'Virtual clinic end time (HH:MM:SS format)',
+              default: '18:00:00',
+              example: '18:00:00'
+            }
+          }
         }
       },
       responses: {
@@ -494,6 +678,14 @@ const options = {
       {
         name: 'Reports',
         description: 'Dental analysis reports and medical reports operations'
+      },
+      {
+        name: 'Admin - Virtual Doctors',
+        description: 'Admin endpoints for managing virtual doctors'
+      },
+      {
+        name: 'Virtual Doctor',
+        description: 'Virtual doctor specific endpoints and operations'
       }
       // Add more tags as needed
     ]

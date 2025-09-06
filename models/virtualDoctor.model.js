@@ -218,3 +218,4 @@ VirtualDoctor.getAvailableDoctors = async function() {
 };
 
 module.exports = VirtualDoctor;
+

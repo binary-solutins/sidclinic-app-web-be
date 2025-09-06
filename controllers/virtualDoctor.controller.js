@@ -1,6 +1,7 @@
 const User = require("../models/user.model");
 const Appointment = require("../models/appoinment.model");
 const Doctor = require("../models/doctor.model");
+const VirtualDoctor = require("../models/virtualDoctor.model");
 const AdminSetting = require("../models/adminSetting.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
@@ -9,7 +10,26 @@ const { DateTime } = require('luxon');
 // Create virtual doctor function
 exports.createVirtualDoctor = async (req, res) => {
   try {
-    const { name, phone, password, gender } = req.body;
+    const { 
+      name, 
+      phone, 
+      password, 
+      gender,
+      specialty = 'General Medicine',
+      degree = 'MBBS',
+      yearsOfExperience = 0,
+      clinicName = 'Virtual Clinic',
+      clinicContactNumber = phone,
+      email = `${phone}@virtual.com`,
+      address = 'Virtual Address',
+      country = 'India',
+      state = 'Virtual State',
+      city = 'Virtual City',
+      locationPin = '000000',
+      startTime = '09:00:00',
+      endTime = '18:00:00',
+      registrationNumber = `VIRTUAL-${Date.now()}`
+    } = req.body;
 
     // Validate required fields
     if (!name || !phone || !password || !gender) {
@@ -32,8 +52,8 @@ exports.createVirtualDoctor = async (req, res) => {
       });
     }
 
-    // Create virtual doctor
-    const virtualDoctor = await User.create({
+    // Create virtual doctor user
+    const virtualDoctorUser = await User.create({
       name,
       phone,
       password,
@@ -41,10 +61,32 @@ exports.createVirtualDoctor = async (req, res) => {
       role: 'virtual-doctor'
     });
 
+    // Create virtual doctor record in VirtualDoctor table
+    const virtualDoctor = await VirtualDoctor.create({
+      userId: virtualDoctorUser.id,
+      clinicName,
+      clinicPhotos: null,
+      yearsOfExperience,
+      specialty,
+      degree,
+      registrationNumber,
+      clinicContactNumber,
+      email,
+      address,
+      country,
+      state,
+      city,
+      locationPin,
+      startTime,
+      endTime,
+      isApproved: true, // Auto-approve virtual doctors
+      is_active: true
+    });
+
     // Send welcome email to virtual doctor
     try {
       await emailService.sendWelcomeEmail({
-        email: phone, // Using phone as email for now
+        email: email,
         name: name,
         role: 'virtual-doctor',
         credentials: {
@@ -57,17 +99,33 @@ exports.createVirtualDoctor = async (req, res) => {
       // Don't fail the request if email fails
     }
 
+    // Fetch the complete virtual doctor data with user information
+    const completeVirtualDoctor = await VirtualDoctor.findByPk(virtualDoctor.id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender', 'role', 'createdAt']
+      }]
+    });
+
     res.status(201).json({
       status: "success",
       code: 201,
       message: "Virtual doctor created successfully",
       data: {
-        id: virtualDoctor.id,
-        name: virtualDoctor.name,
-        phone: virtualDoctor.phone,
-        role: virtualDoctor.role,
-        gender: virtualDoctor.gender,
-        createdAt: virtualDoctor.createdAt
+        id: completeVirtualDoctor.id,
+        userId: completeVirtualDoctor.userId,
+        name: completeVirtualDoctor.User.name,
+        phone: completeVirtualDoctor.User.phone,
+        role: completeVirtualDoctor.User.role,
+        gender: completeVirtualDoctor.User.gender,
+        specialty: completeVirtualDoctor.specialty,
+        degree: completeVirtualDoctor.degree,
+        registrationNumber: completeVirtualDoctor.registrationNumber,
+        clinicName: completeVirtualDoctor.clinicName,
+        isApproved: completeVirtualDoctor.isApproved,
+        is_active: completeVirtualDoctor.is_active,
+        createdAt: completeVirtualDoctor.User.createdAt
       }
     });
   } catch (error) {
@@ -91,20 +149,34 @@ exports.getAllVirtualDoctors = async (req, res) => {
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    // Search conditions
-    const where = { role: 'virtual-doctor' };
+    // Search conditions - search in both virtual doctor and user fields
+    const virtualDoctorWhere = {};
+    const userWhere = {};
+    
     if (search) {
-      where[Op.or] = [
+      userWhere[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
         { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+      virtualDoctorWhere[Op.or] = [
+        { specialty: { [Op.iLike]: `%${search}%` } },
+        { clinicName: { [Op.iLike]: `%${search}%` } },
+        { degree: { [Op.iLike]: `%${search}%` } }
       ];
     }
 
     // Sorting - Always ensure DESC order for recent first
     let order = [];
-    if (['name', 'phone', 'createdAt'].includes(sortBy)) {
+    if (sortBy === 'name' || sortBy === 'phone' || sortBy === 'createdAt') {
       // For name and phone, if ASC is requested, still add createdAt DESC as secondary sort
       if (sortOrder.toUpperCase() === 'ASC' && (sortBy === 'name' || sortBy === 'phone')) {
+        order.push([{ model: User, as: 'User' }, sortBy, 'ASC'], ['createdAt', 'DESC']);
+      } else {
+        order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
+      }
+    } else if (sortBy === 'specialty' || sortBy === 'clinicName' || sortBy === 'degree') {
+      // For doctor fields, if ASC is requested, still add createdAt DESC as secondary sort
+      if (sortOrder.toUpperCase() === 'ASC') {
         order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
       } else {
         order.push([sortBy, sortOrder.toUpperCase()]);
@@ -113,20 +185,44 @@ exports.getAllVirtualDoctors = async (req, res) => {
       order.push(['createdAt', 'DESC']);
     }
 
-    // Fetch virtual doctors with pagination
-    const { count, rows: virtualDoctors } = await User.findAndCountAll({
-      where,
-      attributes: ['id', 'name', 'phone', 'gender', 'createdAt', 'notificationEnabled'],
+    // Fetch virtual doctors with pagination from VirtualDoctor table
+    const { count, rows: virtualDoctors } = await VirtualDoctor.findAndCountAll({
+      where: virtualDoctorWhere,
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender', 'createdAt', 'notificationEnabled'],
+        where: Object.keys(userWhere).length ? userWhere : undefined
+      }],
       order,
       limit,
       offset,
     });
 
+    // Transform the data to include both virtual doctor and user information
+    const transformedVirtualDoctors = virtualDoctors.map(doctor => ({
+      id: doctor.id,
+      userId: doctor.userId,
+      name: doctor.User.name,
+      phone: doctor.User.phone,
+      gender: doctor.User.gender,
+      role: 'virtual-doctor',
+      specialty: doctor.specialty,
+      degree: doctor.degree,
+      registrationNumber: doctor.registrationNumber,
+      clinicName: doctor.clinicName,
+      yearsOfExperience: doctor.yearsOfExperience,
+      isApproved: doctor.isApproved,
+      is_active: doctor.is_active,
+      createdAt: doctor.User.createdAt,
+      notificationEnabled: doctor.User.notificationEnabled
+    }));
+
     res.status(200).json({
       status: "success",
       code: 200,
       message: "Virtual doctors retrieved successfully",
-      data: virtualDoctors,
+      data: transformedVirtualDoctors,
       pagination: {
         total: count,
         page,
@@ -343,6 +439,16 @@ exports.deleteVirtualDoctor = async (req, res) => {
       });
     }
 
+    // Find and delete the corresponding virtual doctor record
+    const virtualDoctorRecord = await VirtualDoctor.findOne({
+      where: { userId: id }
+    });
+
+    if (virtualDoctorRecord) {
+      await virtualDoctorRecord.destroy();
+    }
+
+    // Delete the user record
     await virtualDoctor.destroy();
 
     res.status(200).json({

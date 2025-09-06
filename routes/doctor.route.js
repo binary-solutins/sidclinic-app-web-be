@@ -840,15 +840,9 @@ router.put('/toggle-status/:id', authenticate(), authorize('admin'), adminContro
  * @swagger
  * /doctors/getAllDoctors:
  *   get:
- *     summary: Get all approved and active doctors
+ *     summary: Get all approved and active doctors (regular doctors only)
+ *     description: Retrieve all approved and active regular doctors. For virtual doctors, use the dedicated virtual doctor endpoints.
  *     tags: [Doctors]
- *     parameters:
- *       - in: query
- *         name: isVirtual
- *         schema:
- *           type: integer
- *           enum: [0, 1]
- *         description: Filter by doctor type. 1 = Virtual doctors only, 0 or not provided = Regular doctors only
  *     responses:
  *       200:
  *         description: List of all approved and active doctors
@@ -893,6 +887,105 @@ router.put('/toggle-status/:id', authenticate(), authorize('admin'), adminContro
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/getAllDoctors', doctorController.getAllDoctors);
+
+/**
+ * @swagger
+ * /doctors/getAllVirtualDoctors:
+ *   get:
+ *     summary: Get all virtual doctors with complete information
+ *     description: Retrieve all virtual doctors with pagination, search, and sorting capabilities. Returns comprehensive virtual doctor information including both User and Doctor data.
+ *     tags: [Doctors]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name, phone, specialty, clinic name, or degree
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [name, phone, specialty, clinicName, degree, createdAt]
+ *           default: createdAt
+ *         description: Sort field
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order (DESC ensures recent first)
+ *     responses:
+ *       200:
+ *         description: Virtual doctors retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctors retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/VirtualDoctor'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
+ *       404:
+ *         description: No virtual doctors found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "No virtual doctors found"
+ *                 data:
+ *                   type: array
+ *                   example: []
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/getAllVirtualDoctors', doctorController.getAllVirtualDoctors);
 
 /**
  * @swagger

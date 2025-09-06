@@ -18,6 +18,7 @@ const { authenticate, authorize } = require('../middleware/auth');
  * /admin/virtual-doctors:
  *   post:
  *     summary: Create a new virtual doctor (Admin only)
+ *     description: Creates a new virtual doctor with both User and Doctor records. The virtual doctor will be auto-approved and have isVirtual flag set to 1.
  *     tags: [Admin - Virtual Doctors]
  *     security:
  *       - bearerAuth: []
@@ -43,6 +44,7 @@ const { authenticate, authorize } = require('../middleware/auth');
  *                 example: "+1234567890"
  *               password:
  *                 type: string
+ *                 format: password
  *                 description: Virtual doctor's password
  *                 example: "virtual123"
  *               gender:
@@ -50,17 +52,177 @@ const { authenticate, authorize } = require('../middleware/auth');
  *                 enum: [Male, Female, Other]
  *                 description: Virtual doctor's gender
  *                 example: "Male"
+ *               specialty:
+ *                 type: string
+ *                 description: Virtual doctor's medical specialty
+ *                 default: "General Medicine"
+ *                 example: "General Medicine"
+ *               degree:
+ *                 type: string
+ *                 description: Virtual doctor's medical degree
+ *                 default: "MBBS"
+ *                 example: "MBBS"
+ *               yearsOfExperience:
+ *                 type: integer
+ *                 description: Years of medical experience
+ *                 default: 0
+ *                 example: 5
+ *               clinicName:
+ *                 type: string
+ *                 description: Virtual clinic name
+ *                 default: "Virtual Clinic"
+ *                 example: "Virtual Health Clinic"
+ *               clinicContactNumber:
+ *                 type: string
+ *                 description: Clinic contact number (defaults to phone if not provided)
+ *                 example: "+1234567890"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Virtual doctor's email (defaults to phone@virtual.com if not provided)
+ *                 example: "dr.virtual@clinic.com"
+ *               address:
+ *                 type: string
+ *                 description: Virtual clinic address
+ *                 default: "Virtual Address"
+ *                 example: "123 Virtual Street, Digital City"
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *                 default: "India"
+ *                 example: "India"
+ *               state:
+ *                 type: string
+ *                 description: State
+ *                 default: "Virtual State"
+ *                 example: "Maharashtra"
+ *               city:
+ *                 type: string
+ *                 description: City
+ *                 default: "Virtual City"
+ *                 example: "Mumbai"
+ *               locationPin:
+ *                 type: string
+ *                 description: Location PIN code
+ *                 default: "000000"
+ *                 example: "400001"
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic start time (HH:MM:SS format)
+ *                 default: "09:00:00"
+ *                 example: "09:00:00"
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic end time (HH:MM:SS format)
+ *                 default: "18:00:00"
+ *                 example: "18:00:00"
+ *               registrationNumber:
+ *                 type: string
+ *                 description: Medical registration number (auto-generated if not provided)
+ *                 default: "VIRTUAL-{timestamp}"
+ *                 example: "VIRTUAL-1705123456789"
  *     responses:
  *       201:
  *         description: Virtual doctor created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 201
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor created successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Doctor record ID
+ *                     userId:
+ *                       type: integer
+ *                       example: 1
+ *                       description: User record ID
+ *                     name:
+ *                       type: string
+ *                       example: "Dr. Virtual Smith"
+ *                     phone:
+ *                       type: string
+ *                       example: "+1234567890"
+ *                     role:
+ *                       type: string
+ *                       example: "virtual-doctor"
+ *                     gender:
+ *                       type: string
+ *                       example: "Male"
+ *                     specialty:
+ *                       type: string
+ *                       example: "General Medicine"
+ *                     degree:
+ *                       type: string
+ *                       example: "MBBS"
+ *                     registrationNumber:
+ *                       type: string
+ *                       example: "VIRTUAL-1705123456789"
+ *                       description: Medical registration number
+ *                     clinicName:
+ *                       type: string
+ *                       example: "Virtual Health Clinic"
+ *                     isApproved:
+ *                       type: boolean
+ *                       example: true
+ *                       description: Auto-approved for virtual doctors
+ *                     is_active:
+ *                       type: boolean
+ *                       example: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-01-15T10:30:00Z"
  *       400:
  *         description: Bad request - validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "Name, phone, password, and gender are required"
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Forbidden - Admin access required
  *       409:
  *         description: Conflict - Phone number already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 409
+ *                 message:
+ *                   type: string
+ *                   example: "Phone number already registered"
  *       500:
  *         description: Internal server error
  */
@@ -74,6 +236,7 @@ router.post('/admin/virtual-doctors',
  * /admin/virtual-doctors:
  *   get:
  *     summary: Get all virtual doctors with pagination (Admin only)
+ *     description: Retrieve all virtual doctors with complete information including both User and Doctor data. Results are sorted in descending order (most recent first) by default.
  *     tags: [Admin - Virtual Doctors]
  *     security:
  *       - bearerAuth: []
@@ -94,12 +257,12 @@ router.post('/admin/virtual-doctors',
  *         name: search
  *         schema:
  *           type: string
- *         description: Search by name or phone
+ *         description: Search by name, phone, specialty, clinic name, or degree
  *       - in: query
  *         name: sortBy
  *         schema:
  *           type: string
- *           enum: [name, phone, createdAt]
+ *           enum: [name, phone, specialty, clinicName, degree, createdAt]
  *           default: createdAt
  *         description: Sort field
  *       - in: query
@@ -108,10 +271,93 @@ router.post('/admin/virtual-doctors',
  *           type: string
  *           enum: [ASC, DESC]
  *           default: DESC
- *         description: Sort order
+ *         description: Sort order (DESC ensures recent first)
  *     responses:
  *       200:
  *         description: Virtual doctors retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctors retrieved successfully"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                         description: Doctor record ID
+ *                       userId:
+ *                         type: integer
+ *                         example: 1
+ *                         description: User record ID
+ *                       name:
+ *                         type: string
+ *                         example: "Dr. Virtual Smith"
+ *                       phone:
+ *                         type: string
+ *                         example: "+1234567890"
+ *                       gender:
+ *                         type: string
+ *                         example: "Male"
+ *                       role:
+ *                         type: string
+ *                         example: "virtual-doctor"
+ *                       specialty:
+ *                         type: string
+ *                         example: "General Medicine"
+ *                       degree:
+ *                         type: string
+ *                         example: "MBBS"
+ *                       registrationNumber:
+ *                         type: string
+ *                         example: "VIRTUAL-1705123456789"
+ *                         description: Medical registration number
+ *                       clinicName:
+ *                         type: string
+ *                         example: "Virtual Health Clinic"
+ *                       yearsOfExperience:
+ *                         type: integer
+ *                         example: 5
+ *                       isApproved:
+ *                         type: boolean
+ *                         example: true
+ *                       is_active:
+ *                         type: boolean
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-01-15T10:30:00Z"
+ *                       notificationEnabled:
+ *                         type: boolean
+ *                         example: true
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
  *       401:
  *         description: Unauthorized
  *       403:
