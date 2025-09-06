@@ -1324,10 +1324,21 @@ module.exports = {
           {
             model: Doctor,
             as: 'doctor',
+            required: false, // Make it optional for virtual appointments
             include: [{
               model: User,
               as: 'User',
-              attributes: ['id', 'name']
+              attributes: ['id', 'name', 'phone']
+            }]
+          },
+          {
+            model: VirtualDoctor,
+            as: 'virtualDoctor',
+            required: false, // Make it optional for physical appointments
+            include: [{
+              model: User,
+              as: 'User',
+              attributes: ['id', 'name', 'phone']
             }]
           }
         ],

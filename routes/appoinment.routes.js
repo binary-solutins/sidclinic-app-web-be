@@ -880,7 +880,7 @@ router.patch('/:id/complete', authenticate(), controller.completeAppointment);
  * /appointments/user/{userId}:
  *   get:
  *     summary: Get appointments for a specific user
- *     description: Retrieve all appointments for a specific user with optional filtering and pagination. Users can only access their own appointments unless they are admin.
+ *     description: Retrieve all appointments for a specific user with optional filtering and pagination. Includes both physical and virtual appointments with complete doctor information. Users can only access their own appointments unless they are admin.
  *     tags: [Appointments]
  *     security:
  *       - bearerAuth: []
@@ -945,6 +945,7 @@ router.patch('/:id/complete', authenticate(), controller.completeAppointment);
  *                   - id: 1
  *                     userId: 1
  *                     doctorId: 2
+ *                     virtualDoctorId: null
  *                     appointmentDateTime: "2024-12-25T10:30:00.000Z"
  *                     type: "physical"
  *                     status: "confirmed"
@@ -954,7 +955,25 @@ router.patch('/:id/complete', authenticate(), controller.completeAppointment);
  *                       User:
  *                         id: 3
  *                         name: "Dr. John Smith"
- *                         email: "dr.john@example.com"
+ *                         phone: "+1234567890"
+ *                     virtualDoctor: null
+ *                   - id: 2
+ *                     userId: 1
+ *                     doctorId: null
+ *                     virtualDoctorId: 1
+ *                     appointmentDateTime: "2024-12-26T14:00:00.000Z"
+ *                     type: "virtual"
+ *                     status: "confirmed"
+ *                     notes: "Virtual consultation for follow-up"
+ *                     doctor: null
+ *                     virtualDoctor:
+ *                       id: 1
+ *                       specialty: "General Medicine"
+ *                       degree: "MBBS"
+ *                       User:
+ *                         id: 4
+ *                         name: "Dr. Virtual Smith"
+ *                         phone: "+1234567891"
  *                 pagination:
  *                   total: 25
  *                   page: 1
