@@ -639,6 +639,125 @@ const options = {
           }
         }
       },
+      Banner: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'integer',
+            example: 1,
+            description: 'Banner ID'
+          },
+          title: {
+            type: 'string',
+            example: 'Modern Dental Care',
+            description: 'Banner title'
+          },
+          subtitle: {
+            type: 'string',
+            example: 'Advanced Technology for Perfect Smiles',
+            description: 'Banner subtitle'
+          },
+          image: {
+            type: 'string',
+            example: 'https://images.pexels.com/photos/3845810/pexels-photo-3845810.jpeg?auto=compress&cs=tinysrgb&w=800',
+            description: 'Banner image URL'
+          },
+          isDoctorApp: {
+            type: 'boolean',
+            example: true,
+            description: 'Flag to determine app type (true = doctor app, false = patient app)'
+          },
+          order: {
+            type: 'integer',
+            example: 1,
+            description: 'Display order for banners'
+          },
+          isActive: {
+            type: 'boolean',
+            example: true,
+            description: 'Banner active status'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2024-01-15T10:30:00Z',
+            description: 'Banner creation timestamp'
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2024-01-15T10:30:00Z',
+            description: 'Banner last update timestamp'
+          }
+        }
+      },
+      DoctorAppBanner: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'integer',
+            example: 1,
+            description: 'Banner ID'
+          },
+          title: {
+            type: 'string',
+            example: 'Modern Dental Care',
+            description: 'Banner title'
+          },
+          subtitle: {
+            type: 'string',
+            example: 'Advanced Technology for Perfect Smiles',
+            description: 'Banner subtitle'
+          },
+          image: {
+            type: 'string',
+            example: 'https://images.pexels.com/photos/3845810/pexels-photo-3845810.jpeg?auto=compress&cs=tinysrgb&w=800',
+            description: 'Banner image URL'
+          },
+          isDoctorApp: {
+            type: 'boolean',
+            example: true,
+            description: 'Flag indicating this is for doctor app'
+          },
+          order: {
+            type: 'integer',
+            example: 1,
+            description: 'Display order for banners'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2024-01-15T10:30:00Z',
+            description: 'Banner creation timestamp'
+          }
+        }
+      },
+      PatientAppBanner: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'integer',
+            example: 1,
+            description: 'Banner ID'
+          },
+          image: {
+            type: 'string',
+            example: 'https://images.pexels.com/photos/3845810/pexels-photo-3845810.jpeg?auto=compress&cs=tinysrgb&w=800',
+            description: 'Banner image URL'
+          },
+          order: {
+            type: 'integer',
+            example: 1,
+            description: 'Display order for banners'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2024-01-15T10:30:00Z',
+            description: 'Banner creation timestamp'
+          }
+        }
+      },
       responses: {
         Unauthorized: {
           description: 'Invalid or missing authentication token',
@@ -686,8 +805,12 @@ const options = {
       {
         name: 'Virtual Doctor',
         description: 'Virtual doctor specific endpoints and operations'
-      }
+      },
       // Add more tags as needed
+      {
+        name: 'Banners',
+        description: 'Banner management endpoints'
+      }
     ]
   },
   apis: ['./routes/*.js', './models/*.js', './controllers/*.js'] // Added controllers path
