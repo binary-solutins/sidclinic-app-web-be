@@ -487,9 +487,24 @@ exports.getVirtualAppointments = async (req, res) => {
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    // Build where conditions - only virtual appointments
+    // Get the virtual doctor ID from the authenticated user
+    const virtualDoctor = await VirtualDoctor.findOne({
+      where: { userId: req.user.id }
+    });
+
+    if (!virtualDoctor) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Virtual doctor profile not found",
+        data: null
+      });
+    }
+
+    // Build where conditions - only virtual appointments for this specific virtual doctor
     const where = {
-      type: 'virtual' // Only virtual appointments
+      type: 'virtual', // Only virtual appointments
+      virtualDoctorId: virtualDoctor.id // Only appointments assigned to this virtual doctor
     };
 
     // Status filter

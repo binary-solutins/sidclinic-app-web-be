@@ -462,7 +462,8 @@ router.get('/virtual-doctor/apis',
  * @swagger
  * /virtual-doctor/appointments:
  *   get:
- *     summary: Get all virtual appointments with filters and pagination (Virtual Doctor only)
+ *     summary: Get virtual appointments for the authenticated virtual doctor
+ *     description: Retrieve virtual appointments assigned to the authenticated virtual doctor with optional filtering and pagination. Results are sorted in descending order (most recent first) by default.
  *     tags: [Virtual Doctor]
  *     security:
  *       - bearerAuth: []
@@ -513,7 +514,7 @@ router.get('/virtual-doctor/apis',
  *         description: Sort order
  *     responses:
  *       200:
- *         description: Virtual appointments retrieved successfully
+ *         description: Virtual appointments for the authenticated virtual doctor retrieved successfully
  *       401:
  *         description: Unauthorized
  *       403:
