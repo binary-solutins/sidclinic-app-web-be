@@ -268,8 +268,6 @@ router.get('/', bannerController.getAllBanners);
  *       500:
  *         description: Internal server error
  */
-router.get('/:id', bannerController.getBannerById);
-
 // Admin routes (authentication required)
 /**
  * @swagger
@@ -556,6 +554,49 @@ router.delete('/admin/:id',
   authenticate(['admin']), 
   bannerController.deleteBanner
 );
+
+/**
+ * @swagger
+ * /api/banners/{id}:
+ *   get:
+ *     summary: Get banner by ID
+ *     description: Retrieve a specific banner by ID. Returns different data based on isDoctorApp flag.
+ *     tags: [Banners]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Banner ID
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Banner retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Banner retrieved successfully"
+ *                 data:
+ *                   oneOf:
+ *                     - $ref: '#/components/schemas/DoctorAppBanner'
+ *                     - $ref: '#/components/schemas/PatientAppBanner'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+router.get('/:id', bannerController.getBannerById);
 
 module.exports = router;
 
