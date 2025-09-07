@@ -736,4 +736,618 @@ router.post('/virtual-appointment/book',
   virtualDoctorController.bookVirtualAppointment
 );
 
+// ==================== ADMIN VIRTUAL DOCTOR MANAGEMENT ROUTES ====================
+
+/**
+ * @swagger
+ * /admin/virtual-doctors:
+ *   post:
+ *     summary: Create a new virtual doctor (Admin only)
+ *     description: Creates a new virtual doctor with comprehensive form data including image uploads. Supports both doctor photo and multiple clinic photos.
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - phone
+ *               - gender
+ *               - password
+ *               - degree
+ *               - registrationNumber
+ *               - clinicName
+ *               - yearsOfExperience
+ *               - clinicContactNumber
+ *               - email
+ *               - address
+ *               - country
+ *               - state
+ *               - city
+ *               - locationPin
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Virtual doctor's full name
+ *                 example: "Dr. Virtual Smith"
+ *               phone:
+ *                 type: string
+ *                 description: Virtual doctor's phone number
+ *                 example: "+1234567890"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Virtual doctor's password
+ *                 example: "virtual123"
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *                 description: Virtual doctor's gender
+ *                 example: "Male"
+ *               doctorPhoto:
+ *                 type: string
+ *                 format: binary
+ *                 description: Doctor's profile photo
+ *               clinicPhotos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Multiple clinic photos
+ *               degree:
+ *                 type: string
+ *                 description: Virtual doctor's medical degree
+ *                 example: "MBBS"
+ *               registrationNumber:
+ *                 type: string
+ *                 description: Medical registration number
+ *                 example: "VIRTUAL-12345"
+ *               clinicName:
+ *                 type: string
+ *                 description: Virtual clinic name
+ *                 example: "Virtual Health Clinic"
+ *               yearsOfExperience:
+ *                 type: integer
+ *                 description: Years of medical experience
+ *                 example: 5
+ *               specialty:
+ *                 type: string
+ *                 description: Medical specialty
+ *                 example: "General Medicine"
+ *               subSpecialties:
+ *                 type: string
+ *                 description: JSON string of sub-specialties
+ *                 example: '["Cardiology", "Internal Medicine"]'
+ *               clinicContactNumber:
+ *                 type: string
+ *                 description: Clinic contact number
+ *                 example: "+1234567890"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Virtual doctor's email
+ *                 example: "dr.virtual@clinic.com"
+ *               address:
+ *                 type: string
+ *                 description: Virtual clinic address
+ *                 example: "123 Virtual Street, Digital City"
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *                 example: "India"
+ *               state:
+ *                 type: string
+ *                 description: State
+ *                 example: "Maharashtra"
+ *               city:
+ *                 type: string
+ *                 description: City
+ *                 example: "Mumbai"
+ *               locationPin:
+ *                 type: string
+ *                 description: Location PIN code (6 digits)
+ *                 example: "400001"
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic start time
+ *                 example: "09:00:00"
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic end time
+ *                 example: "18:00:00"
+ *               consultationFee:
+ *                 type: number
+ *                 description: Virtual consultation fee
+ *                 example: 500.00
+ *               languages:
+ *                 type: string
+ *                 description: JSON string of languages
+ *                 example: '["English", "Hindi", "Marathi"]'
+ *               timezone:
+ *                 type: string
+ *                 description: Virtual doctor timezone
+ *                 example: "Asia/Kolkata"
+ *               maxPatientsPerDay:
+ *                 type: integer
+ *                 description: Maximum patients per day
+ *                 example: 20
+ *               averageConsultationTime:
+ *                 type: integer
+ *                 description: Average consultation time in minutes
+ *                 example: 30
+ *               bio:
+ *                 type: string
+ *                 description: Virtual doctor biography
+ *                 example: "Experienced virtual doctor with expertise in..."
+ *               qualifications:
+ *                 type: string
+ *                 description: JSON string of qualifications
+ *                 example: '["MBBS", "MD", "Diploma in Cardiology"]'
+ *               virtualConsultationTypes:
+ *                 type: string
+ *                 description: JSON string of consultation types
+ *                 example: '["video", "audio", "chat"]'
+ *               isAvailableForEmergency:
+ *                 type: boolean
+ *                 description: Available for emergency consultations
+ *                 example: true
+ *               emergencyFee:
+ *                 type: number
+ *                 description: Emergency consultation fee
+ *                 example: 1000.00
+ *               isApproved:
+ *                 type: boolean
+ *                 description: Approval status
+ *                 example: true
+ *               is_active:
+ *                 type: boolean
+ *                 description: Active status
+ *                 example: true
+ *     responses:
+ *       201:
+ *         description: Virtual doctor created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 201
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor created successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/VirtualDoctor'
+ *       400:
+ *         description: Bad request - validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       409:
+ *         description: Conflict - Phone number or registration number already exists
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/admin/virtual-doctors', 
+  authenticate(['admin']), 
+  virtualDoctorController.adminCreateOrUpdateVirtualDoctor
+);
+
+/**
+ * @swagger
+ * /admin/virtual-doctors/{id}:
+ *   put:
+ *     summary: Update a virtual doctor (Admin only)
+ *     description: Updates an existing virtual doctor with comprehensive form data including image uploads
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Virtual doctor ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Virtual doctor's full name
+ *               phone:
+ *                 type: string
+ *                 description: Virtual doctor's phone number
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Virtual doctor's password (optional for updates)
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *                 description: Virtual doctor's gender
+ *               doctorPhoto:
+ *                 type: string
+ *                 format: binary
+ *                 description: Doctor's profile photo
+ *               clinicPhotos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Multiple clinic photos
+ *               degree:
+ *                 type: string
+ *                 description: Virtual doctor's medical degree
+ *               registrationNumber:
+ *                 type: string
+ *                 description: Medical registration number
+ *               clinicName:
+ *                 type: string
+ *                 description: Virtual clinic name
+ *               yearsOfExperience:
+ *                 type: integer
+ *                 description: Years of medical experience
+ *               specialty:
+ *                 type: string
+ *                 description: Medical specialty
+ *               subSpecialties:
+ *                 type: string
+ *                 description: JSON string of sub-specialties
+ *               clinicContactNumber:
+ *                 type: string
+ *                 description: Clinic contact number
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Virtual doctor's email
+ *               address:
+ *                 type: string
+ *                 description: Virtual clinic address
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *               state:
+ *                 type: string
+ *                 description: State
+ *               city:
+ *                 type: string
+ *                 description: City
+ *               locationPin:
+ *                 type: string
+ *                 description: Location PIN code (6 digits)
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic start time
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic end time
+ *               consultationFee:
+ *                 type: number
+ *                 description: Virtual consultation fee
+ *               languages:
+ *                 type: string
+ *                 description: JSON string of languages
+ *               timezone:
+ *                 type: string
+ *                 description: Virtual doctor timezone
+ *               maxPatientsPerDay:
+ *                 type: integer
+ *                 description: Maximum patients per day
+ *               averageConsultationTime:
+ *                 type: integer
+ *                 description: Average consultation time in minutes
+ *               bio:
+ *                 type: string
+ *                 description: Virtual doctor biography
+ *               qualifications:
+ *                 type: string
+ *                 description: JSON string of qualifications
+ *               virtualConsultationTypes:
+ *                 type: string
+ *                 description: JSON string of consultation types
+ *               isAvailableForEmergency:
+ *                 type: boolean
+ *                 description: Available for emergency consultations
+ *               emergencyFee:
+ *                 type: number
+ *                 description: Emergency consultation fee
+ *               isApproved:
+ *                 type: boolean
+ *                 description: Approval status
+ *               is_active:
+ *                 type: boolean
+ *                 description: Active status
+ *     responses:
+ *       200:
+ *         description: Virtual doctor updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor updated successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/VirtualDoctor'
+ *       400:
+ *         description: Bad request - validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Virtual doctor not found
+ *       409:
+ *         description: Conflict - Phone number or registration number already exists
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/admin/virtual-doctors/:id', 
+  authenticate(['admin']), 
+  virtualDoctorController.adminCreateOrUpdateVirtualDoctor
+);
+
+/**
+ * @swagger
+ * /admin/virtual-doctors/{id}:
+ *   get:
+ *     summary: Get virtual doctor by ID (Admin only)
+ *     description: Retrieve detailed information about a specific virtual doctor including all fields and images
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Virtual doctor ID
+ *     responses:
+ *       200:
+ *         description: Virtual doctor details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor details retrieved successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/VirtualDoctor'
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Virtual doctor not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/admin/virtual-doctors/:id', 
+  authenticate(['admin']), 
+  virtualDoctorController.adminGetVirtualDoctorById
+);
+
+/**
+ * @swagger
+ * /admin/virtual-doctors/{id}/toggle-approval:
+ *   patch:
+ *     summary: Toggle virtual doctor approval status (Admin only)
+ *     description: Approve or disapprove a virtual doctor with optional reason
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Virtual doctor ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               approvalReason:
+ *                 type: string
+ *                 description: Reason for approval/disapproval
+ *                 example: "All documents verified and credentials validated"
+ *     responses:
+ *       200:
+ *         description: Virtual doctor approval status toggled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor approved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     isApproved:
+ *                       type: boolean
+ *                       example: true
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Virtual doctor not found
+ *       500:
+ *         description: Internal server error
+ */
+router.patch('/admin/virtual-doctors/:id/toggle-approval', 
+  authenticate(['admin']), 
+  virtualDoctorController.adminToggleVirtualDoctorApproval
+);
+
+/**
+ * @swagger
+ * /admin/virtual-doctors/{id}/toggle-status:
+ *   patch:
+ *     summary: Toggle virtual doctor active status (Admin only)
+ *     description: Activate or deactivate a virtual doctor with optional reason
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Virtual doctor ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               suspensionReason:
+ *                 type: string
+ *                 description: Reason for suspension/activation
+ *                 example: "Temporary suspension due to policy violation"
+ *               reviewDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Review date for suspension
+ *                 example: "2024-02-01"
+ *     responses:
+ *       200:
+ *         description: Virtual doctor status toggled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor activated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     is_active:
+ *                       type: boolean
+ *                       example: true
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Virtual doctor not found
+ *       500:
+ *         description: Internal server error
+ */
+router.patch('/admin/virtual-doctors/:id/toggle-status', 
+  authenticate(['admin']), 
+  virtualDoctorController.adminToggleVirtualDoctorStatus
+);
+
+/**
+ * @swagger
+ * /admin/virtual-doctors/{id}:
+ *   delete:
+ *     summary: Delete a virtual doctor (Admin only)
+ *     description: Permanently delete a virtual doctor and associated user account
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Virtual doctor ID
+ *     responses:
+ *       200:
+ *         description: Virtual doctor deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor deleted successfully"
+ *                 data:
+ *                   type: null
+ *                   example: null
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Virtual doctor not found
+ *       500:
+ *         description: Internal server error
+ */
+router.delete('/admin/virtual-doctors/:id', 
+  authenticate(['admin']), 
+  virtualDoctorController.adminDeleteVirtualDoctor
+);
+
 module.exports = router;

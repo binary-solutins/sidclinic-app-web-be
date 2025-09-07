@@ -6,6 +6,51 @@ const AdminSetting = require("../models/adminSetting.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
 const { DateTime } = require('luxon');
+const { Client, Storage } = require('appwrite');
+const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
+const FormData = require('form-data');
+
+// Configure Appwrite
+const client = new Client();
+client
+  .setEndpoint(process.env.APPWRITE_ENDPOINT)
+  .setProject(process.env.APPWRITE_PROJECT_ID);
+
+const storage = new Storage(client);
+const bucketId = process.env.APPWRITE_BUCKET_ID;
+
+// Helper function to upload image to Appwrite
+const uploadImage = async (file) => {
+  try {
+    const fileId = uuidv4();
+
+    const formData = new FormData();
+    formData.append('fileId', fileId);
+    formData.append('file', file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype
+    });
+
+    const response = await axios.post(
+      `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID,
+          'X-Appwrite-Key': process.env.APPWRITE_API_KEY
+        }
+      }
+    );
+
+    const uploadedFile = response.data;
+    return `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${uploadedFile.$id}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+  } catch (error) {
+    console.error('Error uploading image via API:', error.response ? error.response.data : error.message);
+    throw new Error('Image upload failed');
+  }
+};
 
 // Create virtual doctor function
 exports.createVirtualDoctor = async (req, res) => {
@@ -123,6 +168,28 @@ exports.createVirtualDoctor = async (req, res) => {
         degree: completeVirtualDoctor.degree,
         registrationNumber: completeVirtualDoctor.registrationNumber,
         clinicName: completeVirtualDoctor.clinicName,
+        yearsOfExperience: completeVirtualDoctor.yearsOfExperience,
+        doctorPhoto: completeVirtualDoctor.doctorPhoto,
+        clinicPhotos: completeVirtualDoctor.clinicPhotos,
+        email: completeVirtualDoctor.email,
+        address: completeVirtualDoctor.address,
+        country: completeVirtualDoctor.country,
+        state: completeVirtualDoctor.state,
+        city: completeVirtualDoctor.city,
+        locationPin: completeVirtualDoctor.locationPin,
+        startTime: completeVirtualDoctor.startTime,
+        endTime: completeVirtualDoctor.endTime,
+        consultationFee: completeVirtualDoctor.consultationFee,
+        languages: completeVirtualDoctor.languages,
+        timezone: completeVirtualDoctor.timezone,
+        maxPatientsPerDay: completeVirtualDoctor.maxPatientsPerDay,
+        averageConsultationTime: completeVirtualDoctor.averageConsultationTime,
+        bio: completeVirtualDoctor.bio,
+        qualifications: completeVirtualDoctor.qualifications,
+        subSpecialties: completeVirtualDoctor.subSpecialties,
+        virtualConsultationTypes: completeVirtualDoctor.virtualConsultationTypes,
+        isAvailableForEmergency: completeVirtualDoctor.isAvailableForEmergency,
+        emergencyFee: completeVirtualDoctor.emergencyFee,
         isApproved: completeVirtualDoctor.isApproved,
         is_active: completeVirtualDoctor.is_active,
         createdAt: completeVirtualDoctor.User.createdAt
@@ -212,6 +279,27 @@ exports.getAllVirtualDoctors = async (req, res) => {
       registrationNumber: doctor.registrationNumber,
       clinicName: doctor.clinicName,
       yearsOfExperience: doctor.yearsOfExperience,
+      doctorPhoto: doctor.doctorPhoto,
+      clinicPhotos: doctor.clinicPhotos,
+      email: doctor.email,
+      address: doctor.address,
+      country: doctor.country,
+      state: doctor.state,
+      city: doctor.city,
+      locationPin: doctor.locationPin,
+      startTime: doctor.startTime,
+      endTime: doctor.endTime,
+      consultationFee: doctor.consultationFee,
+      languages: doctor.languages,
+      timezone: doctor.timezone,
+      maxPatientsPerDay: doctor.maxPatientsPerDay,
+      averageConsultationTime: doctor.averageConsultationTime,
+      bio: doctor.bio,
+      qualifications: doctor.qualifications,
+      subSpecialties: doctor.subSpecialties,
+      virtualConsultationTypes: doctor.virtualConsultationTypes,
+      isAvailableForEmergency: doctor.isAvailableForEmergency,
+      emergencyFee: doctor.emergencyFee,
       isApproved: doctor.isApproved,
       is_active: doctor.is_active,
       createdAt: doctor.User.createdAt,
@@ -1096,6 +1184,637 @@ exports.bookVirtualAppointment = async (req, res) => {
       status: 'error',
       code: 500,
       message: error.message,
+    });
+  }
+};
+
+// ==================== ADMIN VIRTUAL DOCTOR MANAGEMENT ====================
+
+// Admin: Create or Update Virtual Doctor with comprehensive form data and image handling
+exports.adminCreateOrUpdateVirtualDoctor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      // User data
+      name, phone, password, gender,
+      // Virtual Doctor data
+      degree, registrationNumber, clinicName, yearsOfExperience, specialty,
+      subSpecialties, clinicContactNumber, email, address, country, state, city,
+      locationPin, startTime, endTime, consultationFee, languages, timezone,
+      maxPatientsPerDay, averageConsultationTime, bio, qualifications,
+      virtualConsultationTypes, isAvailableForEmergency, emergencyFee,
+      isApproved, is_active
+    } = req.body;
+
+    // Handle doctor photo upload if provided
+    let doctorPhotoUrl = null;
+    if (req.files && req.files.doctorPhoto && req.files.doctorPhoto[0]) {
+      try {
+        doctorPhotoUrl = await uploadImage(req.files.doctorPhoto[0]);
+      } catch (uploadError) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Failed to upload doctor photo",
+          error: uploadError.message,
+          data: null
+        });
+      }
+    }
+
+    // Handle multiple clinic photos upload if provided
+    let clinicPhotosUrls = [];
+    if (req.files && req.files.clinicPhotos && req.files.clinicPhotos.length > 0) {
+      try {
+        for (const file of req.files.clinicPhotos) {
+          const photoUrl = await uploadImage(file);
+          clinicPhotosUrls.push(photoUrl);
+        }
+      } catch (uploadError) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Failed to upload clinic photos",
+          error: uploadError.message,
+          data: null
+        });
+      }
+    }
+
+    // Validation for required fields
+    if (!name || !phone || !gender || !degree || !registrationNumber ||
+        !clinicName || !yearsOfExperience || !clinicContactNumber ||
+        !email || !address || !country || !state || !city || !locationPin) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "All required fields must be provided",
+        data: null
+      });
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Please provide a valid email address",
+        data: null
+      });
+    }
+
+    // Phone number validation
+    const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+    if (!phoneRegex.test(clinicContactNumber)) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Please provide a valid clinic contact number",
+        data: null
+      });
+    }
+
+    // PIN code validation
+    if (!/^\d{6}$/.test(locationPin)) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Location pin must be exactly 6 digits",
+        data: null
+      });
+    }
+
+    if (id) {
+      // Update existing virtual doctor
+      const virtualDoctor = await VirtualDoctor.findByPk(id, {
+        include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone', 'gender'] }]
+      });
+
+      if (!virtualDoctor) {
+        return res.status(404).json({
+          status: "error",
+          code: 404,
+          message: "Virtual doctor not found",
+          data: null
+        });
+      }
+
+      // Check if phone is being changed and if it already exists
+      if (phone !== virtualDoctor.User.phone) {
+        const phoneExists = await User.findOne({ where: { phone } });
+        if (phoneExists) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Phone number already exists",
+            data: null
+          });
+        }
+      }
+
+      // Check if registration number is being changed and if it already exists
+      if (registrationNumber !== virtualDoctor.registrationNumber) {
+        const regExists = await VirtualDoctor.findOne({ where: { registrationNumber } });
+        if (regExists) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Registration number already exists",
+            data: null
+          });
+        }
+      }
+
+      // Update user data
+      const userUpdateData = { name, phone, gender, role: 'virtual-doctor' };
+      if (password) userUpdateData.password = password;
+      await virtualDoctor.User.update(userUpdateData);
+
+      // Update virtual doctor data
+      const virtualDoctorUpdateData = {
+        degree, registrationNumber, clinicName, yearsOfExperience, specialty,
+        clinicContactNumber, email, address, country, state, city, locationPin,
+        startTime, endTime, consultationFee, timezone, maxPatientsPerDay,
+        averageConsultationTime, bio, isAvailableForEmergency, emergencyFee
+      };
+
+      // Handle JSON fields
+      if (subSpecialties) {
+        try {
+          virtualDoctorUpdateData.subSpecialties = typeof subSpecialties === 'string' 
+            ? JSON.parse(subSpecialties) : subSpecialties;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid subSpecialties format",
+            data: null
+          });
+        }
+      }
+
+      if (languages) {
+        try {
+          virtualDoctorUpdateData.languages = typeof languages === 'string' 
+            ? JSON.parse(languages) : languages;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid languages format",
+            data: null
+          });
+        }
+      }
+
+      if (qualifications) {
+        try {
+          virtualDoctorUpdateData.qualifications = typeof qualifications === 'string' 
+            ? JSON.parse(qualifications) : qualifications;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid qualifications format",
+            data: null
+          });
+        }
+      }
+
+      if (virtualConsultationTypes) {
+        try {
+          virtualDoctorUpdateData.virtualConsultationTypes = typeof virtualConsultationTypes === 'string' 
+            ? JSON.parse(virtualConsultationTypes) : virtualConsultationTypes;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid virtualConsultationTypes format",
+            data: null
+          });
+        }
+      }
+      
+      // Add photo URLs if uploaded
+      if (doctorPhotoUrl) {
+        virtualDoctorUpdateData.doctorPhoto = doctorPhotoUrl;
+      }
+      
+      if (clinicPhotosUrls.length > 0) {
+        virtualDoctorUpdateData.clinicPhotos = clinicPhotosUrls;
+      }
+      
+      if (isApproved !== undefined) virtualDoctorUpdateData.isApproved = isApproved;
+      if (is_active !== undefined) virtualDoctorUpdateData.is_active = is_active;
+
+      await virtualDoctor.update(virtualDoctorUpdateData);
+
+      // Fetch updated virtual doctor with user data
+      const updatedVirtualDoctor = await VirtualDoctor.findByPk(id, {
+        include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone', 'gender', 'role'] }]
+      });
+
+      res.status(200).json({
+        status: "success",
+        code: 200,
+        message: "Virtual doctor updated successfully",
+        data: updatedVirtualDoctor
+      });
+    } else {
+      // Create new virtual doctor
+      if (!password) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Password is required for new virtual doctor",
+          data: null
+        });
+      }
+
+      // Check if phone already exists
+      const phoneExists = await User.findOne({ where: { phone } });
+      if (phoneExists) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Phone number already exists",
+          data: null
+        });
+      }
+
+      // Check if registration number already exists
+      const regExists = await VirtualDoctor.findOne({ where: { registrationNumber } });
+      if (regExists) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Registration number already exists",
+          data: null
+        });
+      }
+
+      // Create user first
+      const user = await User.create({
+        name,
+        phone,
+        password,
+        gender,
+        role: 'virtual-doctor'
+      });
+
+      // Create virtual doctor profile
+      const virtualDoctorData = {
+        userId: user.id,
+        degree, registrationNumber, clinicName, yearsOfExperience, specialty,
+        clinicContactNumber, email, address, country, state, city, locationPin,
+        startTime, endTime, consultationFee, timezone, maxPatientsPerDay,
+        averageConsultationTime, bio, isAvailableForEmergency, emergencyFee,
+        isApproved: isApproved !== undefined ? isApproved : true, // Default to true for admin-created
+        is_active: is_active !== undefined ? is_active : true
+      };
+
+      // Handle JSON fields
+      if (subSpecialties) {
+        try {
+          virtualDoctorData.subSpecialties = typeof subSpecialties === 'string' 
+            ? JSON.parse(subSpecialties) : subSpecialties;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid subSpecialties format",
+            data: null
+          });
+        }
+      }
+
+      if (languages) {
+        try {
+          virtualDoctorData.languages = typeof languages === 'string' 
+            ? JSON.parse(languages) : languages;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid languages format",
+            data: null
+          });
+        }
+      }
+
+      if (qualifications) {
+        try {
+          virtualDoctorData.qualifications = typeof qualifications === 'string' 
+            ? JSON.parse(qualifications) : qualifications;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid qualifications format",
+            data: null
+          });
+        }
+      }
+
+      if (virtualConsultationTypes) {
+        try {
+          virtualDoctorData.virtualConsultationTypes = typeof virtualConsultationTypes === 'string' 
+            ? JSON.parse(virtualConsultationTypes) : virtualConsultationTypes;
+        } catch (e) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Invalid virtualConsultationTypes format",
+            data: null
+          });
+        }
+      }
+
+      // Add photo URLs if uploaded
+      if (doctorPhotoUrl) {
+        virtualDoctorData.doctorPhoto = doctorPhotoUrl;
+      }
+      
+      if (clinicPhotosUrls.length > 0) {
+        virtualDoctorData.clinicPhotos = clinicPhotosUrls;
+      }
+
+      const virtualDoctor = await VirtualDoctor.create(virtualDoctorData);
+
+      // Send welcome email to virtual doctor
+      try {
+        await emailService.sendWelcomeEmail({
+          email: email,
+          name: name,
+          role: 'virtual-doctor',
+          credentials: {
+            phone: phone,
+            password: password
+          }
+        });
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't fail the request if email fails
+      }
+
+      // Fetch created virtual doctor with user data
+      const createdVirtualDoctor = await VirtualDoctor.findByPk(virtualDoctor.id, {
+        include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone', 'gender', 'role'] }]
+      });
+
+      res.status(201).json({
+        status: "success",
+        code: 201,
+        message: "Virtual doctor created successfully",
+        data: createdVirtualDoctor
+      });
+    }
+  } catch (error) {
+    console.error('Admin create/update virtual doctor error:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Admin: Get virtual doctor by ID with complete details
+exports.adminGetVirtualDoctorById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const virtualDoctor = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender', 'role', 'createdAt', 'notificationEnabled']
+      }]
+    });
+
+    if (!virtualDoctor) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Virtual doctor not found",
+        data: null
+      });
+    }
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Virtual doctor details retrieved successfully",
+      data: virtualDoctor
+    });
+  } catch (error) {
+    console.error('Error fetching virtual doctor details:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Admin: Toggle virtual doctor approval status
+exports.adminToggleVirtualDoctorApproval = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approvalReason } = req.body;
+
+    const virtualDoctor = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender']
+      }]
+    });
+
+    if (!virtualDoctor) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Virtual doctor not found",
+        data: null
+      });
+    }
+
+    // Toggle approval status
+    const newApprovalStatus = !virtualDoctor.isApproved;
+    await virtualDoctor.update({ isApproved: newApprovalStatus });
+
+    // Send email notification to virtual doctor
+    try {
+      const emailData = {
+        doctorName: virtualDoctor.User.name,
+        platformName: process.env.APP_NAME || 'Healthcare Platform',
+        dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/virtual-doctor/dashboard`,
+        approvalReason: approvalReason || 'Administrative review',
+        approvalDate: new Date().toLocaleDateString()
+      };
+
+      const templateType = newApprovalStatus ? 'doctor_approved' : 'doctor_disapproved';
+      
+      const emailResult = await emailService.sendAppointmentEmail(
+        virtualDoctor.email,
+        templateType,
+        emailData
+      );
+
+      if (emailResult.success) {
+        console.log(`Approval status email sent successfully to Dr. ${virtualDoctor.User.name}`);
+      } else {
+        console.error('Failed to send approval status email:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Error sending approval status email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: `Virtual doctor ${newApprovalStatus ? "approved" : "disapproved"} successfully`,
+      data: {
+        id: virtualDoctor.id,
+        isApproved: newApprovalStatus
+      }
+    });
+  } catch (error) {
+    console.error('Error toggling virtual doctor approval:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Admin: Toggle virtual doctor active status
+exports.adminToggleVirtualDoctorStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { suspensionReason, reviewDate } = req.body;
+
+    const virtualDoctor = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender']
+      }]
+    });
+
+    if (!virtualDoctor) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Virtual doctor not found",
+        data: null
+      });
+    }
+
+    // Toggle active status
+    const newStatus = !virtualDoctor.is_active;
+    await virtualDoctor.update({ is_active: newStatus });
+
+    // Send email notification to virtual doctor
+    try {
+      const emailData = {
+        doctorName: virtualDoctor.User.name,
+        platformName: process.env.APP_NAME || 'Healthcare Platform',
+        dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/virtual-doctor/dashboard`,
+        supportUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/support`,
+        suspensionReason: suspensionReason || 'Administrative review',
+        suspensionDate: new Date().toLocaleDateString(),
+        reviewDate: reviewDate || null
+      };
+
+      const templateType = newStatus ? 'doctor_activated' : 'doctor_suspended';
+      
+      const emailResult = await emailService.sendAppointmentEmail(
+        virtualDoctor.email,
+        templateType,
+        emailData
+      );
+
+      if (emailResult.success) {
+        console.log(`Status change email sent successfully to Dr. ${virtualDoctor.User.name}`);
+      } else {
+        console.error('Failed to send status change email:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('Error sending status change email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: `Virtual doctor ${newStatus ? "activated" : "deactivated"} successfully`,
+      data: {
+        id: virtualDoctor.id,
+        is_active: newStatus
+      }
+    });
+  } catch (error) {
+    console.error('Error toggling virtual doctor status:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+// Admin: Delete virtual doctor
+exports.adminDeleteVirtualDoctor = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const virtualDoctor = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone']
+      }]
+    });
+
+    if (!virtualDoctor) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Virtual doctor not found",
+        data: null
+      });
+    }
+
+    // Delete the virtual doctor record (this will cascade to user due to foreign key)
+    await virtualDoctor.destroy();
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Virtual doctor deleted successfully",
+      data: null
+    });
+  } catch (error) {
+    console.error('Error deleting virtual doctor:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
     });
   }
 }; 
