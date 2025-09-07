@@ -2,6 +2,51 @@ const Doctor = require("../models/doctor.model");
 const User = require("../models/user.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
+const { Client, Storage } = require('appwrite');
+const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
+const FormData = require('form-data');
+
+// Configure Appwrite
+const client = new Client();
+client
+  .setEndpoint(process.env.APPWRITE_ENDPOINT)
+  .setProject(process.env.APPWRITE_PROJECT_ID);
+
+const storage = new Storage(client);
+const bucketId = process.env.APPWRITE_BUCKET_ID;
+
+// Helper function to upload image to Appwrite
+const uploadImage = async (file) => {
+  try {
+    const fileId = uuidv4();
+
+    const formData = new FormData();
+    formData.append('fileId', fileId);
+    formData.append('file', file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype
+    });
+
+    const response = await axios.post(
+      `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files`,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID,
+          'X-Appwrite-Key': process.env.APPWRITE_API_KEY
+        }
+      }
+    );
+
+    const uploadedFile = response.data;
+    return `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${uploadedFile.$id}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+  } catch (error) {
+    console.error('Error uploading image via API:', error.response ? error.response.data : error.message);
+    throw new Error('Image upload failed');
+  }
+};
 
 exports.listPendingDoctors = async (req, res) => {
   try {
@@ -597,10 +642,45 @@ exports.createOrUpdateDoctor = async (req, res) => {
       // User data
       name, phone, password, gender,
       // Doctor data
-      doctorPhoto, degree, registrationNumber, clinicName, clinicPhotos,
+      degree, registrationNumber, clinicName,
       yearsOfExperience, specialty, clinicContactNumber, email, address,
       country, state, city, locationPin, startTime, endTime, is_active
     } = req.body;
+
+    // Handle file uploads
+    let doctorPhotoUrl = null;
+    if (req.files && req.files.doctorPhoto && req.files.doctorPhoto[0]) {
+      try {
+        doctorPhotoUrl = await uploadImage(req.files.doctorPhoto[0]);
+      } catch (uploadError) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Failed to upload doctor photo",
+          error: uploadError.message,
+          data: null
+        });
+      }
+    }
+
+    // Handle multiple clinic photos upload if provided
+    let clinicPhotosUrls = [];
+    if (req.files && req.files.clinicPhotos && req.files.clinicPhotos.length > 0) {
+      try {
+        for (const file of req.files.clinicPhotos) {
+          const photoUrl = await uploadImage(file);
+          clinicPhotosUrls.push(photoUrl);
+        }
+      } catch (uploadError) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Failed to upload clinic photos",
+          error: uploadError.message,
+          data: null
+        });
+      }
+    }
 
     // Validation for required fields
     if (!name || !phone || !gender || !degree || !registrationNumber ||
@@ -662,10 +742,20 @@ exports.createOrUpdateDoctor = async (req, res) => {
 
       // Update doctor data
       const doctorUpdateData = {
-        doctorPhoto, degree, registrationNumber, clinicName, clinicPhotos,
+        degree, registrationNumber, clinicName,
         yearsOfExperience, specialty, clinicContactNumber, email, address,
         country, state, city, locationPin, startTime, endTime
       };
+      
+      // Add photo URLs if uploaded
+      if (doctorPhotoUrl) {
+        doctorUpdateData.doctorPhoto = doctorPhotoUrl;
+      }
+      
+      if (clinicPhotosUrls.length > 0) {
+        doctorUpdateData.clinicPhotos = clinicPhotosUrls;
+      }
+      
       if (is_active !== undefined) doctorUpdateData.is_active = is_active;
 
       await doctor.update(doctorUpdateData);
@@ -724,13 +814,11 @@ exports.createOrUpdateDoctor = async (req, res) => {
       });
 
       // Create doctor profile
-      const doctor = await Doctor.create({
+      const doctorData = {
         userId: user.id,
-        doctorPhoto,
         degree,
         registrationNumber,
         clinicName,
-        clinicPhotos,
         yearsOfExperience,
         specialty,
         clinicContactNumber,
@@ -744,7 +832,18 @@ exports.createOrUpdateDoctor = async (req, res) => {
         endTime,
         is_active: is_active !== undefined ? is_active : true,
         isApproved: false // Default to false, admin can approve later
-      });
+      };
+
+      // Add photo URLs if uploaded
+      if (doctorPhotoUrl) {
+        doctorData.doctorPhoto = doctorPhotoUrl;
+      }
+      
+      if (clinicPhotosUrls.length > 0) {
+        doctorData.clinicPhotos = clinicPhotosUrls;
+      }
+
+      const doctor = await Doctor.create(doctorData);
 
       // Fetch created doctor with user data
       const createdDoctor = await Doctor.findByPk(doctor.id, {

@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/admin.controller');
 const { authenticate, authorize } = require('../middleware/auth');
+const multer = require('multer');
+
+// Configure multer for file upload
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 /**
  * @swagger
@@ -114,8 +122,8 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           example: "Female"
  *         doctorPhoto:
  *           type: string
- *           description: URL or Base64 encoded string of doctor's photo
- *           example: "https://example.com/photo.jpg"
+ *           format: binary
+ *           description: Doctor's profile photo file (optional)
  *         degree:
  *           type: string
  *           description: Doctor's medical degree(s)
@@ -130,10 +138,10 @@ const { authenticate, authorize } = require('../middleware/auth');
  *           example: "HealthCare Medical Center"
  *         clinicPhotos:
  *           type: array
- *           description: URLs or Base64 encoded strings of clinic photos
  *           items:
  *             type: string
- *           example: ["https://example.com/clinic1.jpg", "https://example.com/clinic2.jpg"]
+ *             format: binary
+ *           description: Array of clinic photo files (optional, max 5 files)
  *         yearsOfExperience:
  *           type: integer
  *           description: Number of years of professional experience
@@ -475,7 +483,7 @@ const { authenticate, authorize } = require('../middleware/auth');
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             $ref: '#/components/schemas/DoctorCreate'
  *     responses:
@@ -541,7 +549,7 @@ const { authenticate, authorize } = require('../middleware/auth');
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             allOf:
  *               - $ref: '#/components/schemas/DoctorCreate'
@@ -749,8 +757,14 @@ const { authenticate, authorize } = require('../middleware/auth');
 router.get('/users', authenticate(), authorize('admin'), adminController.listAllUsers);
 router.post('/user', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
 router.put('/user/:id', authenticate(), authorize('admin'), adminController.createOrUpdateUser); 
-router.post('/doctor', authenticate(), authorize('admin'), adminController.createOrUpdateDoctor);
-router.put('/doctor/:id', authenticate(), authorize('admin'), adminController.createOrUpdateDoctor);
+router.post('/doctor', authenticate(), authorize('admin'), upload.fields([
+  { name: 'doctorPhoto', maxCount: 1 },
+  { name: 'clinicPhotos', maxCount: 5 }
+]), adminController.createOrUpdateDoctor);
+router.put('/doctor/:id', authenticate(), authorize('admin'), upload.fields([
+  { name: 'doctorPhoto', maxCount: 1 },
+  { name: 'clinicPhotos', maxCount: 5 }
+]), adminController.createOrUpdateDoctor);
 
 // Dental Image Admin Routes
 const dentalImageController = require('../controllers/dentalImage.controller');
