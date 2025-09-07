@@ -2,6 +2,25 @@ const express = require('express');
 const router = express.Router();
 const virtualDoctorController = require('../controllers/virtualDoctor.controller');
 const { authenticate, authorize } = require('../middleware/auth');
+const multer = require('multer');
+
+// Configure multer for file upload
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
+    files: 10 // Maximum 10 files per upload
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'), false);
+    }
+  }
+});
 
 /**
  * @swagger
@@ -228,6 +247,10 @@ const { authenticate, authorize } = require('../middleware/auth');
  */
 router.post('/admin/virtual-doctors', 
   authenticate(['admin']), 
+  upload.fields([
+    { name: 'doctorPhoto', maxCount: 1 },
+    { name: 'clinicPhotos', maxCount: 10 }
+  ]),
   virtualDoctorController.createVirtualDoctor
 );
 
@@ -930,6 +953,10 @@ router.post('/virtual-appointment/book',
  */
 router.post('/admin/virtual-doctors', 
   authenticate(['admin']), 
+  upload.fields([
+    { name: 'doctorPhoto', maxCount: 1 },
+    { name: 'clinicPhotos', maxCount: 10 }
+  ]),
   virtualDoctorController.adminCreateOrUpdateVirtualDoctor
 );
 
@@ -1098,6 +1125,10 @@ router.post('/admin/virtual-doctors',
  */
 router.put('/admin/virtual-doctors/:id', 
   authenticate(['admin']), 
+  upload.fields([
+    { name: 'doctorPhoto', maxCount: 1 },
+    { name: 'clinicPhotos', maxCount: 10 }
+  ]),
   virtualDoctorController.adminCreateOrUpdateVirtualDoctor
 );
 
