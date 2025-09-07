@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const bannerController = require('../controllers/banner.controller');
 const { authenticate, authorize } = require('../middleware/auth');
+const multer = require('multer');
+
+// Configure multer for file upload
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
 /**
  * @swagger
@@ -100,7 +108,7 @@ router.get('/banners/:id', bannerController.getBannerById);
 // Admin routes (authentication required)
 /**
  * @swagger
- * /admin/banners:
+ * /banners/admin:
  *   post:
  *     summary: Create a new banner (Admin only)
  *     description: Create a new banner with title, subtitle, image, and app type flag.
@@ -110,7 +118,7 @@ router.get('/banners/:id', bannerController.getBannerById);
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -126,8 +134,8 @@ router.get('/banners/:id', bannerController.getBannerById);
  *                 example: "Advanced Technology for Perfect Smiles"
  *               image:
  *                 type: string
- *                 description: Banner image URL
- *                 example: "https://images.pexels.com/photos/3845810/pexels-photo-3845810.jpeg?auto=compress&cs=tinysrgb&w=800"
+ *                 format: binary
+ *                 description: Banner image file
  *               isDoctorApp:
  *                 type: boolean
  *                 description: Flag to determine app type (true = doctor app, false = patient app)
@@ -164,14 +172,15 @@ router.get('/banners/:id', bannerController.getBannerById);
  *       500:
  *         description: Internal server error
  */
-router.post('/admin/banners', 
+router.post('/admin', 
   authenticate(['admin']), 
+  upload.single('image'),
   bannerController.createBanner
 );
 
 /**
  * @swagger
- * /admin/banners:
+ * /banners/admin:
  *   get:
  *     summary: Get all banners for admin (Admin only)
  *     description: Retrieve all banners with admin controls including inactive banners and pagination.
@@ -246,14 +255,14 @@ router.post('/admin/banners',
  *       500:
  *         description: Internal server error
  */
-router.get('/admin/banners', 
+router.get('/admin', 
   authenticate(['admin']), 
   bannerController.getAllBannersAdmin
 );
 
 /**
  * @swagger
- * /admin/banners/{id}:
+ * /banners/admin/{id}:
  *   put:
  *     summary: Update banner (Admin only)
  *     description: Update an existing banner with new information.
@@ -271,7 +280,7 @@ router.get('/admin/banners',
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
@@ -285,8 +294,8 @@ router.get('/admin/banners',
  *                 example: "Updated subtitle"
  *               image:
  *                 type: string
- *                 description: Banner image URL
- *                 example: "https://example.com/new-image.jpg"
+ *                 format: binary
+ *                 description: Banner image file
  *               isDoctorApp:
  *                 type: boolean
  *                 description: Flag to determine app type
@@ -327,14 +336,15 @@ router.get('/admin/banners',
  *       500:
  *         description: Internal server error
  */
-router.put('/admin/banners/:id', 
+router.put('/admin/:id', 
   authenticate(['admin']), 
+  upload.single('image'),
   bannerController.updateBanner
 );
 
 /**
  * @swagger
- * /admin/banners/{id}:
+ * /banners/admin/{id}:
  *   delete:
  *     summary: Delete banner (Admin only)
  *     description: Delete a banner permanently.
@@ -377,7 +387,7 @@ router.put('/admin/banners/:id',
  *       500:
  *         description: Internal server error
  */
-router.delete('/admin/banners/:id', 
+router.delete('/admin/:id', 
   authenticate(['admin']), 
   bannerController.deleteBanner
 );

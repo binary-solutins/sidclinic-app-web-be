@@ -122,7 +122,7 @@ app.use("/api/dental-images", dentalImageRoutes);
 app.use("/api/personal-patients", personalPatientRoutes);
 app.use("/api", virtualDoctorRoutes);
 app.use("/api", reportRoutes);
-app.use("/api", require("./routes/banner.routes"));
+app.use("/api/banners", require("./routes/banner.routes"));
 
 app.use(
   helmet({
