@@ -13,6 +13,171 @@ const upload = multer({
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     DoctorAppBanner:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           example: 1
+ *         title:
+ *           type: string
+ *           example: "Modern Dental Care"
+ *         subtitle:
+ *           type: string
+ *           example: "Advanced Technology for Perfect Smiles"
+ *         image:
+ *           type: string
+ *           example: "https://example.com/banner.jpg"
+ *         isDoctorApp:
+ *           type: boolean
+ *           example: true
+ *         order:
+ *           type: integer
+ *           example: 1
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:00.000Z"
+ *     
+ *     PatientAppBanner:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           example: 1
+ *         image:
+ *           type: string
+ *           example: "https://example.com/banner.jpg"
+ *         order:
+ *           type: integer
+ *           example: 1
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:00.000Z"
+ *     
+ *     Banner:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           example: 1
+ *         title:
+ *           type: string
+ *           example: "Modern Dental Care"
+ *         subtitle:
+ *           type: string
+ *           example: "Advanced Technology for Perfect Smiles"
+ *         image:
+ *           type: string
+ *           example: "https://example.com/banner.jpg"
+ *         isDoctorApp:
+ *           type: boolean
+ *           example: true
+ *         isActive:
+ *           type: boolean
+ *           example: true
+ *         order:
+ *           type: integer
+ *           example: 1
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:00.000Z"
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-01-15T10:30:00.000Z"
+ * 
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ * 
+ *   responses:
+ *     Unauthorized:
+ *       description: Invalid or missing authentication token
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: "error"
+ *               code:
+ *                 type: integer
+ *                 example: 401
+ *               message:
+ *                 type: string
+ *                 example: "Unauthorized"
+ *               data:
+ *                 type: null
+ *                 example: null
+ *     
+ *     Forbidden:
+ *       description: Insufficient permissions
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: "error"
+ *               code:
+ *                 type: integer
+ *                 example: 403
+ *               message:
+ *                 type: string
+ *                 example: "Forbidden"
+ *               data:
+ *                 type: null
+ *                 example: null
+ *     
+ *     NotFound:
+ *       description: Resource not found
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: "error"
+ *               code:
+ *                 type: integer
+ *                 example: 404
+ *               message:
+ *                 type: string
+ *                 example: "Not found"
+ *               data:
+ *                 type: null
+ *                 example: null
+ *     
+ *     ServerError:
+ *       description: Internal server error
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: "error"
+ *               code:
+ *                 type: integer
+ *                 example: 500
+ *               message:
+ *                 type: string
+ *                 example: "Internal Server Error"
+ *               data:
+ *                 type: null
+ *                 example: null
+ * 
  * tags:
  *   - name: Banners
  *     description: Banner management endpoints
@@ -21,7 +186,7 @@ const upload = multer({
 // Public routes (no authentication required)
 /**
  * @swagger
- * /banners:
+ * /api/banners:
  *   get:
  *     summary: Get all active banners
  *     description: Retrieve all active banners. Returns different data based on isDoctorApp flag - full data for doctor app (isDoctorApp=1) or only images for patient app (isDoctorApp=0).
@@ -60,11 +225,11 @@ const upload = multer({
  *       500:
  *         description: Internal server error
  */
-router.get('/banners', bannerController.getAllBanners);
+router.get('/', bannerController.getAllBanners);
 
 /**
  * @swagger
- * /banners/{id}:
+ * /api/banners/{id}:
  *   get:
  *     summary: Get banner by ID
  *     description: Retrieve a specific banner by ID. Returns different data based on isDoctorApp flag.
@@ -103,12 +268,12 @@ router.get('/banners', bannerController.getAllBanners);
  *       500:
  *         description: Internal server error
  */
-router.get('/banners/:id', bannerController.getBannerById);
+router.get('/:id', bannerController.getBannerById);
 
 // Admin routes (authentication required)
 /**
  * @swagger
- * /banners/admin:
+ * /api/banners/admin:
  *   post:
  *     summary: Create a new banner (Admin only)
  *     description: Create a new banner with title, subtitle, image, and app type flag.
@@ -180,7 +345,7 @@ router.post('/admin',
 
 /**
  * @swagger
- * /banners/admin:
+ * /api/banners/admin:
  *   get:
  *     summary: Get all banners for admin (Admin only)
  *     description: Retrieve all banners with admin controls including inactive banners and pagination.
@@ -262,7 +427,7 @@ router.get('/admin',
 
 /**
  * @swagger
- * /banners/admin/{id}:
+ * /api/banners/admin/{id}:
  *   put:
  *     summary: Update banner (Admin only)
  *     description: Update an existing banner with new information.
@@ -344,7 +509,7 @@ router.put('/admin/:id',
 
 /**
  * @swagger
- * /banners/admin/{id}:
+ * /api/banners/admin/{id}:
  *   delete:
  *     summary: Delete banner (Admin only)
  *     description: Delete a banner permanently.
