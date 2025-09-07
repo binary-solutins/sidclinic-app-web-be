@@ -54,3 +54,4 @@ const Banner = sequelize.define('Banner', {
 });
 
 module.exports = Banner;
+

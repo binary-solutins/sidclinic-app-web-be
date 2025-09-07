@@ -52,7 +52,7 @@ const { authenticate, authorize } = require('../middleware/auth');
  *       500:
  *         description: Internal server error
  */
-router.get('/', bannerController.getAllBanners);
+router.get('/banners', bannerController.getAllBanners);
 
 /**
  * @swagger
@@ -95,7 +95,7 @@ router.get('/', bannerController.getAllBanners);
  *       500:
  *         description: Internal server error
  */
-router.get('/:id', bannerController.getBannerById);
+router.get('/banners/:id', bannerController.getBannerById);
 
 // Admin routes (authentication required)
 /**
@@ -383,3 +383,4 @@ router.delete('/admin/banners/:id',
 );
 
 module.exports = router;
+
