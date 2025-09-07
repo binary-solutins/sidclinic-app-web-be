@@ -1241,42 +1241,44 @@ exports.adminCreateOrUpdateVirtualDoctor = async (req, res) => {
       }
     }
 
-    // Validation for required fields
-    if (!name || !phone || !gender || !degree || !registrationNumber ||
-        !clinicName || !yearsOfExperience || !clinicContactNumber ||
-        !email || !address || !country || !state || !city || !locationPin) {
+    // Validation for required fields - only basic user fields are required
+    if (!name || !phone || !gender) {
       return res.status(400).json({
         status: "error",
         code: 400,
-        message: "All required fields must be provided",
+        message: "Name, phone, and gender are required",
         data: null
       });
     }
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        status: "error",
-        code: 400,
-        message: "Please provide a valid email address",
-        data: null
-      });
+    // Email validation - only if email is provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Please provide a valid email address",
+          data: null
+        });
+      }
     }
 
-    // Phone number validation
-    const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
-    if (!phoneRegex.test(clinicContactNumber)) {
-      return res.status(400).json({
-        status: "error",
-        code: 400,
-        message: "Please provide a valid clinic contact number",
-        data: null
-      });
+    // Phone number validation - only if clinicContactNumber is provided
+    if (clinicContactNumber) {
+      const phoneRegex = /^[0-9+\-\s()]{10,15}$/;
+      if (!phoneRegex.test(clinicContactNumber)) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Please provide a valid clinic contact number",
+          data: null
+        });
+      }
     }
 
-    // PIN code validation
-    if (!/^\d{6}$/.test(locationPin)) {
+    // PIN code validation - only if locationPin is provided
+    if (locationPin && !/^\d{6}$/.test(locationPin)) {
       return res.status(400).json({
         status: "error",
         code: 400,
@@ -1443,15 +1445,17 @@ exports.adminCreateOrUpdateVirtualDoctor = async (req, res) => {
         });
       }
 
-      // Check if registration number already exists
-      const regExists = await VirtualDoctor.findOne({ where: { registrationNumber } });
-      if (regExists) {
-        return res.status(400).json({
-          status: "error",
-          code: 400,
-          message: "Registration number already exists",
-          data: null
-        });
+      // Check if registration number already exists (only if provided)
+      if (registrationNumber) {
+        const regExists = await VirtualDoctor.findOne({ where: { registrationNumber } });
+        if (regExists) {
+          return res.status(400).json({
+            status: "error",
+            code: 400,
+            message: "Registration number already exists",
+            data: null
+          });
+        }
       }
 
       // Create user first
@@ -1463,13 +1467,30 @@ exports.adminCreateOrUpdateVirtualDoctor = async (req, res) => {
         role: 'virtual-doctor'
       });
 
-      // Create virtual doctor profile
+      // Create virtual doctor profile with default values for optional fields
       const virtualDoctorData = {
         userId: user.id,
-        degree, registrationNumber, clinicName, yearsOfExperience, specialty,
-        clinicContactNumber, email, address, country, state, city, locationPin,
-        startTime, endTime, consultationFee, timezone, maxPatientsPerDay,
-        averageConsultationTime, bio, isAvailableForEmergency, emergencyFee,
+        degree: degree || 'MBBS',
+        registrationNumber: registrationNumber || `VIRTUAL-${Date.now()}`,
+        clinicName: clinicName || 'Virtual Clinic',
+        yearsOfExperience: yearsOfExperience || 0,
+        specialty: specialty || 'General Medicine',
+        clinicContactNumber: clinicContactNumber || phone,
+        email: email || `${phone}@virtual.com`,
+        address: address || 'Virtual Address',
+        country: country || 'India',
+        state: state || 'Virtual State',
+        city: city || 'Virtual City',
+        locationPin: locationPin || '000000',
+        startTime: startTime || '09:00:00',
+        endTime: endTime || '18:00:00',
+        consultationFee: consultationFee || 0,
+        timezone: timezone || 'Asia/Kolkata',
+        maxPatientsPerDay: maxPatientsPerDay || 20,
+        averageConsultationTime: averageConsultationTime || 30,
+        bio: bio || null,
+        isAvailableForEmergency: isAvailableForEmergency || false,
+        emergencyFee: emergencyFee || 0,
         isApproved: isApproved !== undefined ? isApproved : true, // Default to true for admin-created
         is_active: is_active !== undefined ? is_active : true
       };

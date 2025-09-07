@@ -743,7 +743,7 @@ router.post('/virtual-appointment/book',
  * /admin/virtual-doctors:
  *   post:
  *     summary: Create a new virtual doctor (Admin only)
- *     description: Creates a new virtual doctor with comprehensive form data including image uploads. Supports both doctor photo and multiple clinic photos.
+ *     description: Creates a new virtual doctor with comprehensive form data including image uploads. Only name, phone, gender, and password are required. All other fields are optional and will use default values if not provided. Supports both doctor photo and multiple clinic photos.
  *     tags: [Admin - Virtual Doctors]
  *     security:
  *       - bearerAuth: []
@@ -758,17 +758,6 @@ router.post('/virtual-appointment/book',
  *               - phone
  *               - gender
  *               - password
- *               - degree
- *               - registrationNumber
- *               - clinicName
- *               - yearsOfExperience
- *               - clinicContactNumber
- *               - email
- *               - address
- *               - country
- *               - state
- *               - city
- *               - locationPin
  *             properties:
  *               name:
  *                 type: string
@@ -800,114 +789,114 @@ router.post('/virtual-appointment/book',
  *                 description: Multiple clinic photos
  *               degree:
  *                 type: string
- *                 description: Virtual doctor's medical degree
+ *                 description: Virtual doctor's medical degree (default: "MBBS")
  *                 example: "MBBS"
  *               registrationNumber:
  *                 type: string
- *                 description: Medical registration number
+ *                 description: Medical registration number (auto-generated if not provided)
  *                 example: "VIRTUAL-12345"
  *               clinicName:
  *                 type: string
- *                 description: Virtual clinic name
+ *                 description: Virtual clinic name (default: "Virtual Clinic")
  *                 example: "Virtual Health Clinic"
  *               yearsOfExperience:
  *                 type: integer
- *                 description: Years of medical experience
+ *                 description: Years of medical experience (default: 0)
  *                 example: 5
  *               specialty:
  *                 type: string
- *                 description: Medical specialty
+ *                 description: Medical specialty (default: "General Medicine")
  *                 example: "General Medicine"
  *               subSpecialties:
  *                 type: string
- *                 description: JSON string of sub-specialties
+ *                 description: JSON string of sub-specialties (optional)
  *                 example: '["Cardiology", "Internal Medicine"]'
  *               clinicContactNumber:
  *                 type: string
- *                 description: Clinic contact number
+ *                 description: Clinic contact number (defaults to phone if not provided)
  *                 example: "+1234567890"
  *               email:
  *                 type: string
  *                 format: email
- *                 description: Virtual doctor's email
+ *                 description: Virtual doctor's email (defaults to phone@virtual.com if not provided)
  *                 example: "dr.virtual@clinic.com"
  *               address:
  *                 type: string
- *                 description: Virtual clinic address
+ *                 description: Virtual clinic address (default: "Virtual Address")
  *                 example: "123 Virtual Street, Digital City"
  *               country:
  *                 type: string
- *                 description: Country
+ *                 description: Country (default: "India")
  *                 example: "India"
  *               state:
  *                 type: string
- *                 description: State
+ *                 description: State (default: "Virtual State")
  *                 example: "Maharashtra"
  *               city:
  *                 type: string
- *                 description: City
+ *                 description: City (default: "Virtual City")
  *                 example: "Mumbai"
  *               locationPin:
  *                 type: string
- *                 description: Location PIN code (6 digits)
+ *                 description: Location PIN code (default: "000000")
  *                 example: "400001"
  *               startTime:
  *                 type: string
  *                 format: time
- *                 description: Virtual clinic start time
+ *                 description: Virtual clinic start time (default: "09:00:00")
  *                 example: "09:00:00"
  *               endTime:
  *                 type: string
  *                 format: time
- *                 description: Virtual clinic end time
+ *                 description: Virtual clinic end time (default: "18:00:00")
  *                 example: "18:00:00"
  *               consultationFee:
  *                 type: number
- *                 description: Virtual consultation fee
+ *                 description: Virtual consultation fee (default: 0)
  *                 example: 500.00
  *               languages:
  *                 type: string
- *                 description: JSON string of languages
+ *                 description: JSON string of languages (optional)
  *                 example: '["English", "Hindi", "Marathi"]'
  *               timezone:
  *                 type: string
- *                 description: Virtual doctor timezone
+ *                 description: Virtual doctor timezone (default: "Asia/Kolkata")
  *                 example: "Asia/Kolkata"
  *               maxPatientsPerDay:
  *                 type: integer
- *                 description: Maximum patients per day
+ *                 description: Maximum patients per day (default: 20)
  *                 example: 20
  *               averageConsultationTime:
  *                 type: integer
- *                 description: Average consultation time in minutes
+ *                 description: Average consultation time in minutes (default: 30)
  *                 example: 30
  *               bio:
  *                 type: string
- *                 description: Virtual doctor biography
+ *                 description: Virtual doctor biography (optional)
  *                 example: "Experienced virtual doctor with expertise in..."
  *               qualifications:
  *                 type: string
- *                 description: JSON string of qualifications
+ *                 description: JSON string of qualifications (optional)
  *                 example: '["MBBS", "MD", "Diploma in Cardiology"]'
  *               virtualConsultationTypes:
  *                 type: string
- *                 description: JSON string of consultation types
+ *                 description: JSON string of consultation types (optional)
  *                 example: '["video", "audio", "chat"]'
  *               isAvailableForEmergency:
  *                 type: boolean
- *                 description: Available for emergency consultations
+ *                 description: Available for emergency consultations (default: false)
  *                 example: true
  *               emergencyFee:
  *                 type: number
- *                 description: Emergency consultation fee
+ *                 description: Emergency consultation fee (default: 0)
  *                 example: 1000.00
  *               isApproved:
  *                 type: boolean
- *                 description: Approval status
+ *                 description: Approval status (default: true for admin-created)
  *                 example: true
  *               is_active:
  *                 type: boolean
- *                 description: Active status
+ *                 description: Active status (default: true)
  *                 example: true
  *     responses:
  *       201:
@@ -929,7 +918,7 @@ router.post('/virtual-appointment/book',
  *                 data:
  *                   $ref: '#/components/schemas/VirtualDoctor'
  *       400:
- *         description: Bad request - validation error
+ *         description: Bad request - validation error (Name, phone, and gender are required)
  *       401:
  *         description: Unauthorized
  *       403:
