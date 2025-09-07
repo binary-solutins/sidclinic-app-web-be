@@ -697,6 +697,7 @@ module.exports = {
       const appointment = await Appointment.findByPk(req.params.id, {
         include: [
           { model: Doctor, as: 'doctor', include: [{ model: User, as: 'User' }] },
+          { model: VirtualDoctor, as: 'virtualDoctor', include: [{ model: User, as: 'User' }] },
           { model: User, as: 'patient' }
         ]
       });
@@ -718,18 +719,7 @@ module.exports = {
         });
       }
 
-      // Check if appointment can be rescheduled (must be at least 24 hours before) - using IST
-      const now = DateTime.now().setZone('Asia/Kolkata');
-      const appointmentTime = DateTime.fromJSDate(appointment.appointmentDateTime).setZone('Asia/Kolkata');
-      const timeDifference = appointmentTime.diff(now, 'hours').hours;
-
-      if (timeDifference < 24) {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'Appointments can only be rescheduled at least 24 hours in advance',
-        });
-      }
+      // No time restriction for rescheduling - removed 24-hour validation
 
       // Validate appointment status
       if (!['pending', 'confirmed'].includes(appointment.status)) {
@@ -764,6 +754,7 @@ module.exports = {
         });
       }
 
+      const now = DateTime.now().setZone('Asia/Kolkata');
       const oneHourFromNow = now.plus({ hours: 1 });
 
       if (newRequestedTime < oneHourFromNow) {
@@ -798,14 +789,29 @@ module.exports = {
       const slotStart = newRequestedTime.set({ minute: Math.floor(newRequestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
       const slotEnd = slotStart.plus({ minutes: 30 });
 
-      const existingCount = await Appointment.count({
-        where: {
-          doctorId: appointment.doctorId,
-          appointmentDateTime: { [Op.between]: [slotStart.toJSDate(), slotEnd.toJSDate()] },
-          status: { [Op.notIn]: ['canceled', 'completed', 'rejected'] },
-          id: { [Op.ne]: appointment.id }
+      // Build where condition based on appointment type
+      const whereCondition = {
+        appointmentDateTime: { [Op.between]: [slotStart.toJSDate(), slotEnd.toJSDate()] },
+        status: { [Op.notIn]: ['canceled', 'completed', 'rejected'] },
+        id: { [Op.ne]: appointment.id }
+      };
+
+      if (appointment.type === 'virtual') {
+        whereCondition.type = 'virtual';
+        if (appointment.virtualDoctorId) {
+          // Check availability for specific virtual doctor
+          whereCondition.virtualDoctorId = appointment.virtualDoctorId;
+        } else {
+          // Check global virtual appointment count (no specific doctor assigned)
+          whereCondition.doctorId = null;
+          whereCondition.virtualDoctorId = null;
         }
-      });
+      } else {
+        // Physical appointment
+        whereCondition.doctorId = appointment.doctorId;
+      }
+
+      const existingCount = await Appointment.count({ where: whereCondition });
 
       const maxAppointments = appointment.type === 'physical' ? 1 : 3;
       if (existingCount >= maxAppointments) {
@@ -843,11 +849,28 @@ module.exports = {
       const originalIST = DateTime.fromJSDate(appointment.originalDateTime).setZone('Asia/Kolkata');
       const newIST = newRequestedTime;
 
+      // Determine doctor information based on appointment type
+      let doctorEmail, doctorName;
+      if (appointment.type === 'virtual') {
+        if (appointment.virtualDoctor && appointment.virtualDoctor.User) {
+          doctorEmail = appointment.virtualDoctor.User.email;
+          doctorName = appointment.virtualDoctor.User.name;
+        } else {
+          // For virtual appointments without assigned doctor, use a generic name
+          doctorEmail = 'virtual-doctor@sidclinic.com'; // You might want to use a real email
+          doctorName = 'Virtual Doctor';
+        }
+      } else {
+        doctorEmail = appointment.doctor.User.email;
+        doctorName = appointment.doctor.User.name;
+      }
+
+      // Send email to doctor/virtual doctor
       await sendAppointmentEmail(
-        appointment.doctor.User.email,
+        doctorEmail,
         'reschedule_request_doctor',
         {
-          doctorName: appointment.doctor.User.name,
+          doctorName: doctorName,
           patientName: appointment.patient.name,
           originalDate: originalIST.toFormat('dd LLL yyyy'),
           originalTime: originalIST.toFormat('hh:mm a'),
@@ -858,12 +881,13 @@ module.exports = {
         }
       );
 
+      // Send email to patient
       await sendAppointmentEmail(
         appointment.patient.email,
         'reschedule_request_patient',
         {
           patientName: appointment.patient.name,
-          doctorName: appointment.doctor.User.name,
+          doctorName: doctorName,
           originalDate: originalIST.toFormat('dd LLL yyyy'),
           originalTime: originalIST.toFormat('hh:mm a'),
           newDate: newIST.toFormat('dd LLL yyyy'),

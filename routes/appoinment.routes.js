@@ -574,7 +574,7 @@ router.patch('/:id/reject', authenticate(), controller.rejectAppointment);
  * /appointments/{id}/reschedule:
  *   patch:
  *     summary: Request to reschedule an appointment (Patient only)
- *     description: Request to reschedule an appointment to a new date/time. Only the patient can request reschedule and it must be at least 24 hours before the original appointment.
+ *     description: Request to reschedule an appointment to a new date/time. Only the patient can request reschedule.
  *     tags: [Appointments]
  *     security:
  *       - bearerAuth: []
@@ -625,12 +625,6 @@ router.patch('/:id/reject', authenticate(), controller.rejectAppointment);
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *             examples:
- *               too_late:
- *                 summary: Too late to reschedule
- *                 value:
- *                   status: "error"
- *                   code: 400
- *                   message: "Appointments can only be rescheduled at least 24 hours in advance"
  *               slot_unavailable:
  *                 summary: New slot unavailable
  *                 value:
