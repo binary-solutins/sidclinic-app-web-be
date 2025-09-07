@@ -186,7 +186,7 @@ const upload = multer({
 // Public routes (no authentication required)
 /**
  * @swagger
- * /api/banners:
+ * /banners:
  *   get:
  *     summary: Get all active banners
  *     description: Retrieve all active banners. Returns different data based on isDoctorApp flag - full data for doctor app (isDoctorApp=1) or only images for patient app (isDoctorApp=0).
@@ -229,7 +229,7 @@ router.get('/', bannerController.getAllBanners);
 
 /**
  * @swagger
- * /api/banners/{id}:
+ * /banners/{id}:
  *   get:
  *     summary: Get banner by ID
  *     description: Retrieve a specific banner by ID. Returns different data based on isDoctorApp flag.
@@ -271,7 +271,7 @@ router.get('/', bannerController.getAllBanners);
 // Admin routes (authentication required)
 /**
  * @swagger
- * /api/banners/admin:
+ * /banners/admin:
  *   post:
  *     summary: Create a new banner (Admin only)
  *     description: Create a new banner with title, subtitle, image, and app type flag.
@@ -343,7 +343,7 @@ router.post('/admin',
 
 /**
  * @swagger
- * /api/banners/admin:
+ * /banners/admin:
  *   get:
  *     summary: Get all banners for admin (Admin only)
  *     description: Retrieve all banners with admin controls including inactive banners and pagination.
@@ -425,7 +425,7 @@ router.get('/admin',
 
 /**
  * @swagger
- * /api/banners/admin/{id}:
+ * /banners/admin/{id}:
  *   put:
  *     summary: Update banner (Admin only)
  *     description: Update an existing banner with new information.
@@ -507,7 +507,7 @@ router.put('/admin/:id',
 
 /**
  * @swagger
- * /api/banners/admin/{id}:
+ * /banners/admin/{id}:
  *   delete:
  *     summary: Delete banner (Admin only)
  *     description: Delete a banner permanently.
@@ -557,7 +557,7 @@ router.delete('/admin/:id',
 
 /**
  * @swagger
- * /api/banners/{id}:
+ * /banners/{id}:
  *   get:
  *     summary: Get banner by ID
  *     description: Retrieve a specific banner by ID. Returns different data based on isDoctorApp flag.
