@@ -136,7 +136,9 @@ exports.sendOtp = async (req, res) => {
     global.otpCache = global.otpCache || {};
     global.otpCache[phone] = {
       otp: otp,
-      expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutes from now
+      expiresAt: Date.now() + (5 * 60 * 1000), // 5 minutes from now
+      verified: false, // Mark as not verified initially
+      type: 'registration' // Mark this as registration OTP
     };
 
     // Clean up expired OTPs
@@ -149,7 +151,7 @@ exports.sendOtp = async (req, res) => {
     res.status(200).json({
       status: 'success',
       code: 200,
-      message: 'OTP sent successfully',
+      message: 'OTP sent successfully for registration',
       data: {
         expiresIn: '5 minutes'
       }
@@ -240,6 +242,16 @@ exports.register = async (req, res) => {
 
     const { phone, name, password, gender, role = 'user' } = req.body;
 
+    // Validate phone number format
+    if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Please provide a valid 10-digit Indian mobile number (without country code)',
+        data: null
+      });
+    }
+
     const existingUser = await User.findOne({ where: { phone } });
     if (existingUser) {
       return res.status(400).json({
@@ -250,58 +262,32 @@ exports.register = async (req, res) => {
       });
     }
 
-    const user = await User.create({ name, phone, password, gender, role });
-    
-    // Note: Admin notification email will be sent when doctor completes profile setup
-    
-    // If user role is 'user', automatically create a patient record
-    if (role === 'user') {
-      try {
-        const Patient = require('../models/patient.model');
-        await Patient.create({
-          userId: user.id,
-          email: `${phone}@temp.com`, // Temporary email using phone
-          dateOfBirth: null, // Will be updated later
-          languagePreference: 'English',
-          isActive: true
-        });
-        console.log(`Patient record created for user ${user.id}`);
-      } catch (patientError) {
-        console.error('Error creating patient record:', patientError);
-        // Don't fail the registration if patient creation fails
-      }
+    // Check if OTP was sent and verified for this phone number
+    if (!global.otpCache || !global.otpCache[phone] || !global.otpCache[phone].verified) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Please verify your OTP first before registration',
+        data: null
+      });
     }
-    
-    // If user role is 'admin', automatically create admin settings
-    if (role === 'admin') {
-      try {
-        const AdminSetting = require('../models/adminSetting.model');
-        await AdminSetting.create({
-          userId: user.id,
-          virtualAppointmentStartTime: '09:00:00',
-          virtualAppointmentEndTime: '18:00:00',
-          alertEmails: null,
-          isActive: true
-        });
-        console.log(`Admin settings created for user ${user.id}`);
-      } catch (adminSettingError) {
-        console.error('Error creating admin settings:', adminSettingError);
-        // Don't fail the registration if admin settings creation fails
-      }
-    }
-    
-    const token = generateToken(user);
 
-    res.status(201).json({
+    // Store registration data temporarily in OTP cache for final verification
+    global.otpCache[phone].registrationData = {
+      name,
+      password,
+      gender,
+      role,
+      timestamp: Date.now()
+    };
+
+    res.status(200).json({
       status: 'success',
-      code: 201,
-      message: 'User registered successfully',
+      code: 200,
+      message: 'Registration data stored. Please verify OTP to complete registration.',
       data: {
-        id: user.id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        token
+        phone: phone,
+        message: 'Proceed to OTP verification to complete registration'
       }
     });
   } catch (error) {
@@ -832,7 +818,9 @@ const sendLoginOtp = async (req, res) => {
     global.otpCache = global.otpCache || {};
     global.otpCache[formattedPhone] = {
       otp: otp,
-      expiresAt: expirationTime
+      expiresAt: expirationTime,
+      verified: false, // Mark as not verified initially
+      type: 'login' // Mark this as login OTP
     };
 
     // Clean up expired OTPs after 10 minutes
@@ -898,20 +886,6 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Check if user exists - use the formatted phone number without +91 prefix
-    const user = await User.findOne({
-      where: {
-        phone: formattedPhone
-      }
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
     // Verify OTP using in-memory cache
     if (!global.otpCache || !global.otpCache[formattedPhone]) {
       return res.status(400).json({
@@ -939,59 +913,172 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // OTP verified - delete from cache to prevent reuse
-    delete global.otpCache[formattedPhone];
+    // Check if this is a new user registration (has registration data)
+    if (storedOtpData.registrationData) {
+      // This is a new user registration - create the user now
+      const { name, password, gender, role } = storedOtpData.registrationData;
+      
+      try {
+        // Create the user
+        const user = await User.create({ name, phone: formattedPhone, password, gender, role });
+        
+        // If user role is 'user', automatically create a patient record
+        if (role === 'user') {
+          try {
+            const Patient = require('../models/patient.model');
+            await Patient.create({
+              userId: user.id,
+              email: `${formattedPhone}@temp.com`, // Temporary email using phone
+              dateOfBirth: null, // Will be updated later
+              languagePreference: 'English',
+              isActive: true
+            });
+            console.log(`Patient record created for user ${user.id}`);
+          } catch (patientError) {
+            console.error('Error creating patient record:', patientError);
+            // Don't fail the registration if patient creation fails
+          }
+        }
+        
+        // If user role is 'admin', automatically create admin settings
+        if (role === 'admin') {
+          try {
+            const AdminSetting = require('../models/adminSetting.model');
+            await AdminSetting.create({
+              userId: user.id,
+              virtualAppointmentStartTime: '09:00:00',
+              virtualAppointmentEndTime: '18:00:00',
+              alertEmails: null,
+              isActive: true
+            });
+            console.log(`Admin settings created for user ${user.id}`);
+          } catch (adminSettingError) {
+            console.error('Error creating admin settings:', adminSettingError);
+            // Don't fail the registration if admin settings creation fails
+          }
+        }
 
-    // Check if user is a doctor and if they are approved
-    if (user.role === 'doctor') {
-      const doctor = await Doctor.findOne({ where: { userId: user.id } });
-      if (doctor && !doctor.isApproved) {
-        return res.status(403).json({
+        // Generate token
+        const token = generateToken(user);
+
+        // Get patient/doctor ID if applicable
+        let doctorId = null;
+        let patientId = null;
+        if (role === 'doctor') {
+          const doctor = await Doctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
+          if (doctor) {
+            doctorId = doctor.id;
+          }
+        } else if (role === 'user') {
+          const Patient = require('../models/patient.model');
+          const patient = await Patient.findOne({ where: { userId: user.id }, attributes: ['id'] });
+          if (patient) {
+            patientId = patient.id;
+          }
+        }
+
+        // Build response data
+        const responseData = {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          role: user.role,
+          token
+        };
+        if (doctorId) {
+          responseData.doctorId = doctorId;
+        }
+        if (patientId) {
+          responseData.patientId = patientId;
+        }
+
+        // Clean up OTP cache
+        delete global.otpCache[formattedPhone];
+
+        return res.status(200).json({
+          success: true,
+          message: 'Registration completed successfully',
+          data: responseData
+        });
+
+      } catch (userCreationError) {
+        console.error('User creation error:', userCreationError);
+        // Clean up OTP cache on error
+        delete global.otpCache[formattedPhone];
+        return res.status(500).json({
           success: false,
-          message: 'User currently in verification, not approved'
+          message: 'Failed to create user account'
         });
       }
-    }
+    } else {
+      // This is an existing user login
+      const user = await User.findOne({
+        where: {
+          phone: formattedPhone
+        }
+      });
 
-    // Generate token
-    const token = generateToken(user);
-
-    // If user is a doctor, fetch doctor id
-    let doctorId = null;
-    let patientId = null;
-    if (user.role === 'doctor') {
-      const doctor = await Doctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
-      if (doctor) {
-        doctorId = doctor.id;
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
       }
-    } else if (user.role === 'user') {
-      const Patient = require('../models/patient.model');
-      const patient = await Patient.findOne({ where: { userId: user.id }, attributes: ['id'] });
-      if (patient) {
-        patientId = patient.id;
+
+      // Check if user is a doctor and if they are approved
+      if (user.role === 'doctor') {
+        const doctor = await Doctor.findOne({ where: { userId: user.id } });
+        if (doctor && !doctor.isApproved) {
+          return res.status(403).json({
+            success: false,
+            message: 'User currently in verification, not approved'
+          });
+        }
       }
-    }
 
-    // Build response data
-    const responseData = {
-      id: user.id,
-      name: user.name,
-      phone: user.phone,
-      role: user.role,
-      token
-    };
-    if (doctorId) {
-      responseData.doctorId = doctorId;
-    }
-    if (patientId) {
-      responseData.patientId = patientId;
-    }
+      // Generate token
+      const token = generateToken(user);
 
-    return res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      data: responseData
-    });
+      // If user is a doctor, fetch doctor id
+      let doctorId = null;
+      let patientId = null;
+      if (user.role === 'doctor') {
+        const doctor = await Doctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
+        if (doctor) {
+          doctorId = doctor.id;
+        }
+      } else if (user.role === 'user') {
+        const Patient = require('../models/patient.model');
+        const patient = await Patient.findOne({ where: { userId: user.id }, attributes: ['id'] });
+        if (patient) {
+          patientId = patient.id;
+        }
+      }
+
+      // Build response data
+      const responseData = {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        token
+      };
+      if (doctorId) {
+        responseData.doctorId = doctorId;
+      }
+      if (patientId) {
+        responseData.patientId = patientId;
+      }
+
+      // Clean up OTP cache
+      delete global.otpCache[formattedPhone];
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        data: responseData
+      });
+    }
 
   } catch (error) {
     console.error('Login with OTP error:', error);
