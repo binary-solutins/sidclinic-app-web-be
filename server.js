@@ -31,46 +31,81 @@ const personalPatientRoutes = require('./routes/personalPatient.routes');
 const virtualDoctorRoutes = require('./routes/virtualDoctor.routes');
 const reportRoutes = require('./routes/report.routes');
 
-app.use(cors());
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "script-src": [
-          "'self'",
-          "'unsafe-inline'",
-          "https://cdnjs.cloudflare.com",
-        ],
-        "media-src": ["'self'", "blob:"],
-        "connect-src": ["'self'", "wss:", "ws:"],
-      },
+// Import new production-ready features
+const healthRoutes = require('./routes/health.routes');
+const logger = require('./utils/logger');
+const GracefulShutdown = require('./utils/gracefulShutdown');
+const ProcessMonitor = require('./utils/processMonitor');
+
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      "script-src": [
+        "'self'",
+        "'unsafe-inline'",
+        "https://cdnjs.cloudflare.com",
+      ],
+      "media-src": ["'self'", "blob:"],
+      "connect-src": ["'self'", "wss:", "ws:"],
     },
-  })
-);
-app.use(express.json());
+  },
+}));
+
+// CORS configuration
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.ALLOWED_ORIGINS?.split(',') || ['https://yourdomain.com']
+    : true,
+  credentials: true
+}));
+
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static files
 app.use(express.static(path.join(__dirname, "public")));
+
+// Logging middleware
+app.use(logger.requestLogger);
+
+// Rate limiting
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
   message: "Too many authentication attempts, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false,
 });
+
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // limit each IP to 1000 requests per windowMs
+  message: "Too many requests from this IP, please try again later",
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use("/api/auth/", authLimiter);
+app.use("/api/", generalLimiter);
 
 
+// Database connection
 sequelize
   .authenticate()
-  .then(() => console.log("Database connected"))
-  .catch((err) => console.error("Unable to connect to the database:", err));
+  .then(() => logger.info("Database connected successfully"))
+  .catch((err) => logger.error("Unable to connect to the database:", err));
 
 // Database sync (temporary for schema update)
 
 sequelize.sync({ alter: false })
   .then(() => {
-    console.log('Database synchronized with alter mode');
+    logger.info('Database synchronized successfully');
   })
   .catch(err => {
-    console.error('Database sync error:', err);
+    logger.error('Database sync error:', err);
   });
 
 io.on("connection", (socket) => {
@@ -94,9 +129,17 @@ io.on("connection", (socket) => {
   });
 });
 
+// Health check routes
+app.use("/", healthRoutes);
+
 // Root route to indicate server status
 app.get("/", (req, res) => {
-  res.status(200).json({ success: true, message: "Server is running" });
+  res.status(200).json({ 
+    success: true, 
+    message: "SID Clinic Backend API is running",
+    version: "1.0.0",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // API Documentation
@@ -142,30 +185,48 @@ app.use(
   })
 );
 
+// Error handling middleware
+app.use(logger.errorLogger);
+
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
+    path: req.path,
+    method: req.method
   });
 });
 
+// Trust proxy for accurate IP addresses
 app.set('trust proxy', 1);
 
+// Initialize process monitoring
+const processMonitor = new ProcessMonitor();
 
+// Initialize graceful shutdown
+const gracefulShutdown = new GracefulShutdown(server);
+
+// Start server
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
+
 server.listen(PORT, HOST, () => {
-  console.log(`Server running on ${HOST}:${PORT}`);
+  logger.info(`🚀 SID Clinic Backend API running on ${HOST}:${PORT}`);
+  logger.info(`📚 API Documentation available at http://${HOST}:${PORT}/api-docs`);
+  logger.info(`🏥 Health check available at http://${HOST}:${PORT}/health`);
+  logger.info(`🔍 Detailed health check at http://${HOST}:${PORT}/health/detailed`);
 });
 
-
-process.on("SIGTERM", () => {
-  console.log("SIGTERM signal received: closing HTTP server");
-  server.close(() => {
-    console.log("HTTP server closed");
-    sequelize.close();
-    process.exit(0);
-  });
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
 });
 
-module.exports = { app };
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+module.exports = { app, server };
