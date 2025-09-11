@@ -13,9 +13,9 @@ class ProcessMonitor {
     };
     
     this.thresholds = {
-      memoryUsage: 0.8, // 80% memory usage
-      cpuUsage: 0.8,    // 80% CPU usage
-      diskUsage: 0.9,   // 90% disk usage
+      memoryUsage: 0.95, // 95% memory usage (more realistic for Node.js)
+      cpuUsage: 0.9,     // 90% CPU usage
+      diskUsage: 0.9,    // 90% disk usage
       responseTime: 5000 // 5 seconds response time
     };
     
@@ -23,15 +23,15 @@ class ProcessMonitor {
   }
 
   startMonitoring() {
-    // Monitor every 30 seconds
+    // Monitor every 5 minutes (reduced from 30 seconds)
     this.monitorInterval = setInterval(() => {
       this.collectMetrics();
-    }, 30000);
+    }, 300000);
 
-    // Health check every 5 minutes
+    // Health check every 10 minutes (reduced from 5 minutes)
     this.healthCheckInterval = setInterval(() => {
       this.performHealthCheck();
-    }, 300000);
+    }, 600000);
 
     logger.info('Process monitoring started');
   }
@@ -45,8 +45,10 @@ class ProcessMonitor {
         application: this.getApplicationMetrics()
       };
 
-      // Log metrics
-      logger.info('System Metrics:', metrics);
+      // Log metrics only if there are issues (reduce logging)
+      if (this.hasIssues(metrics)) {
+        logger.warn('System Metrics with issues:', metrics);
+      }
 
       // Check for threshold breaches
       this.checkThresholds(metrics);
@@ -125,6 +127,15 @@ class ProcessMonitor {
       return lag;
     });
     return 0; // Placeholder - would need more complex implementation
+  }
+
+  hasIssues(metrics) {
+    // Check if there are any issues that warrant logging
+    return (
+      metrics.process.memory.usage > this.thresholds.memoryUsage * 100 ||
+      metrics.system.memory.usage > this.thresholds.memoryUsage * 100 ||
+      metrics.application.errorRate > 5
+    );
   }
 
   checkThresholds(metrics) {
