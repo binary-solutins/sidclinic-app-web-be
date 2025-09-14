@@ -21,7 +21,8 @@
  *       properties:
  *         phone:
  *           type: string
- *           example: "+1234567890"
+ *           description: 10-digit Indian mobile number (without country code)
+ *           example: "9876543210"
  *     RegisterRequest:
  *       type: object
  *       required:
@@ -32,7 +33,8 @@
  *       properties:
  *         phone:
  *           type: string
- *           example: "+1234567890"
+ *           description: 10-digit Indian mobile number (without country code)
+ *           example: "9876543210"
  *         name:
  *           type: string
  *           example: "John Doe"
@@ -53,7 +55,8 @@
  *       properties:
  *         phone:
  *           type: string
- *           example: "+1234567890"
+ *           description: 10-digit Indian mobile number (without country code)
+ *           example: "9876543210"
  *     CheckUserExistsResponse:
  *       type: object
  *       properties:
@@ -70,7 +73,8 @@
  *       properties:
  *         phone:
  *           type: string
- *           example: "+1234567890"
+ *           description: 10-digit Indian mobile number (without country code)
+ *           example: "9876543210"
  *     ResetPasswordRequest:
  *       type: object
  *       required:
@@ -80,7 +84,8 @@
  *       properties:
  *         phone:
  *           type: string
- *           example: "+1234567890"
+ *           description: 10-digit Indian mobile number (without country code)
+ *           example: "9876543210"
  *         otp:
  *           type: string
  *           example: "123456"
@@ -95,23 +100,66 @@
  *       properties:
  *         phone:
  *           type: string
- *           example: "+1234567890"
+ *           description: 10-digit Indian mobile number (without country code)
+ *           example: "9876543210"
  *         otp:
  *           type: string
+ *           description: 6-digit OTP received via SMS
  *           example: "123456"
+ *         name:
+ *           type: string
+ *           description: Required only for new user registration
+ *           example: "John Doe"
+ *         password:
+ *           type: string
+ *           description: Required only for new user registration
+ *           example: "securePassword123"
+ *         gender:
+ *           type: string
+ *           enum: [Male, Female, Other]
+ *           description: Required only for new user registration
+ *           example: "Male"
+ *         role:
+ *           type: string
+ *           enum: [user, doctor, admin]
+ *           default: user
+ *           description: Required only for new user registration
  *     UserResponse:
  *       type: object
  *       properties:
- *         id:
- *           type: integer
- *         name:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
  *           type: string
- *         phone:
- *           type: string
- *         role:
- *           type: string
- *         token:
- *           type: string
+ *           example: "Login successful" or "Registration completed successfully"
+ *         data:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: integer
+ *               example: 1
+ *             name:
+ *               type: string
+ *               example: "John Doe"
+ *             phone:
+ *               type: string
+ *               example: "9876543210"
+ *             role:
+ *               type: string
+ *               example: "user"
+ *             token:
+ *               type: string
+ *               description: JWT token for authentication
+ *               example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *             doctorId:
+ *               type: integer
+ *               description: Present if user role is doctor
+ *               example: 1
+ *             patientId:
+ *               type: integer
+ *               description: Present if user role is user
+ *               example: 1
  *   responses:
  *     Unauthorized:
  *       description: Invalid or missing authentication token
@@ -136,7 +184,11 @@ const { authenticate } = require('../middleware/auth');
  * @swagger
  * /auth/send-otp:
  *   post:
- *     summary: Send OTP to a phone number for registration
+ *     summary: Send OTP to a phone number (works for both login and registration)
+ *     description: |
+ *       Sends OTP to the provided phone number. The system automatically detects if the user exists:
+ *       - If user exists: OTP is sent for login
+ *       - If user doesn't exist: OTP is sent for registration
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -147,8 +199,32 @@ const { authenticate } = require('../middleware/auth');
  *     responses:
  *       200:
  *         description: OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "OTP sent successfully for login"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     expiresIn:
+ *                       type: string
+ *                       example: "5 minutes"
+ *                     isExistingUser:
+ *                       type: boolean
+ *                       description: "true if user exists (login), false if new user (registration)"
+ *                       example: true
  *       400:
- *         description: User already exists or invalid request
+ *         description: Invalid phone number format
  *         content:
  *           application/json:
  *             schema:
@@ -196,7 +272,18 @@ router.post('/send-login-otp', authController.sendLoginOtp);
  * @swagger
  * /auth/login-with-otp:
  *   post:
- *     summary: Login with OTP verification
+ *     summary: Login or Register with OTP verification (Unified API)
+ *     description: |
+ *       This API handles both login and registration based on whether the user exists:
+ *       
+ *       **For Existing Users (Login):**
+ *       - Only phone and otp are required
+ *       - Returns user data and JWT token
+ *       
+ *       **For New Users (Registration):**
+ *       - phone, otp, name, password, and gender are required
+ *       - Creates new user account and returns user data with JWT token
+ *       - Automatically creates patient record for 'user' role
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -206,19 +293,19 @@ router.post('/send-login-otp', authController.sendLoginOtp);
  *             $ref: '#/components/schemas/LoginWithOtpRequest'
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: Login successful (existing user)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserResponse'
+ *       201:
+ *         description: Registration completed successfully (new user)
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/UserResponse'
  *       400:
- *         description: Invalid OTP or validation error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       404:
- *         description: User not found
+ *         description: Invalid OTP, validation error, or missing registration data for new users
  *         content:
  *           application/json:
  *             schema:
@@ -364,7 +451,7 @@ router.post('/reset-password', authController.resetPassword);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/register', authController.register);
+// Register route removed - now handled by login-with-otp
 
 /**
  * @swagger
@@ -440,5 +527,66 @@ router.post('/login', authController.login);
  *         $ref: '#/components/responses/Error'
  */
 router.get('/profile', authenticate(), authController.getProfile);
+
+/**
+ * @swagger
+ * components:
+ *   examples:
+ *     SendOtpExample:
+ *       summary: Send OTP for existing user
+ *       value:
+ *         phone: "9876543210"
+ *     SendOtpNewUserExample:
+ *       summary: Send OTP for new user
+ *       value:
+ *         phone: "9876543211"
+ *     LoginWithOtpExistingUserExample:
+ *       summary: Login with OTP (existing user)
+ *       value:
+ *         phone: "9876543210"
+ *         otp: "123456"
+ *     LoginWithOtpNewUserExample:
+ *       summary: Register with OTP (new user)
+ *       value:
+ *         phone: "9876543211"
+ *         otp: "123456"
+ *         name: "John Doe"
+ *         password: "securePassword123"
+ *         gender: "Male"
+ *         role: "user"
+ *     SendOtpResponseExample:
+ *       summary: Send OTP response
+ *       value:
+ *         status: "success"
+ *         code: 200
+ *         message: "OTP sent successfully for login"
+ *         data:
+ *           expiresIn: "5 minutes"
+ *           isExistingUser: true
+ *     LoginResponseExample:
+ *       summary: Login response
+ *       value:
+ *         success: true
+ *         message: "Login successful"
+ *         data:
+ *           id: 1
+ *           name: "John Doe"
+ *           phone: "9876543210"
+ *           role: "user"
+ *           token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *           patientId: 1
+ *     RegisterResponseExample:
+ *       summary: Registration response
+ *       value:
+ *         success: true
+ *         message: "Registration completed successfully"
+ *         data:
+ *           id: 2
+ *           name: "Jane Doe"
+ *           phone: "9876543211"
+ *           role: "user"
+ *           token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *           patientId: 2
+ */
 
 module.exports = router;

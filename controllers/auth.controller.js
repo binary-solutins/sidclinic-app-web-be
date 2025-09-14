@@ -102,8 +102,11 @@ exports.sendOtp = async (req, res) => {
   try {
     const { phone } = req.body;
 
+    // Format phone number consistently - remove any +91 prefix and non-digits
+    const formattedPhone = phone ? phone.replace(/^\+?91/, '').replace(/\D/g, '') : '';
+
     // Validate phone number format (must be exactly 10 digits, no country code)
-    if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+    if (!formattedPhone || !/^[6-9]\d{9}$/.test(formattedPhone)) {
       return res.status(400).json({
         status: 'error',
         code: 400,
@@ -112,15 +115,9 @@ exports.sendOtp = async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ where: { phone } });
-    if (existingUser) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'User already exists',
-        data: null
-      });
-    }
+    // Check if user exists to determine the type of OTP
+    const existingUser = await User.findOne({ where: { phone: formattedPhone } });
+    const isExistingUser = !!existingUser;
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000);
@@ -130,30 +127,31 @@ exports.sendOtp = async (req, res) => {
 
     // Send OTP via SMSGatewayHub - pass OTP for variable replacement
     // Ensure the OTP is passed as a string for replacement
-    await sendSMSViaGatewayHub(phone, message, String(otp));
+    await sendSMSViaGatewayHub(formattedPhone, message, String(otp));
 
     // Store OTP temporarily with expiration (5 minutes)
     global.otpCache = global.otpCache || {};
-    global.otpCache[phone] = {
+    global.otpCache[formattedPhone] = {
       otp: otp,
       expiresAt: Date.now() + (5 * 60 * 1000), // 5 minutes from now
       verified: false, // Mark as not verified initially
-      type: 'registration' // Mark this as registration OTP
+      type: isExistingUser ? 'login' : 'registration' // Mark type based on user existence
     };
 
     // Clean up expired OTPs
     setTimeout(() => {
-      if (global.otpCache && global.otpCache[phone]) {
-        delete global.otpCache[phone];
+      if (global.otpCache && global.otpCache[formattedPhone]) {
+        delete global.otpCache[formattedPhone];
       }
     }, 5 * 60 * 1000);
 
     res.status(200).json({
       status: 'success',
       code: 200,
-      message: 'OTP sent successfully for registration',
+      message: isExistingUser ? 'OTP sent successfully for login' : 'OTP sent successfully for registration',
       data: {
-        expiresIn: '5 minutes'
+        expiresIn: '5 minutes',
+        isExistingUser: isExistingUser
       }
     });
   } catch (error) {
@@ -180,8 +178,11 @@ exports.verifyOtp = async (req, res) => {
       });
     }
 
+    // Format phone number consistently - remove any +91 prefix and non-digits
+    const formattedPhone = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+
     // Check if OTP exists and is valid
-    if (!global.otpCache || !global.otpCache[phone]) {
+    if (!global.otpCache || !global.otpCache[formattedPhone]) {
       return res.status(401).json({
         status: 'error',
         code: 401,
@@ -190,11 +191,11 @@ exports.verifyOtp = async (req, res) => {
       });
     }
 
-    const storedOtpData = global.otpCache[phone];
+    const storedOtpData = global.otpCache[formattedPhone];
 
     // Check if OTP is expired
     if (Date.now() > storedOtpData.expiresAt) {
-      delete global.otpCache[phone];
+      delete global.otpCache[formattedPhone];
       return res.status(401).json({
         status: 'error',
         code: 401,
@@ -214,7 +215,7 @@ exports.verifyOtp = async (req, res) => {
     }
 
     // OTP is valid - mark as verified but don't delete yet (for registration)
-    global.otpCache[phone].verified = true;
+    global.otpCache[formattedPhone].verified = true;
 
     res.status(200).json({
       status: 'success',
@@ -235,78 +236,16 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
-exports.register = async (req, res) => {
-  try {
-    // Log the request body for debugging
-    console.log('Register request body:', req.body);
-
-    const { phone, name, password, gender, role = 'user' } = req.body;
-
-    // Validate phone number format
-    if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'Please provide a valid 10-digit Indian mobile number (without country code)',
-        data: null
-      });
-    }
-
-    const existingUser = await User.findOne({ where: { phone } });
-    if (existingUser) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'User already exists',
-        data: null
-      });
-    }
-
-    // Check if OTP was sent and verified for this phone number
-    if (!global.otpCache || !global.otpCache[phone] || !global.otpCache[phone].verified) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'Please verify your OTP first before registration',
-        data: null
-      });
-    }
-
-    // Store registration data temporarily in OTP cache for final verification
-    global.otpCache[phone].registrationData = {
-      name,
-      password,
-      gender,
-      role,
-      timestamp: Date.now()
-    };
-
-    res.status(200).json({
-      status: 'success',
-      code: 200,
-      message: 'Registration data stored. Please verify OTP to complete registration.',
-      data: {
-        phone: phone,
-        message: 'Proceed to OTP verification to complete registration'
-      }
-    });
-  } catch (error) {
-    console.error('Registration Error:', error);
-    res.status(500).json({
-      status: 'error',
-      code: 500,
-      message: error.message || 'Registration failed',
-      data: null
-    });
-  }
-};
 
 exports.resendOtp = async (req, res) => {
   try {
     const { phone } = req.body;
 
+    // Format phone number consistently - remove any +91 prefix and non-digits
+    const formattedPhone = phone ? phone.replace(/^\+?91/, '').replace(/\D/g, '') : '';
+
     // Validate phone number format (must be exactly 10 digits, no country code)
-    if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+    if (!formattedPhone || !/^[6-9]\d{9}$/.test(formattedPhone)) {
       return res.status(400).json({
         status: 'error',
         code: 400,
@@ -322,19 +261,21 @@ exports.resendOtp = async (req, res) => {
     const message = SMS_TEMPLATE.OTP_MESSAGE(otp);
 
     // Send OTP via SMSGatewayHub
-    await sendSMSViaGatewayHub(phone, message, String(otp));
+    await sendSMSViaGatewayHub(formattedPhone, message, String(otp));
 
     // Update OTP cache
     global.otpCache = global.otpCache || {};
-    global.otpCache[phone] = {
+    global.otpCache[formattedPhone] = {
       otp: otp,
-      expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutes from now
+      expiresAt: Date.now() + (5 * 60 * 1000), // 5 minutes from now
+      verified: false, // Mark as not verified initially
+      type: 'registration' // Mark this as registration OTP
     };
 
     // Clean up expired OTPs
     setTimeout(() => {
-      if (global.otpCache && global.otpCache[phone]) {
-        delete global.otpCache[phone];
+      if (global.otpCache && global.otpCache[formattedPhone]) {
+        delete global.otpCache[formattedPhone];
       }
     }, 5 * 60 * 1000);
 
@@ -361,15 +302,18 @@ exports.login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
+    // Format phone number consistently - remove any +91 prefix and non-digits
+    const formattedPhone = phone ? phone.replace(/^\+?91/, '').replace(/\D/g, '') : '';
+
     // Debug log: incoming login request
-    console.debug(`[LOGIN] Attempting login for phone: ${phone}, password entered: "${password}"`);
+    console.debug(`[LOGIN] Attempting login for phone: ${formattedPhone}, password entered: "${password}"`);
 
     // Find user by phone
-    const user = await User.findOne({ where: { phone } });
+    const user = await User.findOne({ where: { phone: formattedPhone } });
 
     // Debug log: user lookup result
     if (!user) {
-      console.debug(`[LOGIN] No user found for phone: ${phone}. Entered password: "${password}"`);
+      console.debug(`[LOGIN] No user found for phone: ${formattedPhone}. Entered password: "${password}"`);
       return res.status(401).json({
         status: 'error',
         code: 401,
@@ -377,14 +321,14 @@ exports.login = async (req, res) => {
         data: null
       });
     } else {
-      console.debug(`[LOGIN] User found for phone: ${phone}, userId: ${user.id}`);
+      console.debug(`[LOGIN] User found for phone: ${formattedPhone}, userId: ${user.id}`);
       // For debugging only: log the real password hash and entered password
       // WARNING: Never log real passwords in production!
       console.debug(`[LOGIN] User's password hash: ${user.password}`);
       // If you want to log the result of password comparison:
       const isPasswordMatch = await user.comparePassword(password);
       if (!isPasswordMatch) {
-        console.debug(`[LOGIN] Password mismatch for phone: ${phone}. Entered: "${password}", Expected hash: "${user.password}"`);
+        console.debug(`[LOGIN] Password mismatch for phone: ${formattedPhone}. Entered: "${password}", Expected hash: "${user.password}"`);
         return res.status(401).json({
           status: 'error',
           code: 401,
@@ -866,7 +810,7 @@ const sendLoginOtp = async (req, res) => {
  */
 const loginWithOtp = async (req, res) => {
   try {
-    const { phone, otp } = req.body;
+    const { phone, otp, name, password, gender, role = 'user' } = req.body;
 
     // Validate input
     if (!phone || !otp) {
@@ -913,14 +857,82 @@ const loginWithOtp = async (req, res) => {
       });
     }
 
-    // Check if this is a new user registration (has registration data)
-    if (storedOtpData.registrationData) {
-      // This is a new user registration - create the user now
-      const { name, password, gender, role } = storedOtpData.registrationData;
-      
+    // Check if user already exists
+    let user = await User.findOne({
+      where: {
+        phone: formattedPhone
+      }
+    });
+
+    if (user) {
+      // EXISTING USER - LOGIN
+      // Check if user is a doctor and if they are approved
+      if (user.role === 'doctor') {
+        const doctor = await Doctor.findOne({ where: { userId: user.id } });
+        if (doctor && !doctor.isApproved) {
+          return res.status(403).json({
+            success: false,
+            message: 'User currently in verification, not approved'
+          });
+        }
+      }
+
+      // Generate token
+      const token = generateToken(user);
+
+      // Get patient/doctor ID if applicable
+      let doctorId = null;
+      let patientId = null;
+      if (user.role === 'doctor') {
+        const doctor = await Doctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
+        if (doctor) {
+          doctorId = doctor.id;
+        }
+      } else if (user.role === 'user') {
+        const Patient = require('../models/patient.model');
+        const patient = await Patient.findOne({ where: { userId: user.id }, attributes: ['id'] });
+        if (patient) {
+          patientId = patient.id;
+        }
+      }
+
+      // Build response data
+      const responseData = {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        token
+      };
+      if (doctorId) {
+        responseData.doctorId = doctorId;
+      }
+      if (patientId) {
+        responseData.patientId = patientId;
+      }
+
+      // Clean up OTP cache
+      delete global.otpCache[formattedPhone];
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        data: responseData
+      });
+
+    } else {
+      // NEW USER - REGISTRATION
+      // Check if registration data is provided
+      if (!name || !password || !gender) {
+        return res.status(400).json({
+          success: false,
+          message: 'Registration data required: name, password, and gender are needed for new user registration'
+        });
+      }
+
       try {
         // Create the user
-        const user = await User.create({ name, phone: formattedPhone, password, gender, role });
+        user = await User.create({ name, phone: formattedPhone, password, gender, role });
         
         // If user role is 'user', automatically create a patient record
         if (role === 'user') {
@@ -995,7 +1007,7 @@ const loginWithOtp = async (req, res) => {
         // Clean up OTP cache
         delete global.otpCache[formattedPhone];
 
-        return res.status(200).json({
+        return res.status(201).json({
           success: true,
           message: 'Registration completed successfully',
           data: responseData
@@ -1010,78 +1022,10 @@ const loginWithOtp = async (req, res) => {
           message: 'Failed to create user account'
         });
       }
-    } else {
-      // This is an existing user login
-      const user = await User.findOne({
-        where: {
-          phone: formattedPhone
-        }
-      });
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      // Check if user is a doctor and if they are approved
-      if (user.role === 'doctor') {
-        const doctor = await Doctor.findOne({ where: { userId: user.id } });
-        if (doctor && !doctor.isApproved) {
-          return res.status(403).json({
-            success: false,
-            message: 'User currently in verification, not approved'
-          });
-        }
-      }
-
-      // Generate token
-      const token = generateToken(user);
-
-      // If user is a doctor, fetch doctor id
-      let doctorId = null;
-      let patientId = null;
-      if (user.role === 'doctor') {
-        const doctor = await Doctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
-        if (doctor) {
-          doctorId = doctor.id;
-        }
-      } else if (user.role === 'user') {
-        const Patient = require('../models/patient.model');
-        const patient = await Patient.findOne({ where: { userId: user.id }, attributes: ['id'] });
-        if (patient) {
-          patientId = patient.id;
-        }
-      }
-
-      // Build response data
-      const responseData = {
-        id: user.id,
-        name: user.name,
-        phone: user.phone,
-        role: user.role,
-        token
-      };
-      if (doctorId) {
-        responseData.doctorId = doctorId;
-      }
-      if (patientId) {
-        responseData.patientId = patientId;
-      }
-
-      // Clean up OTP cache
-      delete global.otpCache[formattedPhone];
-
-      return res.status(200).json({
-        success: true,
-        message: 'Login successful',
-        data: responseData
-      });
     }
 
   } catch (error) {
-    console.error('Login with OTP error:', error);
+    console.error('Login/Register with OTP error:', error);
     return res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -1092,7 +1036,6 @@ const loginWithOtp = async (req, res) => {
 module.exports = {
   sendOtp: exports.sendOtp,
   verifyOtp: exports.verifyOtp,
-  register: exports.register,
   resendOtp: exports.resendOtp,
   login: exports.login,
   getProfile: exports.getProfile,
