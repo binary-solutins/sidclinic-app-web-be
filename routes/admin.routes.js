@@ -237,6 +237,11 @@ const upload = multer({
  *           enum: [ASC, DESC]
  *           default: DESC
  *         description: Sort order
+ *       - in: query
+ *         name: isActive
+ *         schema:
+ *           type: boolean
+ *         description: Filter by patient active status (true for active, false for suspended)
  *     responses:
  *       200:
  *         description: Successful operation
@@ -278,6 +283,22 @@ const upload = multer({
  *                       notificationEnabled:
  *                         type: boolean
  *                         example: true
+ *                       patient:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                             example: 1
+ *                           isActive:
+ *                             type: boolean
+ *                             example: true
+ *                           email:
+ *                             type: string
+ *                             example: "john.doe@example.com"
+ *                           languagePreference:
+ *                             type: string
+ *                             example: "English"
  *                 pagination:
  *                   type: object
  *                   properties:
@@ -983,6 +1004,193 @@ const upload = multer({
  *         $ref: '#/components/responses/ServerError'
  */
 
+/**
+ * @swagger
+ * /admin/patient/{userId}:
+ *   get:
+ *     summary: Get patient details (Admin only)
+ *     description: Retrieve detailed information about a specific patient including user and patient profile data
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID of the patient
+ *         example: 1
+ *     responses:
+ *       200:
+ *         description: Patient details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Patient details retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         name:
+ *                           type: string
+ *                           example: "John Doe"
+ *                         phone:
+ *                           type: string
+ *                           example: "+1234567890"
+ *                         gender:
+ *                           type: string
+ *                           example: "Male"
+ *                         role:
+ *                           type: string
+ *                           example: "user"
+ *                         notificationEnabled:
+ *                           type: boolean
+ *                           example: true
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-01-15T10:30:00.000Z"
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-01-15T10:30:00.000Z"
+ *                     patient:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         isActive:
+ *                           type: boolean
+ *                           example: true
+ *                         email:
+ *                           type: string
+ *                           example: "john.doe@example.com"
+ *                         dateOfBirth:
+ *                           type: string
+ *                           format: date
+ *                           example: "1990-01-15"
+ *                         languagePreference:
+ *                           type: string
+ *                           enum: [English, Hindi, Gujarati]
+ *                           example: "English"
+ *                         profileImage:
+ *                           type: string
+ *                           example: "https://appwrite.example.com/storage/files/123/view"
+ *                         createdAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-01-15T10:30:00.000Z"
+ *                         updatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           example: "2024-01-15T10:30:00.000Z"
+ *       400:
+ *         description: Bad request - User ID is required
+ *       404:
+ *         description: User or patient profile not found
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+
+/**
+ * @swagger
+ * /admin/patient/{userId}/status:
+ *   patch:
+ *     summary: Toggle patient active/suspend status (Admin only)
+ *     description: Activate or suspend a patient account with optional reason
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: User ID of the patient
+ *         example: 1
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for status change
+ *                 example: "Violation of terms of service"
+ *     responses:
+ *       200:
+ *         description: Patient status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Patient activated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: integer
+ *                       example: 1
+ *                     patientId:
+ *                       type: integer
+ *                       example: 1
+ *                     name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     phone:
+ *                       type: string
+ *                       example: "+1234567890"
+ *                     isActive:
+ *                       type: boolean
+ *                       example: true
+ *                     reason:
+ *                       type: string
+ *                       example: "Administrative review"
+ *       400:
+ *         description: Bad request - User ID is required
+ *       404:
+ *         description: User or patient profile not found
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+
 // Routes
 router.get('/users', authenticate(), authorize('admin'), adminController.listAllUsers);
 router.post('/user', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
@@ -996,6 +1204,8 @@ router.put('/doctor/:id', authenticate(), authorize('admin'), upload.fields([
   { name: 'clinicPhotos', maxCount: 5 }
 ]), adminController.createOrUpdateDoctor);
 router.get('/doctor/:doctorId/appointments', authenticate(), authorize('admin'), adminController.getDoctorAppointments);
+router.get('/patient/:userId', authenticate(), authorize('admin'), adminController.getPatientDetails);
+router.patch('/patient/:userId/status', authenticate(), authorize('admin'), adminController.togglePatientStatus);
 
 // Dental Image Admin Routes
 const dentalImageController = require('../controllers/dentalImage.controller');

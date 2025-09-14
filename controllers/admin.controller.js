@@ -1,6 +1,7 @@
 const Doctor = require("../models/doctor.model");
 const User = require("../models/user.model");
 const Appointment = require("../models/appoinment.model");
+const Patient = require("../models/patient.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
 const { Client, Storage } = require('appwrite');
@@ -873,7 +874,7 @@ exports.createOrUpdateDoctor = async (req, res) => {
 exports.listAllUsers = async (req, res) => {
   try {
     // Pagination
-    let { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
+    let { page = 1, limit = 10, search = '', sortBy = 'createdAt', sortOrder = 'DESC', isActive } = req.query;
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
@@ -902,20 +903,51 @@ exports.listAllUsers = async (req, res) => {
       order.push(['createdAt', 'DESC']);
     }
 
+    // Build patient where condition for isActive filter
+    let patientWhere = {};
+    if (isActive !== undefined) {
+      patientWhere.isActive = isActive === 'true';
+    }
+
     // Count total for pagination
     const { count, rows: users } = await User.findAndCountAll({
       where,
       attributes: ["id", "name", "phone", "gender", "createdAt", "notificationEnabled"],
+      include: [
+        {
+          model: Patient,
+          as: 'Patient',
+          attributes: ['id', 'isActive', 'email', 'languagePreference'],
+          where: Object.keys(patientWhere).length ? patientWhere : undefined,
+          required: false // LEFT JOIN to include users without patient records
+        }
+      ],
       order,
       limit,
       offset,
     });
 
+    // Format response to include patient information
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      gender: user.gender,
+      createdAt: user.createdAt,
+      notificationEnabled: user.notificationEnabled,
+      patient: user.Patient ? {
+        id: user.Patient.id,
+        isActive: user.Patient.isActive,
+        email: user.Patient.email,
+        languagePreference: user.Patient.languagePreference
+      } : null
+    }));
+
     res.status(200).json({
       status: "success",
       code: 200,
       message: "Users retrieved successfully",
-      data: users,
+      data: formattedUsers,
       pagination: {
         total: count,
         page,
@@ -1070,6 +1102,196 @@ exports.getDoctorAppointments = async (req, res) => {
     });
   } catch (error) {
     console.error('Get Doctor Appointments Error:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+exports.togglePatientStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
+
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "User ID is required",
+        data: null
+      });
+    }
+
+    // Find user and patient
+    const user = await User.findByPk(userId, {
+      include: [
+        {
+          model: Patient,
+          as: 'Patient',
+          attributes: ['id', 'isActive', 'email']
+        }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "User not found",
+        data: null
+      });
+    }
+
+    if (!user.Patient) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Patient profile not found for this user",
+        data: null
+      });
+    }
+
+    // Toggle the isActive status
+    const newStatus = !user.Patient.isActive;
+    await user.Patient.update({ isActive: newStatus });
+
+    // Send email notification to patient
+    try {
+      const emailData = {
+        patientName: user.name,
+        platformName: process.env.APP_NAME || 'Healthcare Platform',
+        dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/patient/dashboard`,
+        supportUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/support`,
+        reason: reason || 'Administrative review',
+        statusChangeDate: new Date().toLocaleDateString(),
+        newStatus: newStatus ? 'activated' : 'suspended'
+      };
+
+      const templateType = newStatus ? 'patient_activated' : 'patient_suspended';
+      
+      if (user.Patient.email) {
+        const emailResult = await emailService.sendAppointmentEmail(
+          user.Patient.email,
+          templateType,
+          emailData
+        );
+
+        if (emailResult.success) {
+          console.log(`Status change email sent successfully to ${user.name}`);
+        } else {
+          console.error('Failed to send status change email:', emailResult.error);
+        }
+      }
+    } catch (emailError) {
+      console.error('Error sending status change email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.json({
+      status: "success",
+      code: 200,
+      message: `Patient ${newStatus ? "activated" : "suspended"} successfully`,
+      data: {
+        userId: user.id,
+        patientId: user.Patient.id,
+        name: user.name,
+        phone: user.phone,
+        isActive: newStatus,
+        reason: reason || null
+      }
+    });
+  } catch (error) {
+    console.error('Toggle Patient Status Error:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+exports.getPatientDetails = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "User ID is required",
+        data: null
+      });
+    }
+
+    // Find user with patient details
+    const user = await User.findByPk(userId, {
+      include: [
+        {
+          model: Patient,
+          as: 'Patient',
+          attributes: ['id', 'isActive', 'email', 'dateOfBirth', 'languagePreference', 'profileImage']
+        }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "User not found",
+        data: null
+      });
+    }
+
+    if (!user.Patient) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Patient profile not found for this user",
+        data: null
+      });
+    }
+
+    // Format response
+    const patientDetails = {
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        gender: user.gender,
+        role: user.role,
+        notificationEnabled: user.notificationEnabled,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt
+      },
+      patient: {
+        id: user.Patient.id,
+        isActive: user.Patient.isActive,
+        email: user.Patient.email,
+        dateOfBirth: user.Patient.dateOfBirth,
+        languagePreference: user.Patient.languagePreference,
+        profileImage: user.Patient.profileImage,
+        createdAt: user.Patient.createdAt,
+        updatedAt: user.Patient.updatedAt
+      }
+    };
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Patient details retrieved successfully",
+      data: patientDetails
+    });
+  } catch (error) {
+    console.error('Get Patient Details Error:', error);
     res.status(500).json({
       status: "error",
       code: 500,
