@@ -195,7 +195,14 @@ const { authenticate } = require('../middleware/auth');
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/SendOtpRequest'
+ *             type: object
+ *             required:
+ *               - phone
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 10-digit Indian mobile number (without country code)
+ *                 example: "9876543210"
  *     responses:
  *       200:
  *         description: OTP sent successfully
@@ -249,22 +256,72 @@ router.post('/send-otp', authController.sendOtp);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/SendOtpRequest'
+ *             type: object
+ *             required:
+ *               - phone
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 10-digit Indian mobile number (without country code)
+ *                 example: "9876543210"
  *     responses:
  *       200:
  *         description: Login OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "OTP sent successfully for login"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     expiresIn:
+ *                       type: string
+ *                       example: "5 minutes"
+ *                     isExistingUser:
+ *                       type: boolean
+ *                       example: true
  *       400:
  *         description: User not found or invalid request
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
  *       500:
  *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
 router.post('/send-login-otp', authController.sendLoginOtp);
 
@@ -290,32 +347,150 @@ router.post('/send-login-otp', authController.sendLoginOtp);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/LoginWithOtpRequest'
+ *             type: object
+ *             required:
+ *               - phone
+ *               - otp
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 10-digit Indian mobile number (without country code)
+ *                 example: "9876543210"
+ *               otp:
+ *                 type: string
+ *                 description: 6-digit OTP received via SMS
+ *                 example: "123456"
+ *               name:
+ *                 type: string
+ *                 description: Required only for new user registration
+ *                 example: "John Doe"
+ *               password:
+ *                 type: string
+ *                 description: Required only for new user registration
+ *                 example: "securePassword123"
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *                 description: Required only for new user registration
+ *                 example: "Male"
+ *               role:
+ *                 type: string
+ *                 enum: [user, doctor, admin]
+ *                 default: user
+ *                 description: Required only for new user registration
  *     responses:
  *       200:
  *         description: Login successful (existing user)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/UserResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Login successful"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     phone:
+ *                       type: string
+ *                       example: "9876543210"
+ *                     role:
+ *                       type: string
+ *                       example: "user"
+ *                     token:
+ *                       type: string
+ *                       description: JWT token for authentication
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     doctorId:
+ *                       type: integer
+ *                       description: Present if user role is doctor
+ *                       example: 1
+ *                     patientId:
+ *                       type: integer
+ *                       description: Present if user role is user
+ *                       example: 1
  *       201:
  *         description: Registration completed successfully (new user)
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/UserResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Registration completed successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 2
+ *                     name:
+ *                       type: string
+ *                       example: "Jane Doe"
+ *                     phone:
+ *                       type: string
+ *                       example: "9876543211"
+ *                     role:
+ *                       type: string
+ *                       example: "user"
+ *                     token:
+ *                       type: string
+ *                       description: JWT token for authentication
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     doctorId:
+ *                       type: integer
+ *                       description: Present if user role is doctor
+ *                       example: null
+ *                     patientId:
+ *                       type: integer
+ *                       description: Present if user role is user
+ *                       example: 2
  *       400:
  *         description: Invalid OTP, validation error, or missing registration data for new users
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   examples:
+ *                     invalidOtp:
+ *                       value: "Invalid OTP"
+ *                     missingData:
+ *                       value: "Registration data required: name, password, and gender are needed for new user registration"
+ *                     validationError:
+ *                       value: "Password must be at least 6 characters long"
  *       500:
  *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
 router.post('/login-with-otp', authController.loginWithOtp);
 
@@ -330,26 +505,57 @@ router.post('/login-with-otp', authController.loginWithOtp);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/CheckUserExistsRequest'
+ *             type: object
+ *             required:
+ *               - phone
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 10-digit Indian mobile number (without country code)
+ *                 example: "9876543210"
  *     responses:
  *       200:
  *         description: User existence check result
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/CheckUserExistsResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 exists:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User exists"
  *       400:
  *         description: Invalid phone number format
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid phone number format"
  *       500:
  *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
 router.post('/check-user-exists', authController.checkUserExists);
 
@@ -364,22 +570,63 @@ router.post('/check-user-exists', authController.checkUserExists);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/SendResetOtpRequest'
+ *             type: object
+ *             required:
+ *               - phone
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 10-digit Indian mobile number (without country code)
+ *                 example: "9876543210"
  *     responses:
  *       200:
  *         description: Reset OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Reset OTP sent successfully"
  *       400:
  *         description: User not found or invalid request
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
  *       500:
  *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 500
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
 router.post('/send-reset-otp', authController.sendResetOtp);
 
@@ -394,28 +641,77 @@ router.post('/send-reset-otp', authController.sendResetOtp);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ResetPasswordRequest'
+ *             type: object
+ *             required:
+ *               - phone
+ *               - otp
+ *               - newPassword
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 10-digit Indian mobile number (without country code)
+ *                 example: "9876543210"
+ *               otp:
+ *                 type: string
+ *                 description: 6-digit OTP received via SMS
+ *                 example: "123456"
+ *               newPassword:
+ *                 type: string
+ *                 description: New password (minimum 6 characters)
+ *                 example: "newSecurePassword123"
  *     responses:
  *       200:
  *         description: Password reset successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Password reset successfully"
  *       400:
  *         description: Invalid OTP or validation error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid OTP"
  *       404:
  *         description: User not found
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "User not found"
  *       500:
  *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
 router.post('/reset-password', authController.resetPassword);
 
@@ -430,26 +726,112 @@ router.post('/reset-password', authController.resetPassword);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/RegisterRequest'
+ *             type: object
+ *             required:
+ *               - phone
+ *               - name
+ *               - password
+ *               - gender
+ *             properties:
+ *               phone:
+ *                 type: string
+ *                 description: 10-digit Indian mobile number (without country code)
+ *                 example: "9876543210"
+ *               name:
+ *                 type: string
+ *                 description: Full name of the user
+ *                 example: "John Doe"
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               password:
+ *                 type: string
+ *                 description: User password (minimum 6 characters)
+ *                 example: "securePassword123"
+ *                 minLength: 6
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *                 description: Gender of the user
+ *                 example: "Male"
+ *               role:
+ *                 type: string
+ *                 enum: [user, doctor, admin]
+ *                 default: user
+ *                 description: User role (user creates patient record, doctor creates doctor record, admin creates admin settings)
+ *                 example: "user"
  *     responses:
  *       201:
  *         description: User registered successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/UserResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User registered successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 2
+ *                     name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     phone:
+ *                       type: string
+ *                       example: "9876543210"
+ *                     role:
+ *                       type: string
+ *                       example: "user"
+ *                     token:
+ *                       type: string
+ *                       description: JWT token for authentication
+ *                       example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                     doctorId:
+ *                       type: integer
+ *                       description: Present if user role is doctor
+ *                       example: null
+ *                     patientId:
+ *                       type: integer
+ *                       description: Present if user role is user
+ *                       example: 2
  *       400:
  *         description: Invalid OTP, validation error, or user exists
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   examples:
+ *                     invalidOtp:
+ *                       value: "Invalid OTP"
+ *                     userExists:
+ *                       value: "User already exists"
+ *                     validationError:
+ *                       value: "Password must be at least 6 characters long"
  *       500:
  *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Error'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Internal server error"
  */
 // Register route removed - now handled by login-with-otp
 
