@@ -753,6 +753,236 @@ const upload = multer({
  *         $ref: '#/components/responses/ServerError'
  */
 
+/**
+ * @swagger
+ * /admin/doctor/{doctorId}/appointments:
+ *   get:
+ *     summary: Get all appointments of a specific doctor (Admin only)
+ *     description: Retrieve paginated list of all appointments for a specific doctor with search, filter, and sort capabilities
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Doctor ID
+ *         example: 1
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, completed, canceled, rejected, reschedule_requested]
+ *         description: Filter by appointment status
+ *       - in: query
+ *         name: fromDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter appointments from this date (YYYY-MM-DD)
+ *       - in: query
+ *         name: toDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter appointments to this date (YYYY-MM-DD)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by patient name or phone
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [appointmentDateTime, status, type, createdAt]
+ *           default: appointmentDateTime
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [ASC, DESC]
+ *           default: DESC
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: Doctor appointments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Doctor appointments retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     appointments:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                             example: 1
+ *                           appointmentDateTime:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2024-01-15T10:30:00.000Z"
+ *                           type:
+ *                             type: string
+ *                             enum: [physical, virtual]
+ *                             example: "physical"
+ *                           status:
+ *                             type: string
+ *                             enum: [pending, confirmed, completed, canceled, rejected, reschedule_requested]
+ *                             example: "confirmed"
+ *                           notes:
+ *                             type: string
+ *                             example: "Regular checkup"
+ *                           consultationNotes:
+ *                             type: string
+ *                             example: "Patient is healthy"
+ *                           prescription:
+ *                             type: string
+ *                             example: "Take medication as prescribed"
+ *                           patient:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                                 example: 1
+ *                               name:
+ *                                 type: string
+ *                                 example: "John Doe"
+ *                               phone:
+ *                                 type: string
+ *                                 example: "+1234567890"
+ *                           doctor:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                                 example: 1
+ *                               name:
+ *                                 type: string
+ *                                 example: "Dr. Jane Smith"
+ *                               phone:
+ *                                 type: string
+ *                                 example: "+1234567890"
+ *                               specialty:
+ *                                 type: string
+ *                                 example: "Cardiology"
+ *                               clinicName:
+ *                                 type: string
+ *                                 example: "HealthCare Medical Center"
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2024-01-15T10:30:00.000Z"
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *                             example: "2024-01-15T10:30:00.000Z"
+ *                     doctor:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: integer
+ *                           example: 1
+ *                         name:
+ *                           type: string
+ *                           example: "Dr. Jane Smith"
+ *                         phone:
+ *                           type: string
+ *                           example: "+1234567890"
+ *                         specialty:
+ *                           type: string
+ *                           example: "Cardiology"
+ *                         clinicName:
+ *                           type: string
+ *                           example: "HealthCare Medical Center"
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                       example: 25
+ *                     page:
+ *                       type: integer
+ *                       example: 1
+ *                     limit:
+ *                       type: integer
+ *                       example: 10
+ *                     totalPages:
+ *                       type: integer
+ *                       example: 3
+ *       400:
+ *         description: Bad request - Doctor ID is required
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "Doctor ID is required"
+ *                 data:
+ *                   type: null
+ *       404:
+ *         description: Doctor not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "Doctor not found"
+ *                 data:
+ *                   type: null
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/ServerError'
+ */
+
 // Routes
 router.get('/users', authenticate(), authorize('admin'), adminController.listAllUsers);
 router.post('/user', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
@@ -765,6 +995,7 @@ router.put('/doctor/:id', authenticate(), authorize('admin'), upload.fields([
   { name: 'doctorPhoto', maxCount: 1 },
   { name: 'clinicPhotos', maxCount: 5 }
 ]), adminController.createOrUpdateDoctor);
+router.get('/doctor/:doctorId/appointments', authenticate(), authorize('admin'), adminController.getDoctorAppointments);
 
 // Dental Image Admin Routes
 const dentalImageController = require('../controllers/dentalImage.controller');

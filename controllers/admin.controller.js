@@ -1,5 +1,6 @@
 const Doctor = require("../models/doctor.model");
 const User = require("../models/user.model");
+const Appointment = require("../models/appoinment.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
 const { Client, Storage } = require('appwrite');
@@ -923,6 +924,152 @@ exports.listAllUsers = async (req, res) => {
       }
     });
   } catch (error) {
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message,
+      data: null
+    });
+  }
+};
+
+exports.getDoctorAppointments = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { status, fromDate, toDate, page = 1, limit = 10, search = '', sortBy = 'appointmentDateTime', sortOrder = 'DESC' } = req.query;
+
+    // Validate doctorId
+    if (!doctorId) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Doctor ID is required",
+        data: null
+      });
+    }
+
+    // Check if doctor exists
+    const doctor = await Doctor.findByPk(doctorId, {
+      include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone'] }]
+    });
+
+    if (!doctor) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Doctor not found",
+        data: null
+      });
+    }
+
+    // Pagination
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build where condition
+    const where = { doctorId: parseInt(doctorId) };
+    
+    if (status) {
+      where.status = status;
+    }
+
+    if (fromDate || toDate) {
+      where.appointmentDateTime = {};
+      if (fromDate) where.appointmentDateTime[Op.gte] = new Date(fromDate);
+      if (toDate) where.appointmentDateTime[Op.lte] = new Date(`${toDate}T23:59:59.999Z`);
+    }
+
+    // Search functionality
+    let userWhere = {};
+    if (search) {
+      userWhere[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+
+    // Sorting
+    let order = [];
+    if (sortBy === 'appointmentDateTime' || sortBy === 'status' || sortBy === 'type' || sortBy === 'createdAt') {
+      if (sortOrder.toUpperCase() === 'ASC') {
+        order.push([sortBy, 'ASC'], ['appointmentDateTime', 'DESC']);
+      } else {
+        order.push([sortBy, sortOrder.toUpperCase()]);
+      }
+    } else {
+      order.push(['appointmentDateTime', 'DESC']);
+    }
+
+    // Get appointments with pagination
+    const { count, rows: appointments } = await Appointment.findAndCountAll({
+      where,
+      include: [
+        {
+          model: User,
+          as: 'patient',
+          attributes: ['id', 'name', 'phone'],
+          where: Object.keys(userWhere).length ? userWhere : undefined,
+        }
+      ],
+      order,
+      limit: limitNum,
+      offset,
+    });
+
+    // Format response data
+    const formattedAppointments = appointments.map(appointment => ({
+      id: appointment.id,
+      appointmentDateTime: appointment.appointmentDateTime,
+      type: appointment.type,
+      status: appointment.status,
+      notes: appointment.notes,
+      consultationNotes: appointment.consultationNotes,
+      prescription: appointment.prescription,
+      cancelReason: appointment.cancelReason,
+      rejectionReason: appointment.rejectionReason,
+      rescheduleReason: appointment.rescheduleReason,
+      bookingDate: appointment.bookingDate,
+      confirmedAt: appointment.confirmedAt,
+      completedAt: appointment.completedAt,
+      canceledAt: appointment.canceledAt,
+      rejectedAt: appointment.rejectedAt,
+      patient: appointment.patient,
+      doctor: {
+        id: doctor.id,
+        name: doctor.User.name,
+        phone: doctor.User.phone,
+        specialty: doctor.specialty,
+        clinicName: doctor.clinicName
+      },
+      createdAt: appointment.createdAt,
+      updatedAt: appointment.updatedAt
+    }));
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Doctor appointments retrieved successfully",
+      data: {
+        appointments: formattedAppointments,
+        doctor: {
+          id: doctor.id,
+          name: doctor.User.name,
+          phone: doctor.User.phone,
+          specialty: doctor.specialty,
+          clinicName: doctor.clinicName
+        }
+      },
+      pagination: {
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Get Doctor Appointments Error:', error);
     res.status(500).json({
       status: "error",
       code: 500,
