@@ -86,17 +86,17 @@ exports.getUserQueries = async (req, res) => {
   try {
     const userId = req.user.id;
     let { page = 1, limit = 10, status, category, sortBy = 'createdAt', sortOrder = 'DESC' } = req.query;
-    
+
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
     const where = { userId };
-    
+
     if (status) {
       where.status = status;
     }
-    
+
     if (category) {
       where.category = category;
     }
@@ -166,7 +166,7 @@ exports.getQueryById = async (req, res) => {
     const userRole = req.user.role;
 
     const where = { id };
-    
+
     // Non-admin users can only see their own queries
     if (userRole !== 'admin') {
       where.userId = userId;
@@ -340,29 +340,29 @@ exports.deleteQuery = async (req, res) => {
 // Admin: Get all queries with advanced filtering
 exports.getAllQueries = async (req, res) => {
   try {
-    let { 
-      page = 1, 
-      limit = 10, 
-      search = '', 
-      status, 
-      category, 
-      priority, 
-      userId, 
+    let {
+      page = 1,
+      limit = 10,
+      search = '',
+      status,
+      category,
+      priority,
+      userId,
       assignedTo,
-      sortBy = 'createdAt', 
+      sortBy = 'createdAt',
       sortOrder = 'DESC',
       dateFrom,
       dateTo,
       isPublic
     } = req.query;
-    
+
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
     const where = {};
     const userWhere = {};
-    
+
     if (search) {
       where[Op.or] = [
         { title: { [Op.iLike]: `%${search}%` } },
@@ -538,7 +538,7 @@ exports.respondToQuery = async (req, res) => {
       };
 
       await emailService.sendAppointmentEmail(
-        query.user.email || `${query.user.phone}@temp.com`,
+        query.user.email,
         'query_response',
         emailData
       );
@@ -722,16 +722,16 @@ exports.rateQuery = async (req, res) => {
 exports.getPublicQueries = async (req, res) => {
   try {
     let { page = 1, limit = 10, category, search = '' } = req.query;
-    
+
     page = parseInt(page);
     limit = parseInt(limit);
     const offset = (page - 1) * limit;
 
-    const where = { 
-      isPublic: true, 
+    const where = {
+      isPublic: true,
       status: 'Resolved'
     };
-    
+
     if (category) {
       where.category = category;
     }

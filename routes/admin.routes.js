@@ -6,7 +6,7 @@ const multer = require('multer');
 
 // Configure multer for file upload
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
@@ -49,11 +49,16 @@ const upload = multer({
  *           type: string
  *           description: Firebase Cloud Messaging token
  *           example: "fcm_token_string"
- *         notificationEnabled:
- *           type: boolean
- *           description: Whether notifications are enabled
- *           default: true
- *           example: true
+     *         notificationEnabled:
+     *           type: boolean
+     *           description: Whether notifications are enabled
+     *           default: true
+     *           example: true
+     *         email:
+     *           type: string
+     *           format: email
+     *           description: User's email address (required for user role)
+     *           example: "user@example.com"
  *     
  *     UserSummary:
  *       type: object
@@ -374,22 +379,22 @@ const upload = multer({
  *                     notificationEnabled:
  *                       type: boolean
  *                       example: true
- *       400:
- *         description: Validation error or phone number already exists
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "error"
- *                 code:
- *                   type: integer
- *                   example: 400
- *                 message:
- *                   type: string
- *                   example: "Phone number already exists"
+     *       400:
+     *         description: Validation error or phone number already exists
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 status:
+     *                   type: string
+     *                   example: "error"
+     *                 code:
+     *                   type: integer
+     *                   example: 400
+     *                 message:
+     *                   type: string
+     *                   example: "Email is required for new user accounts"
  *                 data:
  *                   type: null
  *       401:
@@ -1194,7 +1199,7 @@ const upload = multer({
 // Routes
 router.get('/users', authenticate(), authorize('admin'), adminController.listAllUsers);
 router.post('/user', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
-router.put('/user/:id', authenticate(), authorize('admin'), adminController.createOrUpdateUser); 
+router.put('/user/:id', authenticate(), authorize('admin'), adminController.createOrUpdateUser);
 router.post('/doctor', authenticate(), authorize('admin'), upload.fields([
   { name: 'doctorPhoto', maxCount: 1 },
   { name: 'clinicPhotos', maxCount: 5 }
