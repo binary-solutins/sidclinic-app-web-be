@@ -61,7 +61,7 @@ exports.listPendingDoctors = async (req, res) => {
     // Searching (by doctor name, phone, or clinic name)
     const userWhere = {};
     const doctorWhere = { isApproved: false };
-    
+
     if (search) {
       userWhere[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
@@ -144,7 +144,7 @@ exports.listApprovedDoctors = async (req, res) => {
     // Searching (by doctor name, phone, or clinic name)
     const userWhere = {};
     const doctorWhere = { isApproved: true };
-    
+
     if (search) {
       userWhere[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
@@ -227,7 +227,7 @@ exports.listAllDoctors = async (req, res) => {
     // Searching (by doctor name, phone, clinic name, specialty, degree, city, state)
     const userWhere = {};
     const doctorWhere = {};
-    
+
     if (search) {
       userWhere[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
@@ -252,9 +252,9 @@ exports.listAllDoctors = async (req, res) => {
       } else {
         order.push([{ model: User, as: 'User' }, sortBy, sortOrder.toUpperCase()]);
       }
-    } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' || 
-               sortBy === 'yearsOfExperience' || sortBy === 'city' || sortBy === 'state' || 
-               sortBy === 'isApproved' || sortBy === 'is_active') {
+    } else if (sortBy === 'clinicName' || sortBy === 'specialty' || sortBy === 'degree' ||
+      sortBy === 'yearsOfExperience' || sortBy === 'city' || sortBy === 'state' ||
+      sortBy === 'isApproved' || sortBy === 'is_active') {
       // For clinic fields, if ASC is requested, still add createdAt DESC as secondary sort
       if (sortOrder.toUpperCase() === 'ASC') {
         order.push([sortBy, 'ASC'], ['createdAt', 'DESC']);
@@ -316,7 +316,7 @@ exports.toggleDoctorApproval = async (req, res) => {
         },
       ],
     });
-    
+
     if (!doctor) {
       return res.status(404).json({
         status: "error",
@@ -339,7 +339,7 @@ exports.toggleDoctorApproval = async (req, res) => {
       };
 
       const templateType = doctor.isApproved ? 'doctor_approved' : 'doctor_disapproved';
-      
+
       const emailResult = await emailService.sendAppointmentEmail(
         doctor.email,
         templateType,
@@ -448,7 +448,7 @@ exports.toggleDoctorStatus = async (req, res) => {
       };
 
       const templateType = newStatus ? 'doctor_activated' : 'doctor_suspended';
-      
+
       const emailResult = await emailService.sendAppointmentEmail(
         doctor.email,
         templateType,
@@ -486,7 +486,7 @@ exports.toggleDoctorStatus = async (req, res) => {
 exports.createOrUpdateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, phone, password, gender, role = 'user', fcmToken, notificationEnabled } = req.body;
+    const { name, phone, password, gender, role = 'user', fcmToken, notificationEnabled, email } = req.body;
 
     // Validation
     if (!name || !phone || !gender) {
@@ -494,6 +494,16 @@ exports.createOrUpdateUser = async (req, res) => {
         status: "error",
         code: 400,
         message: "Name, phone, and gender are required",
+        data: null
+      });
+    }
+
+    // For new users with 'user' role, email is required
+    if (!id && role === 'user' && !email) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Email is required for new user accounts",
         data: null
       });
     }
@@ -582,7 +592,7 @@ exports.createOrUpdateUser = async (req, res) => {
           const Patient = require('../models/patient.model');
           await Patient.create({
             userId: user.id,
-            email: `${phone}@temp.com`, // Temporary email using phone
+            email: email,
             dateOfBirth: null, // Will be updated later
             languagePreference: 'English',
             isActive: true
@@ -593,7 +603,7 @@ exports.createOrUpdateUser = async (req, res) => {
           // Don't fail the user creation if patient creation fails
         }
       }
-      
+
       // If user role is 'admin', automatically create admin settings
       if (role === 'admin') {
         try {
@@ -748,16 +758,16 @@ exports.createOrUpdateDoctor = async (req, res) => {
         yearsOfExperience, specialty, clinicContactNumber, email, address,
         country, state, city, locationPin, startTime, endTime
       };
-      
+
       // Add photo URLs if uploaded
       if (doctorPhotoUrl) {
         doctorUpdateData.doctorPhoto = doctorPhotoUrl;
       }
-      
+
       if (clinicPhotosUrls.length > 0) {
         doctorUpdateData.clinicPhotos = clinicPhotosUrls;
       }
-      
+
       if (is_active !== undefined) doctorUpdateData.is_active = is_active;
 
       await doctor.update(doctorUpdateData);
@@ -840,7 +850,7 @@ exports.createOrUpdateDoctor = async (req, res) => {
       if (doctorPhotoUrl) {
         doctorData.doctorPhoto = doctorPhotoUrl;
       }
-      
+
       if (clinicPhotosUrls.length > 0) {
         doctorData.clinicPhotos = clinicPhotosUrls;
       }
@@ -881,7 +891,7 @@ exports.listAllUsers = async (req, res) => {
 
     // Searching (by user name, phone, gender)
     const where = { role: 'user' };
-    
+
     if (search) {
       where[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
@@ -1002,7 +1012,7 @@ exports.getDoctorAppointments = async (req, res) => {
 
     // Build where condition
     const where = { doctorId: parseInt(doctorId) };
-    
+
     if (status) {
       where.status = status;
     }
@@ -1173,7 +1183,7 @@ exports.togglePatientStatus = async (req, res) => {
       };
 
       const templateType = newStatus ? 'patient_activated' : 'patient_suspended';
-      
+
       if (user.Patient.email) {
         const emailResult = await emailService.sendAppointmentEmail(
           user.Patient.email,
