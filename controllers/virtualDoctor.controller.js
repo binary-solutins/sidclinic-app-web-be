@@ -3,6 +3,7 @@ const Appointment = require("../models/appoinment.model");
 const Doctor = require("../models/doctor.model");
 const VirtualDoctor = require("../models/virtualDoctor.model");
 const AdminSetting = require("../models/adminSetting.model");
+const Price = require("../models/price.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
 const { DateTime } = require('luxon');
@@ -1004,6 +1005,19 @@ exports.bookVirtualAppointment = async (req, res) => {
       });
     }
 
+    // Get virtual appointment price
+    const virtualAppointmentPrice = await Price.findOne({
+      where: { serviceName: 'Virtual Appointment', isActive: true }
+    });
+
+    if (!virtualAppointmentPrice || !virtualAppointmentPrice.price) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Virtual appointment pricing is not configured. Please contact admin.',
+      });
+    }
+
     // Build appointment data
     const appointmentData = {
       userId,
@@ -1013,6 +1027,9 @@ exports.bookVirtualAppointment = async (req, res) => {
       status: 'pending',
       notes,
       bookingDate: new Date(),
+      paymentRequired: true,
+      paymentStatus: 'pending',
+      paymentAmount: parseFloat(virtualAppointmentPrice.price)
     };
 
     // Setup video call for virtual appointment
@@ -1080,14 +1097,19 @@ exports.bookVirtualAppointment = async (req, res) => {
     res.status(201).json({
       status: 'success',
       code: 201,
-      message: 'Virtual appointment booked successfully',
+      message: 'Virtual appointment booked successfully. Payment required to confirm appointment.',
       data: {
         id: appointment.id,
         appointmentDateTime: requestedTime.toISO(),
         type: 'virtual',
         status: 'pending',
         videoCallLink: appointment.videoCallLink,
-        roomId: appointment.roomId
+        roomId: appointment.roomId,
+        paymentRequired: true,
+        paymentStatus: 'pending',
+        paymentAmount: parseFloat(virtualAppointmentPrice.price),
+        currency: 'INR',
+        nextStep: 'payment_required'
       }
     });
   } catch (error) {

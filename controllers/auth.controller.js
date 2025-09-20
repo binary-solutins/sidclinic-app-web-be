@@ -940,7 +940,7 @@ const loginWithOtp = async (req, res) => {
             const Patient = require('../models/patient.model');
             await Patient.create({
               userId: user.id,
-              email: `${formattedPhone}@temp.com`, // Temporary email using phone
+              email: null, // No dummy email - user will add real email later
               dateOfBirth: null, // Will be updated later
               languagePreference: 'English',
               isActive: true

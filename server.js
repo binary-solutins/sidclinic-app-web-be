@@ -30,6 +30,7 @@ const dentalImageRoutes = require('./routes/dentalImage.routes');
 const personalPatientRoutes = require('./routes/personalPatient.routes');
 const virtualDoctorRoutes = require('./routes/virtualDoctor.routes');
 const reportRoutes = require('./routes/report.routes');
+const paymentRoutes = require('./routes/payment.routes');
 
 // Import new production-ready features
 const healthRoutes = require('./routes/health.routes');
@@ -163,6 +164,7 @@ app.use("/api/dental-images", dentalImageRoutes);
 app.use("/api/personal-patients", personalPatientRoutes);
 app.use("/api", virtualDoctorRoutes);
 app.use("/api", reportRoutes);
+app.use("/api/payment", paymentRoutes);
 app.use("/api/banners", require("./routes/banner.routes"));
 
 app.use(

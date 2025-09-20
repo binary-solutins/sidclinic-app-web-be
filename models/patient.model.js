@@ -23,7 +23,17 @@ const Patient = sequelize.define('Patient', {
   email: {
     type: DataTypes.STRING,
     allowNull: true,
-    validate: { isEmail: true }
+    validate: {
+      isEmail: {
+        args: true,
+        msg: 'Please provide a valid email address'
+      },
+      isNullOrEmail(value) {
+        if (value !== null && value !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          throw new Error('Please provide a valid email address');
+        }
+      }
+    }
   },
   profileImage: {
     type: DataTypes.STRING,

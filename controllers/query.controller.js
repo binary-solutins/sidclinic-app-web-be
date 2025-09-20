@@ -537,11 +537,16 @@ exports.respondToQuery = async (req, res) => {
         dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/queries/${query.id}`
       };
 
+      // Only send email if user has a real email address
+      if (query.user.email && query.user.email.trim() !== '') {
       await emailService.sendAppointmentEmail(
-        query.user.email || `${query.user.phone}@temp.com`,
+          query.user.email,
         'query_response',
         emailData
       );
+      } else {
+        console.log(`Skipping email notification for user ${query.user.id} - no email address provided`);
+      }
     } catch (emailError) {
       console.error('Error sending query response email:', emailError);
     }

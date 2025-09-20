@@ -229,6 +229,30 @@ const Appointment = sequelize.define('Appointment', {
       key: 'id'
     },
     comment: 'User ID who completed the appointment (for virtual appointments)'
+  },
+
+  // Payment related fields
+  paymentStatus: {
+    type: DataTypes.ENUM('pending', 'initiated', 'success', 'failed', 'refunded'),
+    allowNull: true,
+    defaultValue: 'pending',
+    comment: 'Payment status for virtual appointments'
+  },
+  paymentAmount: {
+    type: DataTypes.DECIMAL(10, 2),
+    allowNull: true,
+    comment: 'Payment amount for virtual appointments'
+  },
+  paymentId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Reference to payment record'
+  },
+  paymentRequired: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    comment: 'Whether payment is required for this appointment'
   }
 }, {
   tableName: 'appointments',
@@ -254,6 +278,15 @@ const Appointment = sequelize.define('Appointment', {
     },
     {
       fields: ['virtualDoctorId', 'appointmentDateTime']
+    },
+    {
+      fields: ['paymentStatus']
+    },
+    {
+      fields: ['paymentRequired']
+    },
+    {
+      fields: ['paymentId']
     }
   ]
 });
