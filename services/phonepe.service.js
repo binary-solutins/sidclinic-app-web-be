@@ -85,6 +85,7 @@ class PhonePeService {
         client_secret: this.clientSecret ? '***' + this.clientSecret.slice(-4) : 'MISSING',
         grant_type: 'client_credentials'
       });
+      console.log('🌐 Token URL:', this.tokenUrl);
 
       const response = await axios.post(this.tokenUrl, requestData, {
         headers: {
@@ -270,15 +271,9 @@ class PhonePeService {
           console.log('   Error Message:', legacyError.message);
         }
         
-        // If all methods fail, use mock payment
-        console.log('💡 All PhonePe methods failed. Using mock payment for testing.');
-        return {
-          success: true,
-          data: {
-            phonepeTransactionId: `MOCK_TXN_${Date.now()}`,
-            paymentUrl: `http://localhost:3000/mock-payment?txn=${merchantTransactionId}&amount=${amount}&note=PhonePe_config_pending`
-          }
-        };
+        // If all methods fail, return error instead of mock payment
+        console.log('❌ All PhonePe methods failed. No mock payment - only real PhonePe integration.');
+        throw new Error('PhonePe payment initiation failed. Please check credentials and try again.');
       }
 
     } catch (error) {
@@ -291,33 +286,26 @@ class PhonePeService {
   }
 
   /**
-   * Process PhonePe callback (Updated for Testing)
+   * Process PhonePe callback (Real Implementation Only)
    */
   async processCallback(callbackData) {
     try {
-      console.log('🔄 Processing PhonePe callback:', callbackData);
+      console.log('🔄 Processing real PhonePe callback:', callbackData);
 
-      // For testing: Don't auto-complete payments, let them remain pending
-      // This way the status check API will actually check with PhonePe
-      return {
-        success: true,
-        data: {
-          merchantTransactionId: callbackData.merchantTransactionId || `TXN_${Date.now()}`,
-          transactionId: `MOCK_TXN_${Date.now()}`,
-          status: 'PENDING',  // Changed from COMPLETED to PENDING
-          responseCode: 'PAYMENT_PENDING',
-          responseMessage: 'Payment is being processed'
-        }
-      };
-
-      // Real PhonePe implementation (commented out)
-      /*
+      // Real PhonePe implementation - no more mock responses
       const { response, checksum } = callbackData;
+
+      if (!response || !checksum) {
+        return {
+          success: false,
+          error: 'Missing required callback parameters (response or checksum)'
+        };
+      }
 
       if (!this.verifyHash(response, checksum)) {
         return {
           success: false,
-          error: 'Invalid checksum'
+          error: 'Invalid checksum - callback verification failed'
         };
       }
 
@@ -330,10 +318,11 @@ class PhonePeService {
           transactionId: decodedResponse.data.transactionId,
           status: decodedResponse.data.state,
           responseCode: decodedResponse.data.responseCode,
-          responseMessage: decodedResponse.data.responseMessage
+          responseMessage: decodedResponse.data.responseMessage,
+          amount: decodedResponse.data.amount,
+          paymentInstrument: decodedResponse.data.paymentInstrument
         }
       };
-      */
 
     } catch (error) {
       console.error('PhonePe callback processing error:', error);
