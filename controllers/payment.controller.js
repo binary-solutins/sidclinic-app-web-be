@@ -2,6 +2,8 @@ const Payment = require('../models/payment.model');
 const Appointment = require('../models/appoinment.model');
 const User = require('../models/user.model');
 const Price = require('../models/price.model');
+const RedeemCode = require('../models/redeemCode.model');
+const RedeemCodeUsage = require('../models/redeemCodeUsage.model');
 const phonepeService = require('../services/phonepe.service');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
@@ -11,7 +13,7 @@ const { v4: uuidv4 } = require('uuid');
  */
 exports.initiatePayment = async (req, res) => {
   try {
-    const { appointmentId, paymentMethod = 'phonepe' } = req.body;
+    const { appointmentId, paymentMethod = 'phonepe', redeemCode } = req.body;
     const userId = req.user.id;
 
     // Validate input
@@ -78,7 +80,94 @@ exports.initiatePayment = async (req, res) => {
       });
     }
 
-    const amount = parseFloat(virtualAppointmentPrice.price);
+    let originalAmount = parseFloat(virtualAppointmentPrice.price);
+    let discountAmount = 0;
+    let finalAmount = originalAmount;
+    let redeemCodeData = null;
+    let redeemCodeUsage = null;
+
+    // Process redeem code if provided
+    if (redeemCode) {
+      const redeemCodeRecord = await RedeemCode.findOne({
+        where: { 
+          code: redeemCode.toUpperCase(),
+          applicableFor: { [Op.in]: ['all', 'virtual_appointment'] }
+        }
+      });
+
+      if (!redeemCodeRecord) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Invalid redeem code'
+        });
+      }
+
+      // Validate redeem code
+      if (!redeemCodeRecord.isValid()) {
+        let reason = 'Redeem code is not valid';
+        
+        if (!redeemCodeRecord.isActive) reason = 'Redeem code is inactive';
+        else if (redeemCodeRecord.validFrom && new Date() < redeemCodeRecord.validFrom) reason = 'Redeem code is not yet active';
+        else if (redeemCodeRecord.validUntil && new Date() > redeemCodeRecord.validUntil) reason = 'Redeem code has expired';
+        else if (redeemCodeRecord.usageLimit && redeemCodeRecord.usageCount >= redeemCodeRecord.usageLimit) reason = 'Redeem code usage limit exceeded';
+
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: reason
+        });
+      }
+
+      // Check user usage limit
+      if (redeemCodeRecord.userUsageLimit) {
+        const userUsageCount = await RedeemCodeUsage.count({
+          where: {
+            userId,
+            redeemCodeId: redeemCodeRecord.id
+          }
+        });
+
+        if (userUsageCount >= redeemCodeRecord.userUsageLimit) {
+          return res.status(400).json({
+            status: 'error',
+            code: 400,
+            message: 'You have already used this redeem code maximum number of times'
+          });
+        }
+      }
+
+      // Check minimum order amount
+      if (redeemCodeRecord.minOrderAmount && originalAmount < redeemCodeRecord.minOrderAmount) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: `Minimum order amount is ₹${redeemCodeRecord.minOrderAmount} to use this redeem code`
+        });
+      }
+
+      // Calculate discount
+      discountAmount = redeemCodeRecord.calculateDiscount(originalAmount);
+      finalAmount = originalAmount - discountAmount;
+      redeemCodeData = redeemCodeRecord;
+
+      // Create redeem code usage record (will be linked to payment later)
+      redeemCodeUsage = await RedeemCodeUsage.create({
+        userId,
+        redeemCodeId: redeemCodeRecord.id,
+        appointmentId,
+        originalAmount,
+        discountAmount,
+        finalAmount,
+        status: 'applied',
+        usedAt: new Date()
+      });
+
+      // Update redeem code usage count
+      await redeemCodeRecord.increment('usageCount');
+    }
+
+    const amount = finalAmount;
 
     // Check if payment already exists for this appointment
     const existingPayment = await Payment.findOne({
@@ -164,6 +253,11 @@ exports.initiatePayment = async (req, res) => {
       phonepeResponse: paymentResult.data
     });
 
+    // Link redeem code usage to payment if applicable
+    if (redeemCodeUsage) {
+      await redeemCodeUsage.update({ paymentId: payment.id });
+    }
+
     res.json({
       status: 'success',
       code: 200,
@@ -171,9 +265,17 @@ exports.initiatePayment = async (req, res) => {
       data: {
         paymentId: payment.id,
         paymentUrl: paymentResult.data.paymentUrl,
-        amount: amount,
+        originalAmount: originalAmount,
+        discountAmount: discountAmount,
+        finalAmount: amount,
         currency: 'INR',
-        merchantTransactionId: merchantTransactionId
+        merchantTransactionId: merchantTransactionId,
+        redeemCode: redeemCodeData ? {
+          code: redeemCodeData.code,
+          name: redeemCodeData.name,
+          discountType: redeemCodeData.discountType,
+          discountValue: redeemCodeData.discountValue
+        } : null
       }
     });
 
@@ -748,7 +850,7 @@ exports.getPendingPayments = async (req, res) => {
  */
 exports.completePayment = async (req, res) => {
   try {
-    const { appointmentId, paymentMethod = 'phonepe' } = req.body;
+    const { appointmentId, paymentMethod = 'phonepe', redeemCode } = req.body;
     const userId = req.user.id;
 
     // Validate input
@@ -812,7 +914,88 @@ exports.completePayment = async (req, res) => {
       });
     }
 
-    const amount = parseFloat(pricing.price);
+    let originalAmount = parseFloat(pricing.price);
+    let discountAmount = 0;
+    let finalAmount = originalAmount;
+    let redeemCodeData = null;
+    let redeemCodeUsage = null;
+
+    // Process redeem code if provided (same logic as initiatePayment)
+    if (redeemCode) {
+      const redeemCodeRecord = await RedeemCode.findOne({
+        where: { 
+          code: redeemCode.toUpperCase(),
+          applicableFor: { [Op.in]: ['all', 'virtual_appointment'] }
+        }
+      });
+
+      if (!redeemCodeRecord) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Invalid redeem code'
+        });
+      }
+
+      if (!redeemCodeRecord.isValid()) {
+        let reason = 'Redeem code is not valid';
+        
+        if (!redeemCodeRecord.isActive) reason = 'Redeem code is inactive';
+        else if (redeemCodeRecord.validFrom && new Date() < redeemCodeRecord.validFrom) reason = 'Redeem code is not yet active';
+        else if (redeemCodeRecord.validUntil && new Date() > redeemCodeRecord.validUntil) reason = 'Redeem code has expired';
+        else if (redeemCodeRecord.usageLimit && redeemCodeRecord.usageCount >= redeemCodeRecord.usageLimit) reason = 'Redeem code usage limit exceeded';
+
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: reason
+        });
+      }
+
+      if (redeemCodeRecord.userUsageLimit) {
+        const userUsageCount = await RedeemCodeUsage.count({
+          where: {
+            userId,
+            redeemCodeId: redeemCodeRecord.id
+          }
+        });
+
+        if (userUsageCount >= redeemCodeRecord.userUsageLimit) {
+          return res.status(400).json({
+            status: 'error',
+            code: 400,
+            message: 'You have already used this redeem code maximum number of times'
+          });
+        }
+      }
+
+      if (redeemCodeRecord.minOrderAmount && originalAmount < redeemCodeRecord.minOrderAmount) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: `Minimum order amount is ₹${redeemCodeRecord.minOrderAmount} to use this redeem code`
+        });
+      }
+
+      discountAmount = redeemCodeRecord.calculateDiscount(originalAmount);
+      finalAmount = originalAmount - discountAmount;
+      redeemCodeData = redeemCodeRecord;
+
+      redeemCodeUsage = await RedeemCodeUsage.create({
+        userId,
+        redeemCodeId: redeemCodeRecord.id,
+        appointmentId,
+        originalAmount,
+        discountAmount,
+        finalAmount,
+        status: 'applied',
+        usedAt: new Date()
+      });
+
+      await redeemCodeRecord.increment('usageCount');
+    }
+
+    const amount = finalAmount;
 
     // Generate new merchant transaction ID
     const merchantTransactionId = phonepeService.generateMerchantTransactionId(userId, appointmentId);
@@ -867,6 +1050,11 @@ exports.completePayment = async (req, res) => {
       phonepeResponse: paymentResult.data
     });
 
+    // Link redeem code usage to payment if applicable
+    if (redeemCodeUsage) {
+      await redeemCodeUsage.update({ paymentId: payment.id });
+    }
+
     res.json({
       status: 'success',
       code: 200,
@@ -874,11 +1062,19 @@ exports.completePayment = async (req, res) => {
       data: {
         paymentId: payment.id,
         paymentUrl: paymentResult.data.paymentUrl,
-        amount: amount,
+        originalAmount: originalAmount,
+        discountAmount: discountAmount,
+        finalAmount: amount,
         currency: 'INR',
         merchantTransactionId: merchantTransactionId,
         appointmentId: appointmentId,
-        appointmentDateTime: appointment.appointmentDateTime
+        appointmentDateTime: appointment.appointmentDateTime,
+        redeemCode: redeemCodeData ? {
+          code: redeemCodeData.code,
+          name: redeemCodeData.name,
+          discountType: redeemCodeData.discountType,
+          discountValue: redeemCodeData.discountValue
+        } : null
       }
     });
 

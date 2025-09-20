@@ -182,6 +182,7 @@ app.use("/api/personal-patients", personalPatientRoutes);
 app.use("/api", virtualDoctorRoutes);
 app.use("/api", reportRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/redeem-code", require("./routes/redeemCode.routes"));
 app.use("/api/banners", require("./routes/banner.routes"));
 
 app.use(
