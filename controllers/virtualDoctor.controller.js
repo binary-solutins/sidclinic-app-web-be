@@ -11,14 +11,6 @@ const { DateTime } = require('luxon');
 // Create virtual doctor function
 exports.createVirtualDoctor = async (req, res) => {
   try {
-    // Debug: Log the request body and headers
-    console.log('=== Virtual Doctor Creation Debug ===');
-    console.log('Content-Type:', req.headers['content-type']);
-    console.log('Request Body:', req.body);
-    console.log('Request Body Type:', typeof req.body);
-    console.log('Request Body Keys:', Object.keys(req.body || {}));
-    console.log('=====================================');
-    
     // Accept data from form-data (multipart/form-data) or JSON
     // Normalize all fields to string and trim
     const getString = (val) => (typeof val === 'string' ? val.trim() : (val !== undefined && val !== null ? String(val).trim() : ''));
@@ -26,13 +18,6 @@ exports.createVirtualDoctor = async (req, res) => {
     const phone = getString(req.body.phone);
     const password = getString(req.body.password);
     const gender = getString(req.body.gender);
-    
-    // Debug: Log the extracted values
-    console.log('Extracted values:');
-    console.log('name:', name, '| type:', typeof name);
-    console.log('phone:', phone, '| type:', typeof phone);
-    console.log('password:', password, '| type:', typeof password);
-    console.log('gender:', gender, '| type:', typeof gender);
     const specialty = getString(req.body.specialty) || 'General Medicine';
     const degree = getString(req.body.degree) || 'MBBS';
     const yearsOfExperience = req.body.yearsOfExperience !== undefined && req.body.yearsOfExperience !== null
