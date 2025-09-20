@@ -404,7 +404,7 @@ router.get('/methods',
 // Admin routes
 /**
  * @swagger
- * /admin/payments:
+ * /payment/admin:
  *   get:
  *     summary: Get all payments (Admin only)
  *     description: Retrieve all payments with filtering and pagination
@@ -463,14 +463,14 @@ router.get('/methods',
  *       500:
  *         description: Internal server error
  */
-router.get('/admin/payments', 
+router.get('/admin', 
   authenticate(['admin']), 
   paymentController.getAllPayments
 );
 
 /**
  * @swagger
- * /admin/payments/stats:
+ * /payment/admin/stats:
  *   get:
  *     summary: Get payment statistics (Admin only)
  *     description: Get payment statistics and analytics
@@ -562,7 +562,7 @@ router.get('/admin/payments',
  *       500:
  *         description: Internal server error
  */
-router.get('/admin/payments/stats', 
+router.get('/admin/stats', 
   authenticate(['admin']), 
   paymentController.getPaymentStats
 );
