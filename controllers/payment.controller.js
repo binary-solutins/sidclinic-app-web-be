@@ -325,32 +325,47 @@ exports.checkPaymentStatus = async (req, res) => {
       });
     }
 
-    // If payment is still pending, check with PhonePe
-    if (payment.status === 'initiated' || payment.status === 'processing') {
+    // Always check with PhonePe for real-time status (unless already completed)
+    if (payment.status !== 'success' && payment.status !== 'failed' && payment.status !== 'cancelled') {
+      console.log('🔄 Checking real-time PhonePe status for payment:', payment.id);
       const statusResult = await phonepeService.checkPaymentStatus(payment.phonepeMerchantTransactionId);
       
       if (statusResult.success) {
         const statusData = statusResult.data;
         let newStatus = payment.status;
 
+        // Map PhonePe status to our internal status
         switch (statusData.state) {
           case 'COMPLETED':
+          case 'SUCCESS':
             newStatus = 'success';
             break;
           case 'FAILED':
+          case 'FAILURE':
             newStatus = 'failed';
             break;
           case 'CANCELLED':
+          case 'CANCELED':
             newStatus = 'cancelled';
             break;
+          case 'PENDING':
+          case 'PROCESSING':
+            newStatus = 'processing';
+            break;
+          default:
+            // Keep current status if we don't recognize the state
+            console.log('Unknown PhonePe status:', statusData.state);
         }
 
+        // Update database with latest status from PhonePe
         if (newStatus !== payment.status) {
+          console.log(`🔄 Updating payment ${payment.id} status from ${payment.status} to ${newStatus}`);
           await payment.update({
             status: newStatus,
             completedAt: newStatus === 'success' ? new Date() : null,
             failedAt: newStatus === 'failed' ? new Date() : null,
-            failureReason: newStatus === 'failed' ? statusData.responseMessage : null
+            failureReason: newStatus === 'failed' ? statusData.responseMessage : null,
+            phonepeStatusResponse: statusData
           });
 
           // Update appointment status if payment is successful
@@ -361,7 +376,11 @@ exports.checkPaymentStatus = async (req, res) => {
             });
           }
         }
+      } else {
+        console.log('⚠️ Could not get status from PhonePe:', statusResult.error);
       }
+    } else {
+      console.log('💡 Payment already in final state:', payment.status);
     }
 
     res.json({

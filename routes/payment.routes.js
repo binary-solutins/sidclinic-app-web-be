@@ -93,7 +93,7 @@ router.post('/initiate',
 
 /**
  * @swagger
- * /api/payment/phonepe/callback:
+ * /payment/phonepe/callback:
  *   post:
  *     summary: Handle PhonePe payment callback
  *     description: Handle callback from PhonePe payment gateway
@@ -130,7 +130,7 @@ router.post('/phonepe/callback',
 
 /**
  * @swagger
- * /api/payment/status/{paymentId}:
+ * /payment/status/{paymentId}:
  *   get:
  *     summary: Check payment status
  *     description: Check the current status of a payment
@@ -219,7 +219,7 @@ router.get('/status/:paymentId',
 
 /**
  * @swagger
- * /api/payment/history:
+ * /payment/history:
  *   get:
  *     summary: Get user's payment history
  *     description: Retrieve payment history for the authenticated user
@@ -326,7 +326,7 @@ router.get('/history',
 
 /**
  * @swagger
- * /api/payment/details/{paymentId}:
+ * /payment/details/{paymentId}:
  *   get:
  *     summary: Get payment details
  *     description: Get detailed information about a specific payment
@@ -358,7 +358,7 @@ router.get('/details/:paymentId',
 
 /**
  * @swagger
- * /api/payment/methods:
+ * /payment/methods:
  *   get:
  *     summary: Get available payment methods
  *     description: Get list of available payment methods
@@ -404,7 +404,7 @@ router.get('/methods',
 // Admin routes
 /**
  * @swagger
- * /api/admin/payments:
+ * /admin/payments:
  *   get:
  *     summary: Get all payments (Admin only)
  *     description: Retrieve all payments with filtering and pagination
@@ -470,7 +470,7 @@ router.get('/admin/payments',
 
 /**
  * @swagger
- * /api/admin/payments/stats:
+ * /admin/payments/stats:
  *   get:
  *     summary: Get payment statistics (Admin only)
  *     description: Get payment statistics and analytics

@@ -3,19 +3,19 @@ const axios = require('axios');
 
 class PhonePeService {
   constructor() {
-    // OAuth2 credentials for token generation (Real Production Credentials from PhonePe Dashboard)
-    this.clientId = 'SU2509171722305638483883';  // Real Client ID from dashboard (corrected)
-    this.clientSecret = '14aa2133-ae84-4b72-9149-5154e703ff07';  // Real Client Secret from dashboard
-    this.clientVersion = '1';  // Client Version from dashboard
+    // OAuth2 credentials for token generation (Switching to Testing/Sandbox for development)
+    this.clientId = 'SU2509171722305638483883';  // Your Client ID (works in both environments)
+    this.clientSecret = '14aa2133-ae84-4b72-9149-5154e703ff07';  // Your Client Secret
+    this.clientVersion = '1';  // Client Version
     
     // Legacy credentials (keeping for compatibility)
     this.merchantId = 'M23FV8VNJV8MQ';
     this.saltKey = '14aa2133-ae84-4b72-9149-5154e703ff07';
     this.saltIndex = 1;
     
-    // API endpoints (as per official PhonePe documentation)
-    this.tokenUrl = 'https://api.phonepe.com/apis/identity-manager/v1/oauth/token';  // Production OAuth endpoint
-    this.paymentUrl = 'https://api.phonepe.com/apis/pg/checkout/v2/pay';  // Production payment endpoint
+    // API endpoints (Using SANDBOX/TESTING for development to avoid INTERNAL_SECURITY_BLOCK)
+    this.tokenUrl = 'https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token';  // Sandbox OAuth endpoint
+    this.paymentUrl = 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay';  // Sandbox payment endpoint
     this.redirectUrl = 'http://localhost:3000/payment/success';
     this.callbackUrl = 'http://localhost:3000/api/payment/phonepe/callback';
     
@@ -24,7 +24,8 @@ class PhonePeService {
     this.tokenExpiresAt = null;
     
     // Log configuration for debugging
-    console.log('🔧 PhonePe Service initialized with OAuth2 support');
+    console.log('🔧 PhonePe Service initialized with SANDBOX/TESTING environment');
+    console.log('🧪 Environment: TESTING (to avoid INTERNAL_SECURITY_BLOCK)');
     console.log('📋 Client ID:', this.clientId);
     console.log('🔑 Client Secret:', this.clientSecret ? '***' + this.clientSecret.slice(-4) : 'MISSING');
     console.log('🌐 Token URL:', this.tokenUrl);
@@ -290,21 +291,22 @@ class PhonePeService {
   }
 
   /**
-   * Process PhonePe callback (Mock Implementation for Testing)
+   * Process PhonePe callback (Updated for Testing)
    */
   async processCallback(callbackData) {
     try {
-      console.log('🔄 Processing mock PhonePe callback:', callbackData);
+      console.log('🔄 Processing PhonePe callback:', callbackData);
 
-      // Mock callback processing - assume payment was successful
+      // For testing: Don't auto-complete payments, let them remain pending
+      // This way the status check API will actually check with PhonePe
       return {
         success: true,
         data: {
           merchantTransactionId: callbackData.merchantTransactionId || `TXN_${Date.now()}`,
           transactionId: `MOCK_TXN_${Date.now()}`,
-          status: 'COMPLETED',
-          responseCode: 'SUCCESS',
-          responseMessage: 'Payment completed successfully'
+          status: 'PENDING',  // Changed from COMPLETED to PENDING
+          responseCode: 'PAYMENT_PENDING',
+          responseMessage: 'Payment is being processed'
         }
       };
 
@@ -343,64 +345,108 @@ class PhonePeService {
   }
 
   /**
-   * Check payment status (Mock Implementation for Testing)
+   * Check payment status (Real PhonePe Implementation)
    */
   async checkPaymentStatus(merchantTransactionId) {
     try {
-      console.log('🔄 Checking mock payment status for:', merchantTransactionId);
+      console.log('🔄 Checking real PhonePe payment status for:', merchantTransactionId);
 
-      // Mock successful payment status
-      return {
-        success: true,
-        data: {
-          state: 'COMPLETED',
-          responseCode: 'SUCCESS',
-          responseMessage: 'Payment completed successfully'
-        }
-      };
-
-      // Real PhonePe implementation (commented out)
-      /*
-      const payload = {
-        merchantId: this.merchantId,
-        merchantTransactionId: merchantTransactionId
-      };
-
-      const payloadString = JSON.stringify(payload);
-      const base64Payload = Buffer.from(payloadString).toString('base64');
-      const checksum = this.generateHash(base64Payload);
-
-      const response = await axios.get(`${this.baseUrl}/pg/v1/status/${this.merchantId}/${merchantTransactionId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-VERIFY': checksum,
-          'X-MERCHANT-ID': this.merchantId,
-          'Accept': 'application/json'
-        }
-      });
-
-      if (response.data && response.data.success) {
-        return {
-          success: true,
-          data: {
-            state: response.data.data.state,
-            responseCode: response.data.data.responseCode,
-            responseMessage: response.data.data.responseMessage
+      // Try with OAuth2 token first
+      try {
+        const accessToken = await this.generateAccessToken();
+        
+        // PhonePe v2 status check endpoint (Sandbox)
+        const statusUrl = `https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/status/${this.merchantId}/${merchantTransactionId}`;
+        
+        console.log('📋 Status Check URL:', statusUrl);
+        
+        const response = await axios.get(statusUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `O-Bearer ${accessToken}`,
+            'Accept': 'application/json'
           }
+        });
+
+        console.log('📋 PhonePe Status Response:', response.data);
+
+        if (response.data) {
+          return {
+            success: true,
+            data: {
+              state: response.data.state || response.data.status,
+              responseCode: response.data.code,
+              responseMessage: response.data.message,
+              amount: response.data.amount,
+              merchantTransactionId: response.data.merchantTransactionId,
+              transactionId: response.data.transactionId,
+              paymentMethod: response.data.paymentMethod,
+              rawResponse: response.data
+            }
+          };
+        } else {
+          throw new Error('Invalid status response');
+        }
+
+      } catch (oauthError) {
+        console.log('❌ OAuth2 status check failed:', oauthError.response?.status, oauthError.response?.data);
+        
+        // Fallback to legacy method
+        console.log('🔄 Trying legacy status check method...');
+        
+        const payload = {
+          merchantId: this.merchantId,
+          merchantTransactionId: merchantTransactionId
         };
-      } else {
-        return {
-          success: false,
-          error: response.data.message || 'Status check failed'
-        };
+
+        const payloadString = JSON.stringify(payload);
+        const base64Payload = Buffer.from(payloadString).toString('base64');
+        const checksum = this.generateHash(base64Payload);
+
+        const legacyUrl = `https://api-preprod.phonepe.com/apis/hermes/pg/v1/status/${this.merchantId}/${merchantTransactionId}`;
+        
+        const response = await axios.get(legacyUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-VERIFY': checksum,
+            'X-MERCHANT-ID': this.merchantId,
+            'Accept': 'application/json'
+          }
+        });
+
+        console.log('📋 PhonePe Legacy Status Response:', response.data);
+
+        if (response.data && response.data.success) {
+          return {
+            success: true,
+            data: {
+              state: response.data.data.state,
+              responseCode: response.data.data.responseCode,
+              responseMessage: response.data.data.responseMessage,
+              amount: response.data.data.amount,
+              merchantTransactionId: response.data.data.merchantTransactionId,
+              transactionId: response.data.data.transactionId,
+              paymentMethod: response.data.data.paymentInstrument?.type,
+              rawResponse: response.data
+            }
+          };
+        } else {
+          return {
+            success: false,
+            error: response.data.message || 'Status check failed',
+            code: response.data.code
+          };
+        }
       }
-      */
 
     } catch (error) {
-      console.error('PhonePe status check error:', error);
+      console.error('❌ PhonePe status check error:', error.response?.status, error.response?.data || error.message);
+      
+      // If we can't get real status, return a meaningful error instead of mock success
       return {
         success: false,
-        error: error.message || 'Status check failed'
+        error: 'Unable to check payment status: ' + (error.message || 'Unknown error'),
+        code: 'STATUS_CHECK_FAILED'
       };
     }
   }
