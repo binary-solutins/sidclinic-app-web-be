@@ -810,7 +810,7 @@ const sendLoginOtp = async (req, res) => {
  */
 const loginWithOtp = async (req, res) => {
   try {
-    const { phone, otp, name, password, gender, role = 'user' } = req.body;
+    const { phone, otp, name, password, gender, role = 'user', email } = req.body;
 
     // Validate input
     if (!phone || !otp) {
@@ -923,17 +923,17 @@ const loginWithOtp = async (req, res) => {
     } else {
       // NEW USER - REGISTRATION
       // Check if registration data is provided
-      if (!name || !password || !gender) {
+      if (!name || !password || !gender || !email) {
         return res.status(400).json({
           success: false,
-          message: 'Registration data required: name, password, and gender are needed for new user registration'
+          message: 'Registration data required: name, password, gender, and email are needed for new user registration'
         });
       }
 
       try {
         // Create the user
         user = await User.create({ name, phone: formattedPhone, password, gender, role });
-        
+
         // If user role is 'user', automatically create a patient record
         if (role === 'user') {
           try {
@@ -951,7 +951,7 @@ const loginWithOtp = async (req, res) => {
             // Don't fail the registration if patient creation fails
           }
         }
-        
+
         // If user role is 'admin', automatically create admin settings
         if (role === 'admin') {
           try {

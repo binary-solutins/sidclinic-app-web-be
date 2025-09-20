@@ -368,16 +368,21 @@ router.post('/send-login-otp', authController.sendLoginOtp);
  *                 type: string
  *                 description: Required only for new user registration
  *                 example: "securePassword123"
- *               gender:
- *                 type: string
- *                 enum: [Male, Female, Other]
- *                 description: Required only for new user registration
- *                 example: "Male"
- *               role:
- *                 type: string
- *                 enum: [user, doctor, admin]
- *                 default: user
- *                 description: Required only for new user registration
+     *               gender:
+     *                 type: string
+     *                 enum: [Male, Female, Other]
+     *                 description: Required only for new user registration
+     *                 example: "Male"
+     *               email:
+     *                 type: string
+     *                 format: email
+     *                 description: Required only for new user registration
+     *                 example: "user@example.com"
+     *               role:
+     *                 type: string
+     *                 enum: [user, doctor, admin]
+     *                 default: user
+     *                 description: Required only for new user registration
  *     responses:
  *       200:
  *         description: Login successful (existing user)
@@ -474,8 +479,8 @@ router.post('/send-login-otp', authController.sendLoginOtp);
  *                   examples:
  *                     invalidOtp:
  *                       value: "Invalid OTP"
- *                     missingData:
- *                       value: "Registration data required: name, password, and gender are needed for new user registration"
+     *                     missingData:
+     *                       value: "Registration data required: name, password, gender, and email are needed for new user registration"
  *                     validationError:
  *                       value: "Password must be at least 6 characters long"
  *       500:
@@ -930,12 +935,13 @@ router.get('/profile', authenticate(), authController.getProfile);
  *     LoginWithOtpNewUserExample:
  *       summary: Register with OTP (new user)
  *       value:
- *         phone: "9876543211"
- *         otp: "123456"
- *         name: "John Doe"
- *         password: "securePassword123"
- *         gender: "Male"
- *         role: "user"
+     *         phone: "9876543211"
+     *         otp: "123456"
+     *         name: "John Doe"
+     *         password: "securePassword123"
+     *         gender: "Male"
+     *         email: "john.doe@example.com"
+     *         role: "user"
  *     SendOtpResponseExample:
  *       summary: Send OTP response
  *       value:
