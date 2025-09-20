@@ -1,9 +1,14 @@
 const crypto = require('crypto');
 const axios = require('axios');
+const { getCurrentEnvironment, getEnvironmentName } = require('../config/phonepe.config');
 
 class PhonePeService {
   constructor() {
-    // OAuth2 credentials for token generation (Switching to Testing/Sandbox for development)
+    // Get environment configuration
+    this.environmentName = getEnvironmentName();
+    this.config = getCurrentEnvironment();
+    
+    // OAuth2 credentials for token generation
     this.clientId = 'SU2509171722305638483883';  // Your Client ID (works in both environments)
     this.clientSecret = '14aa2133-ae84-4b72-9149-5154e703ff07';  // Your Client Secret
     this.clientVersion = '1';  // Client Version
@@ -13,9 +18,12 @@ class PhonePeService {
     this.saltKey = '14aa2133-ae84-4b72-9149-5154e703ff07';
     this.saltIndex = 1;
     
-    // API endpoints (Using SANDBOX/TESTING for development to avoid INTERNAL_SECURITY_BLOCK)
-    this.tokenUrl = 'https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token';  // Sandbox OAuth endpoint
-    this.paymentUrl = 'https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/pay';  // Sandbox payment endpoint
+    // Environment-based API endpoints from config
+    this.tokenUrl = this.config.tokenUrl;
+    this.paymentUrl = this.config.paymentUrl;
+    this.statusBaseUrl = this.config.statusBaseUrl;
+    this.legacyStatusBaseUrl = this.config.legacyStatusUrl;
+    
     this.redirectUrl = 'http://localhost:3000/payment/success';
     this.callbackUrl = 'http://localhost:3000/api/payment/phonepe/callback';
     
@@ -24,12 +32,14 @@ class PhonePeService {
     this.tokenExpiresAt = null;
     
     // Log configuration for debugging
-    console.log('🔧 PhonePe Service initialized with SANDBOX/TESTING environment');
-    console.log('🧪 Environment: TESTING (to avoid INTERNAL_SECURITY_BLOCK)');
+    console.log('🔧 PhonePe Service initialized');
+    console.log('🌍 Environment:', this.environmentName, `(${this.config.name})`);
+    console.log('📝 Description:', this.config.description);
     console.log('📋 Client ID:', this.clientId);
     console.log('🔑 Client Secret:', this.clientSecret ? '***' + this.clientSecret.slice(-4) : 'MISSING');
     console.log('🌐 Token URL:', this.tokenUrl);
     console.log('🌐 Payment URL:', this.paymentUrl);
+    console.log('🌐 Status URL:', this.statusBaseUrl);
   }
 
   /**
@@ -344,8 +354,8 @@ class PhonePeService {
       try {
         const accessToken = await this.generateAccessToken();
         
-        // PhonePe v2 status check endpoint (Sandbox)
-        const statusUrl = `https://api-preprod.phonepe.com/apis/pg-sandbox/checkout/v2/status/${this.merchantId}/${merchantTransactionId}`;
+        // PhonePe v2 status check endpoint (Environment-specific)
+        const statusUrl = `${this.statusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
         
         console.log('📋 Status Check URL:', statusUrl);
         
@@ -392,7 +402,8 @@ class PhonePeService {
         const base64Payload = Buffer.from(payloadString).toString('base64');
         const checksum = this.generateHash(base64Payload);
 
-        const legacyUrl = `https://api-preprod.phonepe.com/apis/hermes/pg/v1/status/${this.merchantId}/${merchantTransactionId}`;
+        // Legacy status URL (environment-specific)
+        const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
         
         const response = await axios.get(legacyUrl, {
           headers: {
