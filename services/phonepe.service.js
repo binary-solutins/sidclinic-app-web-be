@@ -4,9 +4,9 @@ const { getCurrentEnvironment, getEnvironmentName } = require('../config/phonepe
 
 class PhonePeService {
   constructor() {
-    // Get environment configuration - FORCED TO SANDBOX for testing
-    this.environmentName = 'SANDBOX';
-    process.env.PHONEPE_ENVIRONMENT = 'SANDBOX'; // Force sandbox environment
+    // Get environment configuration - PRODUCTION ONLY (your credentials only work in production)
+    this.environmentName = 'PRODUCTION';
+    process.env.PHONEPE_ENVIRONMENT = 'PRODUCTION'; // Your credentials only work in production
     this.config = getCurrentEnvironment();
     
     // OAuth2 credentials for token generation
@@ -119,8 +119,14 @@ class PhonePeService {
       }
 
     } catch (error) {
-      console.error('❌ OAuth2 token generation failed:', error.response?.data || error.message);
-      throw new Error('Failed to generate access token');
+      console.error('❌ OAuth2 token generation failed:');
+      console.error('   Status:', error.response?.status);
+      console.error('   Status Text:', error.response?.statusText);
+      console.error('   Response Data:', error.response?.data);
+      console.error('   Request URL:', this.tokenUrl);
+      console.error('   Request Headers:', error.config?.headers);
+      console.error('   Error Message:', error.message);
+      throw new Error('Failed to generate access token: ' + (error.response?.data?.message || error.message));
     }
   }
 
