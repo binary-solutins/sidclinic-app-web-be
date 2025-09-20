@@ -11,26 +11,29 @@ const { DateTime } = require('luxon');
 // Create virtual doctor function
 exports.createVirtualDoctor = async (req, res) => {
   try {
-    const { 
-      name, 
-      phone, 
-      password, 
-      gender,
-      specialty = 'General Medicine',
-      degree = 'MBBS',
-      yearsOfExperience = 0,
-      clinicName = 'Virtual Clinic',
-      clinicContactNumber = phone,
-      email = `${phone}@virtual.com`,
-      address = 'Virtual Address',
-      country = 'India',
-      state = 'Virtual State',
-      city = 'Virtual City',
-      locationPin = '000000',
-      startTime = '09:00:00',
-      endTime = '18:00:00',
-      registrationNumber = `VIRTUAL-${Date.now()}`
-    } = req.body;
+    // Accept data from form-data (multipart/form-data)
+    // For form-data, fields are in req.body, files in req.files (if any)
+    // We'll use req.body for all fields, and handle files if needed in the future
+
+    // Extract fields from form-data (all values are strings, so parse as needed)
+    const name = req.body.name;
+    const phone = req.body.phone;
+    const password = req.body.password;
+    const gender = req.body.gender;
+    const specialty = req.body.specialty || 'General Medicine';
+    const degree = req.body.degree || 'MBBS';
+    const yearsOfExperience = req.body.yearsOfExperience ? parseInt(req.body.yearsOfExperience) : 0;
+    const clinicName = req.body.clinicName || 'Virtual Clinic';
+    const clinicContactNumber = req.body.clinicContactNumber || phone;
+    const email = req.body.email || (phone ? `${phone}@virtual.com` : undefined);
+    const address = req.body.address || 'Virtual Address';
+    const country = req.body.country || 'India';
+    const state = req.body.state || 'Virtual State';
+    const city = req.body.city || 'Virtual City';
+    const locationPin = req.body.locationPin || '000000';
+    const startTime = req.body.startTime || '09:00:00';
+    const endTime = req.body.endTime || '18:00:00';
+    const registrationNumber = req.body.registrationNumber || `VIRTUAL-${Date.now()}`;
 
     // Validate required fields
     if (!name || !phone || !password || !gender) {

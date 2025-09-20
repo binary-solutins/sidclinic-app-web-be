@@ -236,6 +236,106 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
+exports.register = async (req, res) => {
+  try {
+    // Log the request body for debugging
+    console.log('Register request body:', req.body);
+
+    const { phone, name, password, gender, role = 'user' } = req.body;
+
+    const existingUser = await User.findOne({ where: { phone } });
+    if (existingUser) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'User already exists',
+        data: null
+      });
+    }
+
+    const user = await User.create({ name, phone, password, gender, role });
+    
+    // If user role is 'doctor', send admin notification email
+    if (role === 'doctor') {
+      try {
+        const emailData = {
+          name: user.name,
+          email: `${phone}@temp.com`, // Temporary email using phone
+          phone: user.phone,
+          specialization: 'Not specified yet', // Will be updated when doctor sets up profile
+          id: user.id
+        };
+        
+        await sendNewDoctorRegistrationNotification(emailData);
+        console.log('Admin notification email sent successfully for new doctor registration');
+      } catch (emailError) {
+        console.error('Failed to send admin notification email:', emailError);
+        // Don't fail the registration if email fails, just log the error
+      }
+    }
+    
+    // If user role is 'user', automatically create a patient record
+    if (role === 'user') {
+      try {
+        const Patient = require('../models/patient.model');
+        await Patient.create({
+          userId: user.id,
+          email: `${phone}@temp.com`, // Temporary email using phone
+          dateOfBirth: null, // Will be updated later
+          languagePreference: 'English',
+          isActive: true
+        });
+        console.log(`Patient record created for user ${user.id}`);
+      } catch (patientError) {
+        console.error('Error creating patient record:', patientError);
+        // Don't fail the registration if patient creation fails
+      }
+    }
+    
+    // If user role is 'admin', automatically create admin settings
+    if (role === 'admin') {
+      try {
+        const AdminSetting = require('../models/adminSetting.model');
+        await AdminSetting.create({
+          userId: user.id,
+          virtualAppointmentStartTime: '09:00:00',
+          virtualAppointmentEndTime: '18:00:00',
+          alertEmails: null,
+          isActive: true
+        });
+        console.log(`Admin settings created for user ${user.id}`);
+      } catch (adminSettingError) {
+        console.error('Error creating admin settings:', adminSettingError);
+        // Don't fail the registration if admin settings creation fails
+      }
+    }
+    
+    const token = generateToken(user);
+
+    res.status(201).json({
+      status: 'success',
+      code: 201,
+      message: 'User registered successfully',
+      data: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        token
+      }
+    });
+  } catch (error) {
+    console.error('Registration Error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: error.message || 'Registration failed',
+      data: null
+    });
+  }
+};
+
+
 
 exports.resendOtp = async (req, res) => {
   try {
@@ -1033,9 +1133,11 @@ const loginWithOtp = async (req, res) => {
   }
 };
 
+
 module.exports = {
   sendOtp: exports.sendOtp,
   verifyOtp: exports.verifyOtp,
+  register: exports.register,
   resendOtp: exports.resendOtp,
   login: exports.login,
   getProfile: exports.getProfile,
@@ -1044,4 +1146,5 @@ module.exports = {
   resetPassword,
   sendLoginOtp,
   loginWithOtp
+  
 };

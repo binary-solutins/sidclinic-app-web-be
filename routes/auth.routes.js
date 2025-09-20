@@ -839,6 +839,7 @@ router.post('/reset-password', authController.resetPassword);
  *                   example: "Internal server error"
  */
 // Register route removed - now handled by login-with-otp
+router.post('/register', authController.register);
 
 /**
  * @swagger
