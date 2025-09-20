@@ -2,6 +2,7 @@ const express = require("express");
 const sequelize = require("./config/db");
 const swaggerUi = require("swagger-ui-express");
 const specs = require("./swagger");
+const multer = require("multer");
 const authRoutes = require("./routes/auth.routes");
 const dashboardRoutes = require("./routes/dashboard.routes");
 const doctorRoutes = require("./routes/doctor.route");
@@ -63,6 +64,21 @@ app.use(cors({
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Multer middleware for multipart/form-data
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow all file types for now, but you can add restrictions here
+    cb(null, true);
+  }
+});
+
+// Apply multer middleware to handle multipart/form-data
+app.use(upload.any());
 
 // Static files
 app.use(express.static(path.join(__dirname, "public")));
