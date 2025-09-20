@@ -11,29 +11,29 @@ const { DateTime } = require('luxon');
 // Create virtual doctor function
 exports.createVirtualDoctor = async (req, res) => {
   try {
-    // Accept data from form-data (multipart/form-data)
-    // For form-data, fields are in req.body, files in req.files (if any)
-    // We'll use req.body for all fields, and handle files if needed in the future
-
-    // Extract fields from form-data (all values are strings, so parse as needed)
-    const name = req.body.name;
-    const phone = req.body.phone;
-    const password = req.body.password;
-    const gender = req.body.gender;
-    const specialty = req.body.specialty || 'General Medicine';
-    const degree = req.body.degree || 'MBBS';
-    const yearsOfExperience = req.body.yearsOfExperience ? parseInt(req.body.yearsOfExperience) : 0;
-    const clinicName = req.body.clinicName || 'Virtual Clinic';
-    const clinicContactNumber = req.body.clinicContactNumber || phone;
-    const email = req.body.email || (phone ? `${phone}@virtual.com` : undefined);
-    const address = req.body.address || 'Virtual Address';
-    const country = req.body.country || 'India';
-    const state = req.body.state || 'Virtual State';
-    const city = req.body.city || 'Virtual City';
-    const locationPin = req.body.locationPin || '000000';
-    const startTime = req.body.startTime || '09:00:00';
-    const endTime = req.body.endTime || '18:00:00';
-    const registrationNumber = req.body.registrationNumber || `VIRTUAL-${Date.now()}`;
+    // Accept data from form-data (multipart/form-data) or JSON
+    // Normalize all fields to string and trim
+    const getString = (val) => (typeof val === 'string' ? val.trim() : (val !== undefined && val !== null ? String(val).trim() : ''));
+    const name = getString(req.body.name);
+    const phone = getString(req.body.phone);
+    const password = getString(req.body.password);
+    const gender = getString(req.body.gender);
+    const specialty = getString(req.body.specialty) || 'General Medicine';
+    const degree = getString(req.body.degree) || 'MBBS';
+    const yearsOfExperience = req.body.yearsOfExperience !== undefined && req.body.yearsOfExperience !== null
+      ? parseInt(req.body.yearsOfExperience)
+      : 0;
+    const clinicName = getString(req.body.clinicName) || 'Virtual Clinic';
+    const clinicContactNumber = getString(req.body.clinicContactNumber) || phone;
+    const email = getString(req.body.email) || (phone ? `${phone}@virtual.com` : undefined);
+    const address = getString(req.body.address) || 'Virtual Address';
+    const country = getString(req.body.country) || 'India';
+    const state = getString(req.body.state) || 'Virtual State';
+    const city = getString(req.body.city) || 'Virtual City';
+    const locationPin = getString(req.body.locationPin) || '000000';
+    const startTime = getString(req.body.startTime) || '09:00:00';
+    const endTime = getString(req.body.endTime) || '18:00:00';
+    const registrationNumber = getString(req.body.registrationNumber) || `VIRTUAL-${Date.now()}`;
 
     // Validate required fields
     if (!name || !phone || !password || !gender) {
@@ -45,8 +45,19 @@ exports.createVirtualDoctor = async (req, res) => {
       });
     }
 
+    // Validate phone number (must be 10 digits, Indian mobile)
+    const phoneDigits = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+    if (!/^[6-9]\d{9}$/.test(phoneDigits)) {
+      return res.status(400).json({
+        status: "error",
+        code: 400,
+        message: "Please provide a valid 10-digit Indian mobile number (without country code)",
+        data: null
+      });
+    }
+
     // Check if phone number already exists
-    const existingUser = await User.findOne({ where: { phone } });
+    const existingUser = await User.findOne({ where: { phone: phoneDigits } });
     if (existingUser) {
       return res.status(409).json({
         status: "error",
@@ -59,7 +70,7 @@ exports.createVirtualDoctor = async (req, res) => {
     // Create virtual doctor user
     const virtualDoctorUser = await User.create({
       name,
-      phone,
+      phone: phoneDigits,
       password,
       gender,
       role: 'virtual-doctor'
@@ -70,7 +81,7 @@ exports.createVirtualDoctor = async (req, res) => {
       userId: virtualDoctorUser.id,
       clinicName,
       clinicPhotos: null,
-      yearsOfExperience,
+      yearsOfExperience: isNaN(yearsOfExperience) ? 0 : yearsOfExperience,
       specialty,
       degree,
       registrationNumber,
@@ -94,7 +105,7 @@ exports.createVirtualDoctor = async (req, res) => {
         name: name,
         role: 'virtual-doctor',
         credentials: {
-          phone: phone,
+          phone: phoneDigits,
           password: password
         }
       });
@@ -137,8 +148,7 @@ exports.createVirtualDoctor = async (req, res) => {
     res.status(500).json({
       status: "error",
       code: 500,
-      message: "Internal Server Error",
-      error: error.message,
+      message: error.message || "Internal Server Error",
       data: null
     });
   }
