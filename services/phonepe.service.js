@@ -4,8 +4,9 @@ const { getCurrentEnvironment, getEnvironmentName } = require('../config/phonepe
 
 class PhonePeService {
   constructor() {
-    // Get environment configuration
-    this.environmentName = getEnvironmentName();
+    // Get environment configuration - FORCED TO SANDBOX for testing
+    this.environmentName = 'SANDBOX';
+    process.env.PHONEPE_ENVIRONMENT = 'SANDBOX'; // Force sandbox environment
     this.config = getCurrentEnvironment();
     
     // OAuth2 credentials for token generation
