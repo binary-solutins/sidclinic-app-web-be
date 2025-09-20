@@ -675,5 +675,221 @@ exports.getPaymentStats = async (req, res) => {
   }
 };
 
+/**
+ * Get pending payments for user - appointments that need payment
+ */
+exports.getPendingPayments = async (req, res) => {
+  try {
+    const userId = req.user.id;
 
+    // Find appointments with pending payments or no payments
+    const appointments = await Appointment.findAll({
+      where: {
+        patientId: userId,
+        status: 'pending' // Appointments waiting for payment
+      },
+      include: [
+        {
+          model: Payment,
+          as: 'payments',
+          required: false,
+          where: {
+            status: {
+              [Op.notIn]: ['success'] // Exclude successful payments
+            }
+          }
+        },
+        {
+          model: User,
+          as: 'patient',
+          attributes: ['id', 'name', 'phone']
+        }
+      ],
+      order: [['appointmentDateTime', 'ASC']]
+    });
+
+    // Filter appointments that need payment
+    const pendingPayments = appointments.filter(appointment => {
+      // If no payments exist, or all payments are not successful
+      const hasSuccessfulPayment = appointment.payments?.some(payment => payment.status === 'success');
+      return !hasSuccessfulPayment;
+    });
+
+    res.json({
+      status: 'success',
+      code: 200,
+      message: 'Pending payments retrieved successfully',
+      data: pendingPayments.map(appointment => ({
+        appointmentId: appointment.id,
+        appointmentDateTime: appointment.appointmentDateTime,
+        type: appointment.type,
+        status: appointment.status,
+        patientName: appointment.patient.name,
+        hasPaymentAttempt: appointment.payments && appointment.payments.length > 0,
+        lastPaymentStatus: appointment.payments?.[0]?.status || null,
+        lastPaymentId: appointment.payments?.[0]?.id || null,
+        canRetryPayment: true
+      }))
+    });
+
+  } catch (error) {
+    console.error('Get pending payments error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Complete payment for existing appointment
+ */
+exports.completePayment = async (req, res) => {
+  try {
+    const { appointmentId, paymentMethod = 'phonepe' } = req.body;
+    const userId = req.user.id;
+
+    // Validate input
+    if (!appointmentId) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Appointment ID is required'
+      });
+    }
+
+    // Get appointment details
+    const appointment = await Appointment.findOne({
+      where: {
+        id: appointmentId,
+        patientId: userId,
+        status: 'pending' // Only allow payment for pending appointments
+      },
+      include: [
+        { model: User, as: 'patient', attributes: ['id', 'name', 'phone'] }
+      ]
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: 'Appointment not found or payment already completed'
+      });
+    }
+
+    // Check if there's already a successful payment
+    const existingSuccessfulPayment = await Payment.findOne({
+      where: {
+        appointmentId,
+        status: 'success'
+      }
+    });
+
+    if (existingSuccessfulPayment) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Payment already completed for this appointment'
+      });
+    }
+
+    // Get virtual appointment pricing
+    const pricing = await Price.findOne({
+      where: {
+        serviceName: 'Virtual Appointment',
+        isActive: true
+      }
+    });
+
+    if (!pricing) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Virtual appointment pricing is not configured'
+      });
+    }
+
+    const amount = parseFloat(pricing.price);
+
+    // Generate new merchant transaction ID
+    const merchantTransactionId = phonepeService.generateMerchantTransactionId(userId, appointmentId);
+
+    // Create new payment record
+    const payment = await Payment.create({
+      userId,
+      appointmentId,
+      amount,
+      currency: 'INR',
+      paymentMethod,
+      status: 'initiated',
+      phonepeMerchantTransactionId: merchantTransactionId,
+      initiatedAt: new Date(),
+      ipAddress: req.ip,
+      deviceInfo: {
+        userAgent: req.get('User-Agent'),
+        platform: req.get('Platform') || 'web'
+      }
+    });
+
+    // Initiate payment with PhonePe
+    const paymentResult = await phonepeService.initiatePayment({
+      merchantTransactionId,
+      amount,
+      userId,
+      appointmentId,
+      userInfo: appointment.patient
+    });
+
+    if (!paymentResult.success) {
+      // Update payment status to failed
+      await payment.update({
+        status: 'failed',
+        failureReason: paymentResult.error,
+        failedAt: new Date()
+      });
+
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Payment initiation failed',
+        error: paymentResult.error
+      });
+    }
+
+    // Update payment with PhonePe response
+    await payment.update({
+      status: 'initiated',
+      phonepeTransactionId: paymentResult.data.phonepeTransactionId,
+      paymentUrl: paymentResult.data.paymentUrl,
+      phonepeResponse: paymentResult.data
+    });
+
+    res.json({
+      status: 'success',
+      code: 200,
+      message: 'Payment initiated successfully for existing appointment',
+      data: {
+        paymentId: payment.id,
+        paymentUrl: paymentResult.data.paymentUrl,
+        amount: amount,
+        currency: 'INR',
+        merchantTransactionId: merchantTransactionId,
+        appointmentId: appointmentId,
+        appointmentDateTime: appointment.appointmentDateTime
+      }
+    });
+
+  } catch (error) {
+    console.error('Complete payment error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
 

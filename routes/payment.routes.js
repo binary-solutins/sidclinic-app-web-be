@@ -401,6 +401,152 @@ router.get('/methods',
   paymentController.getPaymentMethods
 );
 
+/**
+ * @swagger
+ * /payment/pending:
+ *   get:
+ *     summary: Get pending payments for user
+ *     description: Get list of appointments that need payment completion
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Pending payments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: Pending payments retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       appointmentId:
+ *                         type: integer
+ *                         example: 123
+ *                       appointmentDateTime:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2025-09-25T14:30:00.000Z"
+ *                       type:
+ *                         type: string
+ *                         example: virtual
+ *                       status:
+ *                         type: string
+ *                         example: pending
+ *                       patientName:
+ *                         type: string
+ *                         example: John Doe
+ *                       hasPaymentAttempt:
+ *                         type: boolean
+ *                         example: true
+ *                       lastPaymentStatus:
+ *                         type: string
+ *                         example: failed
+ *                       canRetryPayment:
+ *                         type: boolean
+ *                         example: true
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/pending', 
+  authenticate(['user']), 
+  paymentController.getPendingPayments
+);
+
+/**
+ * @swagger
+ * /payment/complete:
+ *   post:
+ *     summary: Complete payment for existing appointment
+ *     description: Initiate payment for an existing appointment that hasn't been paid for
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - appointmentId
+ *             properties:
+ *               appointmentId:
+ *                 type: integer
+ *                 description: ID of the appointment to pay for
+ *                 example: 123
+ *               paymentMethod:
+ *                 type: string
+ *                 description: Payment method (default: phonepe)
+ *                 example: phonepe
+ *                 default: phonepe
+ *     responses:
+ *       200:
+ *         description: Payment initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: Payment initiated successfully for existing appointment
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     paymentId:
+ *                       type: integer
+ *                       example: 789
+ *                     paymentUrl:
+ *                       type: string
+ *                       example: https://mercury.phonepe.com/transact/v2?token=...
+ *                     amount:
+ *                       type: number
+ *                       example: 500.00
+ *                     currency:
+ *                       type: string
+ *                       example: INR
+ *                     appointmentId:
+ *                       type: integer
+ *                       example: 123
+ *                     appointmentDateTime:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2025-09-25T14:30:00.000Z"
+ *       400:
+ *         description: Bad request - appointment not found or payment already completed
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Appointment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/complete', 
+  authenticate(['user']), 
+  paymentController.completePayment
+);
+
 // Admin routes
 /**
  * @swagger
