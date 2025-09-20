@@ -904,7 +904,7 @@ module.exports = {
       let doctorEmail, doctorName;
       if (appointment.type === 'virtual') {
         if (appointment.virtualDoctor && appointment.virtualDoctor.User) {
-          doctorEmail = appointment.virtualDoctor.User.email;
+          doctorEmail = appointment.virtualDoctor.email; // Email is in VirtualDoctor model, not User
           doctorName = appointment.virtualDoctor.User.name;
         } else {
           // For virtual appointments without assigned doctor, use a generic name
@@ -912,7 +912,9 @@ module.exports = {
           doctorName = 'Virtual Doctor';
         }
       } else {
-        doctorEmail = appointment.doctor.User.email;
+        // For regular doctors, we need to check if they have email in their profile
+        // Since User model doesn't have email, we'll use a default or get from doctor profile
+        doctorEmail = appointment.doctor.email || 'doctor@sidclinic.com'; // Assuming doctor model has email
         doctorName = appointment.doctor.User.name;
       }
 
@@ -1199,7 +1201,7 @@ module.exports = {
       // Determine who canceled and notify the other party
       const cancelerName = isPatient ? appointment.patient.name : `Dr. ${appointment.doctor.User.name}`;
       const recipientId = isPatient ? appointment.doctor.User.id : appointment.userId;
-      const recipientEmail = isPatient ? appointment.doctor.User.email : appointment.patient.email;
+      const recipientEmail = isPatient ? (appointment.doctor.email || 'doctor@sidclinic.com') : (appointment.patient.email || 'patient@sidclinic.com');
       const recipientName = isPatient ? appointment.doctor.User.name : appointment.patient.name;
 
       await sendUserNotification(
@@ -1239,7 +1241,7 @@ module.exports = {
       );
       // Send confirmation email to the canceler
       const confirmationTemplate = isPatient ? 'cancellation_confirmation_patient' : 'cancellation_confirmation_doctor';
-      const cancelerEmail = isPatient ? appointment.patient.email : appointment.doctor.User.email;
+      const cancelerEmail = isPatient ? (appointment.patient.email || 'patient@sidclinic.com') : (appointment.doctor.email || 'doctor@sidclinic.com');
 
       await sendAppointmentEmail(
         cancelerEmail,

@@ -14,7 +14,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 
 /**
  * @swagger
- * /api/payment/initiate:
+ * /payment/initiate:
  *   post:
  *     summary: Initiate payment for virtual appointment
  *     description: Initiate payment for a virtual appointment using PhonePe gateway

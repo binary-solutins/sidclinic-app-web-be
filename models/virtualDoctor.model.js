@@ -203,7 +203,7 @@ VirtualDoctor.getBySpecialty = async function(specialty) {
       isApproved: true,
       is_active: true
     },
-    include: [{ model: User, as: 'User', attributes: ['id', 'name', 'email', 'phone'] }]
+    include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone'] }]
   });
 };
 
@@ -213,7 +213,7 @@ VirtualDoctor.getAvailableDoctors = async function() {
       isApproved: true,
       is_active: true
     },
-    include: [{ model: User, as: 'User', attributes: ['id', 'name', 'email', 'phone'] }]
+    include: [{ model: User, as: 'User', attributes: ['id', 'name', 'phone'] }]
   });
 };
 

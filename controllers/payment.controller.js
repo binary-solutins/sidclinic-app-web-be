@@ -26,7 +26,7 @@ exports.initiatePayment = async (req, res) => {
     // Get appointment details
     const appointment = await Appointment.findByPk(appointmentId, {
       include: [
-        { model: User, as: 'patient', attributes: ['id', 'name', 'phone', 'email'] }
+        { model: User, as: 'patient', attributes: ['id', 'name', 'phone'] }
       ]
     });
 
@@ -550,7 +550,7 @@ exports.getAllPayments = async (req, res) => {
     const { count, rows: payments } = await Payment.findAndCountAll({
       where,
       include: [
-        { model: User, as: 'user', attributes: ['id', 'name', 'phone', 'email'] },
+        { model: User, as: 'user', attributes: ['id', 'name', 'phone'] },
         { 
           model: Appointment, 
           as: 'appointment', 
