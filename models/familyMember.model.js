@@ -22,7 +22,7 @@ const FamilyMember = sequelize.define('FamilyMember', {
   },
   dateOfBirth: {
     type: DataTypes.DATEONLY,
-    allowNull: false
+    allowNull: true
   },
   gender: {
     type: DataTypes.ENUM('Male', 'Female', 'Other'),
@@ -31,6 +31,14 @@ const FamilyMember = sequelize.define('FamilyMember', {
   relation: {
     type: DataTypes.STRING,
     allowNull: false
+  },
+  age: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    validate: {
+      min: 0,
+      max: 150
+    }
   }
 }, {
   indexes: [

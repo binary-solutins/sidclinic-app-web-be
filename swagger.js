@@ -256,6 +256,63 @@ const options = {
             }
           }
         },
+        FamilyMember: {
+          type: 'object',
+          required: ['name', 'gender', 'relation'],
+          properties: {
+            id: {
+              type: 'integer',
+              example: 1,
+              description: 'Family member ID'
+            },
+            name: {
+              type: 'string',
+              example: 'Jane Doe',
+              description: 'Family member name'
+            },
+            dateOfBirth: {
+              type: 'string',
+              format: 'date',
+              example: '1990-05-15',
+              description: 'Date of birth (optional)'
+            },
+            gender: {
+              type: 'string',
+              enum: ['Male', 'Female', 'Other'],
+              example: 'Female',
+              description: 'Gender'
+            },
+            relation: {
+              type: 'string',
+              example: 'Sister',
+              description: 'Relationship to the patient'
+            },
+            age: {
+              type: 'integer',
+              minimum: 0,
+              maximum: 150,
+              example: 28,
+              description: 'Age of the family member'
+            },
+            patientId: {
+              type: 'integer',
+              example: 1,
+              description: 'Associated patient ID'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-01-15T10:30:00Z',
+              description: 'Creation timestamp'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              example: '2024-01-15T10:30:00Z',
+              description: 'Last update timestamp'
+            }
+          }
+        },
         Error: {
           type: 'object',
           properties: {

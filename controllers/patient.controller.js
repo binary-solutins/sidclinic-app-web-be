@@ -175,8 +175,46 @@ exports.addFamilyMember = async (req, res) => {
       });
     }
 
+    const { name, dateOfBirth, gender, relation, age } = req.body;
+
+    // Validate required fields
+    if (!name || !gender || !relation) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Name, gender, and relation are required fields',
+        data: null
+      });
+    }
+
+    // Calculate age from dateOfBirth if age is not provided and dateOfBirth exists
+    let calculatedAge = age;
+    if (!age && dateOfBirth) {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      calculatedAge = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        calculatedAge--;
+      }
+    }
+
+    // Validate age if provided
+    if (calculatedAge !== undefined && (calculatedAge < 0 || calculatedAge > 150)) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Age must be between 0 and 150',
+        data: null
+      });
+    }
+
     const familyMember = await FamilyMember.create({
-      ...req.body,
+      name,
+      dateOfBirth: dateOfBirth || null,
+      gender,
+      relation,
+      age: calculatedAge || null,
       patientId: patient.id
     });
 
@@ -256,7 +294,36 @@ exports.updateFamilyMember = async (req, res) => {
       });
     }
 
-    await familyMember.update(req.body);
+    const { name, dateOfBirth, gender, relation, age } = req.body;
+    
+    // Calculate age from dateOfBirth if age is not provided but dateOfBirth is being updated
+    let calculatedAge = age;
+    if (!age && dateOfBirth) {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      calculatedAge = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        calculatedAge--;
+      }
+    }
+
+    // Validate age if provided
+    if (calculatedAge !== undefined && (calculatedAge < 0 || calculatedAge > 150)) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Age must be between 0 and 150',
+        data: null
+      });
+    }
+
+    const updateData = { ...req.body };
+    if (calculatedAge !== undefined) {
+      updateData.age = calculatedAge;
+    }
+
+    await familyMember.update(updateData);
 
     res.json({
       status: 'success',
