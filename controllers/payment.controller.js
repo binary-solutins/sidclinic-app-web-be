@@ -321,20 +321,24 @@ exports.handleCallback = async (req, res) => {
     console.log('📋 Request Headers:', JSON.stringify(req.headers, null, 2));
     console.log('🔔🔔🔔 CALLBACK DATA END 🔔🔔🔔');
 
-    const { response, checksum } = req.body;
+    // PhonePe webhook format: { event: "checkout.order.completed", payload: {...} }
+    const { event, payload } = req.body;
 
-    if (!response || !checksum) {
-      console.log('❌ Invalid callback data - missing response or checksum');
+    if (!event || !payload) {
+      console.log('❌ Invalid callback data - missing event or payload');
       return res.status(400).json({
         status: 'error',
         code: 400,
-        message: 'Invalid callback data'
+        message: 'Invalid callback data - missing event or payload'
       });
     }
 
+    console.log('📋 Event:', event);
+    console.log('📋 Payload:', JSON.stringify(payload, null, 2));
+
     // Process callback with PhonePe service
     console.log('🔄 Processing callback with PhonePe service...');
-    const callbackResult = await phonepeService.processCallback({ response, checksum });
+    const callbackResult = await phonepeService.processCallback({ event, payload });
 
     if (!callbackResult.success) {
       console.log('❌ Callback processing failed:', callbackResult.error);
@@ -372,30 +376,29 @@ exports.handleCallback = async (req, res) => {
 
     console.log(`✅ Payment found - ID: ${payment.id}, Current Status: ${payment.status}, Appointment Status: ${payment.appointment.status}`);
 
-    // Update payment status based on callback
+    // Update payment status based on callback event and payload state
     let paymentStatus = 'failed';
     let appointmentStatus = payment.appointment.status;
 
-    console.log(`📊 Processing callback status: ${callbackData.status}`);
-    switch (callbackData.status) {
-      case 'COMPLETED':
-        paymentStatus = 'success';
-        if (payment.appointment.status === 'pending') {
-          appointmentStatus = 'confirmed';
-        }
-        console.log('✅ Payment marked as successful');
-        break;
-      case 'FAILED':
-        paymentStatus = 'failed';
-        console.log('❌ Payment marked as failed');
-        break;
-      case 'CANCELLED':
-        paymentStatus = 'cancelled';
-        console.log('🚫 Payment marked as cancelled');
-        break;
-      default:
-        paymentStatus = 'failed';
-        console.log('⚠️ Unknown status, marking as failed:', callbackData.status);
+    console.log(`📊 Processing callback event: ${event}`);
+    console.log(`📊 Payment state in payload: ${payload.state}`);
+
+    // Handle different event types
+    if (event === 'checkout.order.completed' && payload.state === 'COMPLETED') {
+      paymentStatus = 'success';
+      if (payment.appointment.status === 'pending') {
+        appointmentStatus = 'confirmed';
+      }
+      console.log('✅ Payment completed successfully');
+    } else if (event === 'checkout.order.failed' || payload.state === 'FAILED') {
+      paymentStatus = 'failed';
+      console.log('❌ Payment failed');
+    } else if (payload.state === 'CANCELLED') {
+      paymentStatus = 'cancelled';
+      console.log('🚫 Payment cancelled');
+    } else {
+      console.log('⚠️ Unknown event/state:', event, payload.state);
+      paymentStatus = 'failed';
     }
 
     // Update payment record
@@ -425,8 +428,11 @@ exports.handleCallback = async (req, res) => {
       message: 'Callback processed successfully',
       data: {
         paymentId: payment.id,
+        event: event,
+        paymentState: payload.state,
         status: paymentStatus,
-        appointmentStatus: appointmentStatus
+        appointmentStatus: appointmentStatus,
+        merchantTransactionId: callbackData.merchantTransactionId
       }
     });
 

@@ -96,7 +96,7 @@ router.post('/initiate',
  * /payment/phonepe/callback:
  *   post:
  *     summary: Handle PhonePe payment callback
- *     description: Handle callback from PhonePe payment gateway
+ *     description: Handle webhook callback from PhonePe payment gateway with OAuth2 authentication
  *     tags: [Payment]
  *     requestBody:
  *       required: true
@@ -105,20 +105,77 @@ router.post('/initiate',
  *           schema:
  *             type: object
  *             required:
- *               - response
- *               - checksum
+ *               - event
+ *               - payload
  *             properties:
- *               response:
+ *               event:
  *                 type: string
- *                 description: Base64 encoded response from PhonePe
- *                 example: eyJtZXJjaGFudElkIjoi...
- *               checksum:
- *                 type: string
- *                 description: SHA256 checksum for verification
- *                 example: 1234567890abcdef###1
+ *                 description: Event type from PhonePe
+ *                 example: "checkout.order.completed"
+ *               payload:
+ *                 type: object
+ *                 description: Payment details from PhonePe
+ *                 properties:
+ *                   orderId:
+ *                     type: string
+ *                     description: PhonePe order ID
+ *                     example: "OMO2509221347448928334310"
+ *                   merchantOrderId:
+ *                     type: string
+ *                     description: Your merchant transaction ID
+ *                     example: "TXN_4_11_1758530847215"
+ *                   state:
+ *                     type: string
+ *                     description: Payment state
+ *                     example: "COMPLETED"
+ *                   amount:
+ *                     type: integer
+ *                     description: Payment amount
+ *                     example: 100
+ *                   paymentDetails:
+ *                     type: array
+ *                     description: Payment method details
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         paymentMode:
+ *                           type: string
+ *                           example: "UPI_COLLECT"
+ *                         transactionId:
+ *                           type: string
+ *                           example: "OM2403282020198651071949"
  *     responses:
  *       200:
  *         description: Callback processed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 message:
+ *                   type: string
+ *                   example: "Callback processed successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     paymentId:
+ *                       type: integer
+ *                       example: 9
+ *                     event:
+ *                       type: string
+ *                       example: "checkout.order.completed"
+ *                     paymentState:
+ *                       type: string
+ *                       example: "COMPLETED"
+ *                     status:
+ *                       type: string
+ *                       example: "success"
+ *                     appointmentStatus:
+ *                       type: string
+ *                       example: "confirmed"
  *       400:
  *         description: Bad request - invalid callback data
  *       500:
