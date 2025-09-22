@@ -265,14 +265,14 @@ exports.initiatePayment = async (req, res) => {
       await redeemCodeUsage.update({ paymentId: payment.id });
     }
 
-    // Schedule auto-check for payment status after 2 minutes (fallback mechanism)
+    // Schedule auto-check for payment status after 5 seconds (fallback mechanism)
     setTimeout(async () => {
       try {
         await exports.autoCheckPaymentStatus(payment.id);
       } catch (error) {
         console.error('Error in scheduled payment status check:', error);
       }
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 5 * 1000); // 5 seconds
 
     res.json({
       status: 'success',
