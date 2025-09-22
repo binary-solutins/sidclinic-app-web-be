@@ -371,60 +371,60 @@ class PhonePeService {
       // First, let's try a simple approach - the transaction might not exist yet
       // This happens when payment is still pending or user didn't complete payment
 
+      // First, get the orderId - this needs to be outside try-catch blocks
+      // We need to get the orderId from the payment record first
+      const payment = await Payment.findOne({
+        where: {
+          phonepeMerchantTransactionId: merchantTransactionId
+        }
+      });
+
+      console.log('📋 Payment record found:', {
+        id: payment?.id,
+        hasPhonepeResponse: !!payment?.phonepeResponse,
+        phonepeResponse: payment?.phonepeResponse
+      });
+
+      if (!payment) {
+        console.log('❌ Payment record not found for:', merchantTransactionId);
+        throw new Error('Payment record not found');
+      }
+
+      // Try to get orderId from phonepeResponse
+      let orderId = null;
+      if (payment.phonepeResponse) {
+        // Try orderId first
+        orderId = payment.phonepeResponse.orderId;
+        console.log('📋 Extracted orderId from phonepeResponse:', orderId);
+
+        // If no orderId, try phonepeTransactionId from response
+        if (!orderId) {
+          orderId = payment.phonepeResponse.phonepeTransactionId;
+          console.log('📋 No orderId found, trying phonepeTransactionId from response:', orderId);
+        }
+      }
+
+      // If still no orderId, try to get phonepeTransactionId from payment record
+      if (!orderId && payment.phonepeTransactionId) {
+        console.log('📋 No orderId found in response, trying with payment record phonepeTransactionId:', payment.phonepeTransactionId);
+        orderId = payment.phonepeTransactionId;
+        console.log('📋 Using payment record phonepeTransactionId as fallback:', orderId);
+      }
+
+      if (!orderId) {
+        console.log('❌ No orderId or transactionId found in payment record');
+        console.log('📋 Payment record:', payment);
+        throw new Error('No valid identifier found for status check');
+      }
+
+      const statusUrl = `${this.statusBaseUrl}/${orderId}/status?details=false`;
+
+      console.log('📋 Status Check URL:', statusUrl);
+      console.log('📋 Using identifier:', orderId);
+
       // Try with OAuth2 token first
       try {
         const accessToken = await this.generateAccessToken();
-        
-        // PhonePe v2 status check endpoint - using order ID
-        // We need to get the orderId from the payment record first
-        const payment = await Payment.findOne({
-          where: {
-            phonepeMerchantTransactionId: merchantTransactionId
-          }
-        });
-
-        console.log('📋 Payment record found:', {
-          id: payment?.id,
-          hasPhonepeResponse: !!payment?.phonepeResponse,
-          phonepeResponse: payment?.phonepeResponse
-        });
-
-        if (!payment) {
-          console.log('❌ Payment record not found for:', merchantTransactionId);
-          throw new Error('Payment record not found');
-        }
-
-        // Try to get orderId from phonepeResponse
-        let orderId = null;
-        if (payment.phonepeResponse) {
-          // Try orderId first
-          orderId = payment.phonepeResponse.orderId;
-          console.log('📋 Extracted orderId from phonepeResponse:', orderId);
-
-          // If no orderId, try phonepeTransactionId from response
-          if (!orderId) {
-            orderId = payment.phonepeResponse.phonepeTransactionId;
-            console.log('📋 No orderId found, trying phonepeTransactionId from response:', orderId);
-          }
-        }
-
-        // If still no orderId, try to get phonepeTransactionId from payment record
-        if (!orderId && payment.phonepeTransactionId) {
-          console.log('📋 No orderId found in response, trying with payment record phonepeTransactionId:', payment.phonepeTransactionId);
-          orderId = payment.phonepeTransactionId;
-          console.log('📋 Using payment record phonepeTransactionId as fallback:', orderId);
-        }
-
-        if (!orderId) {
-          console.log('❌ No orderId or transactionId found in payment record');
-          console.log('📋 Payment record:', payment);
-          throw new Error('No valid identifier found for status check');
-        }
-
-        const statusUrl = `${this.statusBaseUrl}/${orderId}/status?details=false`;
-
-        console.log('📋 Status Check URL:', statusUrl);
-        console.log('📋 Using identifier:', orderId);
 
         // Create checksum for v2 API
         // PhonePe uses orderId in the URL but the transaction ID for checksum
@@ -484,9 +484,13 @@ class PhonePeService {
           merchantTransactionId: merchantTransactionId
         };
 
-        const payloadString = JSON.stringify(payload);
-        const base64Payload = Buffer.from(payloadString).toString('base64');
-        const checksum = this.generateHash(base64Payload);
+        // Legacy API uses different checksum format
+        const legacyPayload = `/pg/v1/status/${this.merchantId}/${orderId}${this.saltKey}`;
+        const legacyHash = crypto.createHash('sha256').update(legacyPayload).digest('hex');
+        const legacyChecksum = `${legacyHash}###${this.saltIndex}`;
+
+        console.log('📋 Legacy checksum payload:', legacyPayload);
+        console.log('📋 Legacy generated checksum:', legacyChecksum);
 
         // Legacy status URL (environment-specific) - use orderId for legacy API too
         const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${orderId}`;
@@ -497,7 +501,7 @@ class PhonePeService {
         const response = await axios.get(legacyUrl, {
           headers: {
             'Content-Type': 'application/json',
-            'X-VERIFY': checksum,
+            'X-VERIFY': legacyChecksum,
             'X-MERCHANT-ID': this.merchantId,
             'Accept': 'application/json'
           }
