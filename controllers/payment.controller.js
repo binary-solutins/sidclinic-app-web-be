@@ -414,9 +414,10 @@ exports.handleCallback = async (req, res) => {
     if (paymentStatus === 'success' && payment.appointment.status === 'pending') {
       await payment.appointment.update({
         status: 'confirmed',
-        confirmedAt: new Date()
+        confirmedAt: new Date(),
+        paymentId: payment.id  // Add payment ID to appointment
       });
-      console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed after successful payment`);
+      console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed with payment ID ${payment.id} after successful payment`);
     }
 
     res.json({
@@ -648,9 +649,10 @@ exports.manualSyncPayment = async (req, res) => {
       if (newStatus === 'success' && payment.appointment.status === 'pending') {
         await payment.appointment.update({
           status: 'confirmed',
-          confirmedAt: new Date()
+          confirmedAt: new Date(),
+          paymentId: payment.id  // Add payment ID to appointment
         });
-        console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed`);
+        console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed with payment ID ${payment.id}`);
       }
 
       return res.json({
