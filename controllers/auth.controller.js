@@ -254,7 +254,7 @@ exports.register = async (req, res) => {
     }
 
     const user = await User.create({ name, phone, password, gender, role });
-    
+
     // If user role is 'doctor', send admin notification email
     if (role === 'doctor') {
       try {
@@ -265,7 +265,7 @@ exports.register = async (req, res) => {
           specialization: 'Not specified yet', // Will be updated when doctor sets up profile
           id: user.id
         };
-        
+
         await sendNewDoctorRegistrationNotification(emailData);
         console.log('Admin notification email sent successfully for new doctor registration');
       } catch (emailError) {
@@ -273,7 +273,7 @@ exports.register = async (req, res) => {
         // Don't fail the registration if email fails, just log the error
       }
     }
-    
+
     // If user role is 'user', automatically create a patient record
     if (role === 'user') {
       try {
@@ -291,7 +291,7 @@ exports.register = async (req, res) => {
         // Don't fail the registration if patient creation fails
       }
     }
-    
+
     // If user role is 'admin', automatically create admin settings
     if (role === 'admin') {
       try {
@@ -309,7 +309,7 @@ exports.register = async (req, res) => {
         // Don't fail the registration if admin settings creation fails
       }
     }
-    
+
     const token = generateToken(user);
 
     res.status(201).json({
@@ -1040,7 +1040,7 @@ const loginWithOtp = async (req, res) => {
             const Patient = require('../models/patient.model');
             await Patient.create({
               userId: user.id,
-              email: null, // No dummy email - user will add real email later
+              email: email, // No dummy email - user will add real email later
               dateOfBirth: null, // Will be updated later
               languagePreference: 'English',
               isActive: true
@@ -1146,5 +1146,5 @@ module.exports = {
   resetPassword,
   sendLoginOtp,
   loginWithOtp
-  
+
 };
