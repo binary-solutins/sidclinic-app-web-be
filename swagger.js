@@ -15,7 +15,8 @@ const options = {
     },
     servers: [
       { url: 'http://localhost:3000/api', description: 'Development server' },
-      { url: 'https://sidclinic-app-web-be-ktgp.onrender.com/api', description: 'Testing Server' }
+      { url: 'https://sidclinic-app-web-be-ktgp.onrender.com/api', description: 'Testing Server' },
+      { url: 'https://apis.sidclinic.com/api', description: 'Production Server' }
     ],
     components: {
       securitySchemes: {
