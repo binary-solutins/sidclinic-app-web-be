@@ -390,51 +390,28 @@ class PhonePeService {
         throw new Error('Payment record not found');
       }
 
-      // Try to get orderId from phonepeResponse
-      let orderId = null;
-      if (payment.phonepeResponse) {
-        // Try orderId first
-        orderId = payment.phonepeResponse.orderId;
-        console.log('📋 Extracted orderId from phonepeResponse:', orderId);
+      // Use the merchantTransactionId that was sent to PhonePe during initiation
+      // This is the correct identifier for status checks
+      const merchantTransactionId = payment.phonepeMerchantTransactionId;
+      console.log('📋 Using merchantTransactionId for status check:', merchantTransactionId);
 
-        // If no orderId, try phonepeTransactionId from response
-        if (!orderId) {
-          orderId = payment.phonepeResponse.phonepeTransactionId;
-          console.log('📋 No orderId found, trying phonepeTransactionId from response:', orderId);
-        }
-      }
-
-      // If still no orderId, try to get phonepeTransactionId from payment record
-      if (!orderId && payment.phonepeTransactionId) {
-        console.log('📋 No orderId found in response, trying with payment record phonepeTransactionId:', payment.phonepeTransactionId);
-        orderId = payment.phonepeTransactionId;
-        console.log('📋 Using payment record phonepeTransactionId as fallback:', orderId);
-      }
-
-      if (!orderId) {
-        console.log('❌ No orderId or transactionId found in payment record');
-        console.log('📋 Payment record:', payment);
-        throw new Error('No valid identifier found for status check');
-      }
-
-      const statusUrl = `${this.statusBaseUrl}/${orderId}/status?details=false`;
+      const statusUrl = `${this.statusBaseUrl}/${merchantTransactionId}/status?details=false`;
 
       console.log('📋 Status Check URL:', statusUrl);
-      console.log('📋 Using identifier:', orderId);
+      console.log('📋 Using merchantTransactionId:', merchantTransactionId);
 
       // Try with OAuth2 token first
       try {
         const accessToken = await this.generateAccessToken();
 
-        // Create checksum for v2 API
-        // PhonePe uses orderId in the URL but the transaction ID for checksum
-        const checksumPayload = `/pg/checkout/v2/order/${orderId}/status?details=false${this.saltKey}`;
+        // Create checksum for v2 API using merchantTransactionId
+        const checksumPayload = `/pg/checkout/v2/order/${merchantTransactionId}/status?details=false${this.saltKey}`;
         const hash = crypto.createHash('sha256').update(checksumPayload).digest('hex');
         const checksum = `${hash}###${this.saltIndex}`;
 
         console.log('📋 Checksum payload:', checksumPayload);
         console.log('📋 Generated checksum:', checksum);
-        console.log('📋 Using identifier type:', orderId.includes('OMO') ? 'orderId' : 'transactionId');
+        console.log('📋 Using merchantTransactionId for checksum:', merchantTransactionId);
         
         const response = await axios.get(statusUrl, {
           headers: {
@@ -479,24 +456,19 @@ class PhonePeService {
         // Fallback to legacy method
         console.log('🔄 Trying legacy status check method...');
         
-        const payload = {
-          merchantId: this.merchantId,
-          merchantTransactionId: merchantTransactionId
-        };
-
         // Legacy API uses different checksum format
-        const legacyPayload = `/pg/v1/status/${this.merchantId}/${orderId}${this.saltKey}`;
+        const legacyPayload = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}${this.saltKey}`;
         const legacyHash = crypto.createHash('sha256').update(legacyPayload).digest('hex');
         const legacyChecksum = `${legacyHash}###${this.saltIndex}`;
 
         console.log('📋 Legacy checksum payload:', legacyPayload);
         console.log('📋 Legacy generated checksum:', legacyChecksum);
 
-        // Legacy status URL (environment-specific) - use orderId for legacy API too
-        const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${orderId}`;
+        // Legacy status URL (environment-specific) - use merchantTransactionId for legacy API
+        const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
 
         console.log('📋 Legacy Status Check URL:', legacyUrl);
-        console.log('📋 Legacy API using identifier:', orderId);
+        console.log('📋 Legacy API using merchantTransactionId:', merchantTransactionId);
 
         const response = await axios.get(legacyUrl, {
           headers: {
