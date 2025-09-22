@@ -265,14 +265,15 @@ exports.initiatePayment = async (req, res) => {
       await redeemCodeUsage.update({ paymentId: payment.id });
     }
 
-    // Schedule auto-check for payment status after 5 seconds (fallback mechanism)
+    // Simple polling mechanism - check status after 10 seconds
     setTimeout(async () => {
       try {
-        await exports.autoCheckPaymentStatus(payment.id);
+        console.log(`🔄 Starting status check for payment ${payment.id}`);
+        await exports.checkPaymentStatus(payment.id);
       } catch (error) {
-        console.error('Error in scheduled payment status check:', error);
+        console.error('❌ Auto-check failed:', error.message);
       }
-    }, 5 * 1000); // 5 seconds
+    }, 10 * 1000); // 10 seconds
 
     res.json({
       status: 'success',
@@ -525,6 +526,91 @@ exports.autoCheckPaymentStatus = async (paymentId) => {
     }
   } catch (error) {
     console.error('❌ Auto-check payment status error:', error);
+  }
+};
+
+/**
+ * Check payment status (simple version for auto-polling)
+ */
+exports.checkPaymentStatus = async (paymentId) => {
+  try {
+    console.log(`🔄 Checking payment status for ID: ${paymentId}`);
+
+    const payment = await Payment.findByPk(paymentId, {
+      include: [{ model: Appointment, as: 'appointment' }]
+    });
+
+    if (!payment) {
+      console.log(`❌ Payment ${paymentId} not found`);
+      return;
+    }
+
+    // Only check if still pending
+    if (!['pending', 'initiated', 'processing'].includes(payment.status)) {
+      console.log(`💡 Payment ${paymentId} already in final state: ${payment.status}`);
+      return;
+    }
+
+    console.log(`📋 Checking PhonePe status for: ${payment.phonepeMerchantTransactionId}`);
+
+    // Use the PhonePe service to check status
+    const phonepeService = require('../services/phonepe.service');
+    const statusResult = await phonepeService.checkPaymentStatus(payment.phonepeMerchantTransactionId);
+
+    if (statusResult.success) {
+      const { state, amount } = statusResult.data;
+      console.log(`📊 PhonePe returned status: ${state} for amount: ${amount}`);
+
+      let newStatus = payment.status;
+      let appointmentStatus = payment.appointment?.status;
+
+      switch (state) {
+        case 'COMPLETED':
+        case 'SUCCESS':
+          newStatus = 'success';
+          if (appointmentStatus === 'pending') {
+            appointmentStatus = 'confirmed';
+          }
+          break;
+        case 'FAILED':
+        case 'FAILURE':
+          newStatus = 'failed';
+          break;
+        case 'CANCELLED':
+          newStatus = 'cancelled';
+          break;
+      }
+
+      // Update if status changed
+      if (newStatus !== payment.status) {
+        console.log(`🔄 Updating payment ${payment.id} from ${payment.status} to ${newStatus}`);
+
+        await payment.update({
+          status: newStatus,
+          completedAt: newStatus === 'success' ? new Date() : null,
+          failedAt: newStatus === 'failed' ? new Date() : null,
+          phonepeStatusResponse: statusResult.data
+        });
+
+        // Update appointment if payment successful
+        if (newStatus === 'success' && appointmentStatus === 'confirmed') {
+          await payment.appointment.update({
+            status: 'confirmed',
+            confirmedAt: new Date()
+          });
+          console.log(`✅ Appointment ${payment.appointment.id} confirmed`);
+        }
+
+        console.log(`✅ Payment ${payment.id} updated to ${newStatus}`);
+      } else {
+        console.log(`💡 Payment ${payment.id} status unchanged: ${payment.status}`);
+      }
+    } else {
+      console.log(`⚠️ Could not get status from PhonePe: ${statusResult.error}`);
+    }
+
+  } catch (error) {
+    console.error(`❌ Error checking payment ${paymentId}:`, error.message);
   }
 };
 
