@@ -272,7 +272,7 @@ exports.initiatePayment = async (req, res) => {
       } catch (error) {
         console.error('Error in scheduled payment status check:', error);
       }
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 5 * 1000); // 5 seconds
 
     res.json({
       status: 'success',
@@ -414,9 +414,11 @@ exports.handleCallback = async (req, res) => {
     if (paymentStatus === 'success' && payment.appointment.status === 'pending') {
       await payment.appointment.update({
         status: 'confirmed',
-        confirmedAt: new Date()
+        confirmedAt: new Date(),
+        confirmedBy: payment.userId,  // Set who confirmed the appointment (the user who paid)
+        paymentId: payment.id  // Link the payment to the appointment
       });
-      console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed after successful payment`);
+      console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed by user ${payment.userId} with payment ID ${payment.id} after successful payment`);
     }
 
     res.json({
@@ -426,7 +428,8 @@ exports.handleCallback = async (req, res) => {
       data: {
         paymentId: payment.id,
         status: paymentStatus,
-        appointmentStatus: appointmentStatus
+        appointmentStatus: appointmentStatus,
+        confirmedBy: paymentStatus === 'success' ? payment.userId : null
       }
     });
 
@@ -648,37 +651,50 @@ exports.manualSyncPayment = async (req, res) => {
       if (newStatus === 'success' && payment.appointment.status === 'pending') {
         await payment.appointment.update({
           status: 'confirmed',
-          confirmedAt: new Date()
+          confirmedAt: new Date(),
+          confirmedBy: payment.userId,  // Set who confirmed the appointment (the user who paid)
+          paymentId: payment.id  // Link the payment to the appointment
         });
-        console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed`);
+        console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed by user ${payment.userId} with payment ID ${payment.id}`);
       }
 
-      return res.json({
-        status: 'success',
-        message: 'Payment status synced successfully',
-        data: {
-          paymentId: payment.id,
-          oldStatus: payment.status,
-          newStatus: newStatus,
-          phonepeStatus: statusData.state,
-          appointmentStatus: payment.appointment.status
-        }
-      });
+      // If this is an HTTP request, send response
+      if (req && req.res) {
+        return req.res.json({
+          status: 'success',
+          message: 'Payment status synced successfully',
+          data: {
+            paymentId: payment.id,
+            oldStatus: payment.status,
+            newStatus: newStatus,
+            phonepeStatus: statusData.state,
+            appointmentStatus: payment.appointment.status,
+            confirmedBy: newStatus === 'success' ? payment.userId : null
+          }
+        });
+      }
     } else {
       console.log('⚠️ Could not get status from PhonePe:', statusResult.error);
-      return res.status(400).json({
-        status: 'error',
-        message: 'Could not sync with PhonePe',
-        error: statusResult.error
-      });
+      // If this is an HTTP request, send error response
+      if (req && req.res) {
+        return req.res.status(400).json({
+          status: 'error',
+          message: 'Could not sync with PhonePe',
+          error: statusResult.error
+        });
+      }
     }
   } catch (error) {
     console.error('❌ Manual sync error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Internal server error',
-      error: error.message
-    });
+
+    // If this is an HTTP request, send error response
+    if (req && req.res) {
+      return req.res.status(500).json({
+        status: 'error',
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
   }
 };
 
