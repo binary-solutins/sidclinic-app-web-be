@@ -241,9 +241,38 @@ router.get('/status/:paymentId',
  *       500:
  *         description: Internal server error
  */
-router.post('/sync/:paymentId', 
-  authenticate(['user']), 
+router.post('/sync/:paymentId',
+  authenticate(['user']),
   paymentController.manualSyncPayment
+);
+
+/**
+ * @swagger
+ * /payment/debug/{paymentId}:
+ *   get:
+ *     summary: Debug payment data (for troubleshooting)
+ *     description: Get detailed payment information for debugging
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Payment ID to debug
+ *     responses:
+ *       200:
+ *         description: Payment debug data retrieved
+ *       404:
+ *         description: Payment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/debug/:paymentId',
+  authenticate(['user']),
+  paymentController.debugPayment
 );
 
 /**

@@ -246,12 +246,19 @@ exports.initiatePayment = async (req, res) => {
     }
 
     // Update payment with PhonePe response
+    console.log('🔄 Updating payment record with PhonePe response:', {
+      paymentId: payment.id,
+      phonepeResponse: paymentResult.data
+    });
+
     await payment.update({
       status: 'initiated',
       phonepeTransactionId: paymentResult.data.phonepeTransactionId,
       paymentUrl: paymentResult.data.paymentUrl,
       phonepeResponse: paymentResult.data
     });
+
+    console.log('✅ Payment record updated successfully for ID:', payment.id);
 
     // Link redeem code usage to payment if applicable
     if (redeemCodeUsage) {
@@ -512,6 +519,62 @@ exports.autoCheckPaymentStatus = async (paymentId) => {
     }
   } catch (error) {
     console.error('❌ Auto-check payment status error:', error);
+  }
+};
+
+/**
+ * Debug payment data (for troubleshooting)
+ */
+exports.debugPayment = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+
+    const payment = await Payment.findByPk(paymentId, {
+      include: [
+        { model: Appointment, as: 'appointment' }
+      ]
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Payment not found'
+      });
+    }
+
+    // Log detailed payment information
+    console.log('🔍 DEBUG PAYMENT DATA:');
+    console.log('📋 Payment ID:', payment.id);
+    console.log('📋 Status:', payment.status);
+    console.log('📋 PhonePe Merchant Transaction ID:', payment.phonepeMerchantTransactionId);
+    console.log('📋 PhonePe Transaction ID:', payment.phonepeTransactionId);
+    console.log('📋 PhonePe Response:', JSON.stringify(payment.phonepeResponse, null, 2));
+    console.log('📋 Has phonepeResponse:', !!payment.phonepeResponse);
+    console.log('📋 Order ID from response:', payment.phonepeResponse?.orderId);
+    console.log('📋 Payment URL:', payment.paymentUrl);
+    console.log('🔍 DEBUG END');
+
+    res.json({
+      status: 'success',
+      message: 'Payment debug data',
+      data: {
+        paymentId: payment.id,
+        status: payment.status,
+        phonepeMerchantTransactionId: payment.phonepeMerchantTransactionId,
+        phonepeTransactionId: payment.phonepeTransactionId,
+        hasPhonepeResponse: !!payment.phonepeResponse,
+        orderId: payment.phonepeResponse?.orderId,
+        phonepeResponse: payment.phonepeResponse,
+        paymentUrl: payment.paymentUrl
+      }
+    });
+  } catch (error) {
+    console.error('❌ Debug payment error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 };
 

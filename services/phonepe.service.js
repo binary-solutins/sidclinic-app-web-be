@@ -383,15 +383,43 @@ class PhonePeService {
           }
         });
 
-        if (!payment || !payment.phonepeResponse) {
-          throw new Error('Payment record or PhonePe response not found');
+        console.log('📋 Payment record found:', {
+          id: payment?.id,
+          hasPhonepeResponse: !!payment?.phonepeResponse,
+          phonepeResponse: payment?.phonepeResponse
+        });
+
+        if (!payment) {
+          console.log('❌ Payment record not found for:', merchantTransactionId);
+          throw new Error('Payment record not found');
         }
 
-        const orderId = payment.phonepeResponse.orderId;
+        // Try to get orderId from phonepeResponse
+        let orderId = null;
+        if (payment.phonepeResponse) {
+          orderId = payment.phonepeResponse.orderId;
+          console.log('📋 Extracted orderId from phonepeResponse:', orderId);
+        }
+
+        // If orderId not found, try to get phonepeTransactionId and use that
+        if (!orderId && payment.phonepeTransactionId) {
+          console.log('📋 No orderId found, trying with phonepeTransactionId:', payment.phonepeTransactionId);
+          // For now, we'll use the transaction ID as orderId if it's available
+          // This is a fallback approach
+          orderId = payment.phonepeTransactionId;
+          console.log('📋 Using phonepeTransactionId as fallback:', orderId);
+        }
+
+        if (!orderId) {
+          console.log('❌ No orderId or transactionId found in payment record');
+          console.log('📋 Payment record:', payment);
+          throw new Error('No valid identifier found for status check');
+        }
+
         const statusUrl = `${this.statusBaseUrl}/${orderId}/status?details=false`;
 
         console.log('📋 Status Check URL:', statusUrl);
-        console.log('📋 Using orderId:', orderId);
+        console.log('📋 Using identifier:', orderId);
 
         // Create checksum for v2 API
         const payload = `/pg/checkout/v2/order/${orderId}/status?details=false${this.saltKey}`;
