@@ -9,15 +9,15 @@ class PhonePeService {
     process.env.PHONEPE_ENVIRONMENT = 'PRODUCTION'; // Your credentials only work in production
     this.config = getCurrentEnvironment();
     
-    // OAuth2 credentials for token generation
-    this.clientId = 'SU2509171722305638483883';  // Your Client ID (works in both environments)
-    this.clientSecret = '14aa2133-ae84-4b72-9149-5154e703ff07';  // Your Client Secret
-    this.clientVersion = '1';  // Client Version
+    // OAuth2 credentials for token generation (with env fallbacks)
+    this.clientId = process.env.PHONEPE_CLIENT_ID || 'SU2509171722305638483883';
+    this.clientSecret = process.env.PHONEPE_CLIENT_SECRET || '14aa2133-ae84-4b72-9149-5154e703ff07';
+    this.clientVersion = process.env.PHONEPE_CLIENT_VERSION || '1';
     
-    // Legacy credentials (keeping for compatibility)
-    this.merchantId = 'M23FV8VNJV8MQ';
-    this.saltKey = '14aa2133-ae84-4b72-9149-5154e703ff07';
-    this.saltIndex = 1;
+    // Legacy credentials (with env fallbacks)
+    this.merchantId = process.env.PHONEPE_MERCHANT_ID || 'M23FV8VNJV8MQ';
+    this.saltKey = process.env.PHONEPE_SALT_KEY || '14aa2133-ae84-4b72-9149-5154e703ff07';
+    this.saltIndex = parseInt(process.env.PHONEPE_SALT_INDEX) || 1;
     
     // Environment-based API endpoints from config
     this.tokenUrl = this.config.tokenUrl;
@@ -25,8 +25,18 @@ class PhonePeService {
     this.statusBaseUrl = this.config.statusBaseUrl;
     this.legacyStatusBaseUrl = this.config.legacyStatusUrl;
     
-    this.redirectUrl = 'http://localhost:3000/payment/success';
-    this.callbackUrl = 'http://localhost:3000/api/payment/phonepe/callback';
+    // Set URLs with multiple detection methods and hardcoded fallbacks
+    const isProduction = this.detectProductionEnvironment();
+    
+    if (isProduction) {
+      // Production URLs - redirect to FRONTEND, callback to BACKEND
+      this.redirectUrl = process.env.REDIRECT_URL || 'https://sidclinic.com/dashboard';
+      this.callbackUrl = process.env.CALLBACK_URL || 'https://apis.sidclinic.com/api/payment/phonepe/callback';
+    } else {
+      // Development URLs (hardcoded)
+      this.redirectUrl = process.env.REDIRECT_URL || 'http://localhost:3000/payment/success';
+      this.callbackUrl = process.env.CALLBACK_URL || 'http://localhost:3000/api/payment/phonepe/callback';
+    }
     
     // Token storage
     this.accessToken = null;
@@ -41,6 +51,51 @@ class PhonePeService {
     console.log('🌐 Token URL:', this.tokenUrl);
     console.log('🌐 Payment URL:', this.paymentUrl);
     console.log('🌐 Status URL:', this.statusBaseUrl);
+    console.log('🔗 Redirect URL:', this.redirectUrl);
+    console.log('🔗 Callback URL:', this.callbackUrl);
+    console.log('🌍 Detected Environment:', isProduction ? 'PRODUCTION' : 'DEVELOPMENT');
+  }
+
+  /**
+   * Detect if we're in production using multiple methods
+   */
+  detectProductionEnvironment() {
+    // Method 1: Check NODE_ENV environment variable
+    if (process.env.NODE_ENV === 'production') {
+      return true;
+    }
+
+    // Method 2: Check if we're running on production domain
+    const hostname = process.env.HOSTNAME || process.env.HOST || '';
+    if (hostname.includes('sidclinic.com') || hostname.includes('apis.sidclinic.com')) {
+      return true;
+    }
+
+    // Method 3: Check PORT (production usually runs on 80/443 or specific ports)
+    const port = process.env.PORT || process.env.SERVER_PORT || 3000;
+    if (port == 80 || port == 443 || port == 8080) {
+      return true;
+    }
+
+    // Method 4: Check if specific production environment variables exist
+    if (process.env.PRODUCTION || process.env.PROD || process.env.IS_PRODUCTION === 'true') {
+      return true;
+    }
+
+    // Method 5: Hardcoded check - you can manually set this to true for production
+    const FORCE_PRODUCTION = false; // Change this to true to force production mode
+    if (FORCE_PRODUCTION) {
+      return true;
+    }
+
+    // Method 6: Check if we have production database URL or other production indicators
+    const dbUrl = process.env.DATABASE_URL || process.env.DB_HOST || '';
+    if (dbUrl.includes('sidclinic') || dbUrl.includes('production') || dbUrl.includes('prod')) {
+      return true;
+    }
+
+    // Default to development
+    return false;
   }
 
   /**

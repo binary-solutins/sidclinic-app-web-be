@@ -258,6 +258,15 @@ exports.initiatePayment = async (req, res) => {
       await redeemCodeUsage.update({ paymentId: payment.id });
     }
 
+    // Schedule auto-check for payment status after 2 minutes (fallback mechanism)
+    setTimeout(async () => {
+      try {
+        await exports.autoCheckPaymentStatus(payment.id);
+      } catch (error) {
+        console.error('Error in scheduled payment status check:', error);
+      }
+    }, 2 * 60 * 1000); // 2 minutes
+
     res.json({
       status: 'success',
       code: 200,
@@ -295,9 +304,16 @@ exports.initiatePayment = async (req, res) => {
  */
 exports.handleCallback = async (req, res) => {
   try {
+    console.log('🔔 PhonePe callback received:', {
+      timestamp: new Date().toISOString(),
+      body: req.body,
+      headers: req.headers
+    });
+
     const { response, checksum } = req.body;
 
     if (!response || !checksum) {
+      console.log('❌ Invalid callback data - missing response or checksum');
       return res.status(400).json({
         status: 'error',
         code: 400,
@@ -306,9 +322,11 @@ exports.handleCallback = async (req, res) => {
     }
 
     // Process callback with PhonePe service
+    console.log('🔄 Processing callback with PhonePe service...');
     const callbackResult = await phonepeService.processCallback({ response, checksum });
 
     if (!callbackResult.success) {
+      console.log('❌ Callback processing failed:', callbackResult.error);
       return res.status(400).json({
         status: 'error',
         code: 400,
@@ -318,8 +336,10 @@ exports.handleCallback = async (req, res) => {
     }
 
     const callbackData = callbackResult.data;
+    console.log('✅ Callback processed successfully:', callbackData);
 
     // Find payment record
+    console.log(`🔍 Looking for payment with merchantTransactionId: ${callbackData.merchantTransactionId}`);
     const payment = await Payment.findOne({
       where: {
         phonepeMerchantTransactionId: callbackData.merchantTransactionId
@@ -331,6 +351,7 @@ exports.handleCallback = async (req, res) => {
     });
 
     if (!payment) {
+      console.log('❌ Payment record not found for merchantTransactionId:', callbackData.merchantTransactionId);
       return res.status(404).json({
         status: 'error',
         code: 404,
@@ -338,25 +359,32 @@ exports.handleCallback = async (req, res) => {
       });
     }
 
+    console.log(`✅ Payment found - ID: ${payment.id}, Current Status: ${payment.status}, Appointment Status: ${payment.appointment.status}`);
+
     // Update payment status based on callback
     let paymentStatus = 'failed';
     let appointmentStatus = payment.appointment.status;
 
+    console.log(`📊 Processing callback status: ${callbackData.status}`);
     switch (callbackData.status) {
       case 'COMPLETED':
         paymentStatus = 'success';
         if (payment.appointment.status === 'pending') {
           appointmentStatus = 'confirmed';
         }
+        console.log('✅ Payment marked as successful');
         break;
       case 'FAILED':
         paymentStatus = 'failed';
+        console.log('❌ Payment marked as failed');
         break;
       case 'CANCELLED':
         paymentStatus = 'cancelled';
+        console.log('🚫 Payment marked as cancelled');
         break;
       default:
         paymentStatus = 'failed';
+        console.log('⚠️ Unknown status, marking as failed:', callbackData.status);
     }
 
     // Update payment record
@@ -372,11 +400,12 @@ exports.handleCallback = async (req, res) => {
     });
 
     // Update appointment status if payment is successful
-    if (paymentStatus === 'success' && appointmentStatus === 'confirmed') {
+    if (paymentStatus === 'success' && payment.appointment.status === 'pending') {
       await payment.appointment.update({
         status: 'confirmed',
         confirmedAt: new Date()
       });
+      console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed after successful payment`);
     }
 
     res.json({
@@ -391,13 +420,94 @@ exports.handleCallback = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Callback processing error:', error);
+    console.error('❌ Callback processing error:', error);
     res.status(500).json({
       status: 'error',
       code: 500,
       message: 'Internal server error',
       error: error.message
     });
+  }
+};
+
+/**
+ * Auto-check payment status (fallback mechanism)
+ */
+exports.autoCheckPaymentStatus = async (paymentId) => {
+  try {
+    console.log(`🔄 Auto-checking payment status for payment ID: ${paymentId}`);
+    
+    const payment = await Payment.findByPk(paymentId, {
+      include: [
+        { model: Appointment, as: 'appointment' }
+      ]
+    });
+
+    if (!payment) {
+      console.log(`❌ Payment ${paymentId} not found for auto-check`);
+      return;
+    }
+
+    // Only check if payment is still pending/initiated/processing
+    if (['pending', 'initiated', 'processing'].includes(payment.status)) {
+      console.log(`📋 Payment ${paymentId} status is ${payment.status}, checking with PhonePe...`);
+      
+      const statusResult = await phonepeService.checkPaymentStatus(payment.phonepeMerchantTransactionId);
+      
+      if (statusResult.success) {
+        const statusData = statusResult.data;
+        let newStatus = payment.status;
+
+        // Map PhonePe status to our internal status
+        switch (statusData.state) {
+          case 'COMPLETED':
+          case 'SUCCESS':
+            newStatus = 'success';
+            break;
+          case 'FAILED':
+          case 'FAILURE':
+            newStatus = 'failed';
+            break;
+          case 'CANCELLED':
+          case 'CANCELED':
+            newStatus = 'cancelled';
+            break;
+          case 'PENDING':
+          case 'PROCESSING':
+            newStatus = 'processing';
+            break;
+          default:
+            console.log('⚠️ Unknown PhonePe status:', statusData.state);
+        }
+
+        // Update database with latest status from PhonePe
+        if (newStatus !== payment.status) {
+          console.log(`🔄 Auto-updating payment ${payment.id} status from ${payment.status} to ${newStatus}`);
+          await payment.update({
+            status: newStatus,
+            completedAt: newStatus === 'success' ? new Date() : null,
+            failedAt: newStatus === 'failed' ? new Date() : null,
+            failureReason: newStatus === 'failed' ? statusData.responseMessage : null,
+            phonepeStatusResponse: statusData
+          });
+
+          // Update appointment status if payment is successful
+          if (newStatus === 'success' && payment.appointment.status === 'pending') {
+            await payment.appointment.update({
+              status: 'confirmed',
+              confirmedAt: new Date()
+            });
+            console.log(`✅ Auto-updated appointment ${payment.appointment.id} to confirmed status`);
+          }
+        }
+      } else {
+        console.log('⚠️ Could not get status from PhonePe during auto-check:', statusResult.error);
+      }
+    } else {
+      console.log(`💡 Payment ${paymentId} already in final state: ${payment.status}`);
+    }
+  } catch (error) {
+    console.error('❌ Auto-check payment status error:', error);
   }
 };
 
