@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const axios = require('axios');
+const Payment = require('../models/payment.model');
 
 class PhonePeService {
   constructor() {
@@ -9,7 +10,7 @@ class PhonePeService {
       name: 'Production',
       tokenUrl: 'https://api.phonepe.com/apis/identity-manager/v1/oauth/token',
       paymentUrl: 'https://api.phonepe.com/apis/pg/checkout/v2/pay',
-      statusBaseUrl: 'https://api.phonepe.com/apis/hermes/pg/v1/status',
+      statusBaseUrl: 'https://api.phonepe.com/apis/pg/checkout/v2/order',
       legacyStatusUrl: 'https://api.phonepe.com/apis/hermes/pg/v1/status',
       description: 'Live PhonePe environment - Real money transactions'
     };
@@ -366,21 +367,37 @@ class PhonePeService {
   async checkPaymentStatus(merchantTransactionId) {
     try {
       console.log('🔄 Checking real PhonePe payment status for:', merchantTransactionId);
+      
+      // First, let's try a simple approach - the transaction might not exist yet
+      // This happens when payment is still pending or user didn't complete payment
 
       // Try with OAuth2 token first
       try {
         const accessToken = await this.generateAccessToken();
         
-        // PhonePe v1 status check endpoint - using standard method
-        const statusUrl = `${this.statusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
-        
+        // PhonePe v2 status check endpoint - using order ID
+        // We need to get the orderId from the payment record first
+        const payment = await Payment.findOne({
+          where: {
+            phonepeMerchantTransactionId: merchantTransactionId
+          }
+        });
+
+        if (!payment || !payment.phonepeResponse) {
+          throw new Error('Payment record or PhonePe response not found');
+        }
+
+        const orderId = payment.phonepeResponse.orderId;
+        const statusUrl = `${this.statusBaseUrl}/${orderId}/status?details=false`;
+
         console.log('📋 Status Check URL:', statusUrl);
-        
-        // Create checksum for v1 API
-        const payload = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}${this.saltKey}`;
+        console.log('📋 Using orderId:', orderId);
+
+        // Create checksum for v2 API
+        const payload = `/pg/checkout/v2/order/${orderId}/status?details=false${this.saltKey}`;
         const hash = crypto.createHash('sha256').update(payload).digest('hex');
         const checksum = `${hash}###${this.saltIndex}`;
-        
+
         console.log('📋 Checksum payload:', payload);
         console.log('📋 Generated checksum:', checksum);
         
@@ -395,17 +412,17 @@ class PhonePeService {
 
         console.log('📋 PhonePe Status Response:', response.data);
 
-        if (response.data && response.data.success) {
+        if (response.data) {
           return {
             success: true,
             data: {
-              state: response.data.data.state,
-              responseCode: response.data.data.responseCode,
-              responseMessage: response.data.data.responseMessage,
-              amount: response.data.data.amount,
-              merchantTransactionId: response.data.data.merchantTransactionId,
-              transactionId: response.data.data.transactionId,
-              paymentMethod: response.data.data.paymentInstrument?.type,
+              state: response.data.state,
+              responseCode: response.data.code || response.data.responseCode,
+              responseMessage: response.data.message || response.data.responseMessage,
+              amount: response.data.amount,
+              merchantTransactionId: response.data.merchantTransactionId,
+              transactionId: response.data.transactionId,
+              paymentMethod: response.data.paymentMethod,
               rawResponse: response.data
             }
           };
@@ -415,6 +432,14 @@ class PhonePeService {
 
       } catch (oauthError) {
         console.log('❌ OAuth2 status check failed:', oauthError.response?.status, oauthError.response?.data);
+        
+        // Check if this is a 404 - means payment doesn't exist or is still pending
+        if (oauthError.response?.status === 404) {
+          console.log('💡 404 Error: This usually means:');
+          console.log('   1. Payment is still PENDING (user hasn\'t completed payment)');
+          console.log('   2. Transaction doesn\'t exist in PhonePe system yet');
+          console.log('   3. User abandoned payment without completing');
+        }
         
         // Fallback to legacy method
         console.log('🔄 Trying legacy status check method...');
@@ -430,7 +455,9 @@ class PhonePeService {
 
         // Legacy status URL (environment-specific)
         const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
-        
+
+        console.log('📋 Legacy Status Check URL:', legacyUrl);
+
         const response = await axios.get(legacyUrl, {
           headers: {
             'Content-Type': 'application/json',
@@ -468,7 +495,17 @@ class PhonePeService {
     } catch (error) {
       console.error('❌ PhonePe status check error:', error.response?.status, error.response?.data || error.message);
       
-      // If we can't get real status, return a meaningful error instead of mock success
+      // Provide helpful error messages based on status code
+      if (error.response?.status === 404) {
+        console.log('💡 404 Error means payment is likely still PENDING or user did not complete payment');
+        return {
+          success: false,
+          error: 'Payment not found - likely still pending or user did not complete payment',
+          code: 'PAYMENT_NOT_FOUND',
+          suggestion: 'Check if user actually completed the payment on PhonePe page'
+        };
+      }
+      
       return {
         success: false,
         error: 'Unable to check payment status: ' + (error.message || 'Unknown error'),
