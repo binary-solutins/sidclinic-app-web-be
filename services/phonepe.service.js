@@ -367,7 +367,7 @@ class PhonePeService {
   async checkPaymentStatus(merchantTransactionId) {
     try {
       console.log('🔄 Checking real PhonePe payment status for:', merchantTransactionId);
-      
+
       // First, let's try a simple approach - the transaction might not exist yet
       // This happens when payment is still pending or user didn't complete payment
 
@@ -392,26 +392,26 @@ class PhonePeService {
 
       // Use the merchantTransactionId that was sent to PhonePe during initiation
       // This is the correct identifier for status checks
-      const merchantTransactionId = payment.phonepeMerchantTransactionId;
-      console.log('📋 Using merchantTransactionId for status check:', merchantTransactionId);
+      const merchantTxnId = payment.phonepeMerchantTransactionId;
+      console.log('📋 Using merchantTransactionId for status check:', merchantTxnId);
 
-      const statusUrl = `${this.statusBaseUrl}/${merchantTransactionId}/status?details=false`;
+      const statusUrl = `${this.statusBaseUrl}/${merchantTxnId}/status?details=false`;
 
       console.log('📋 Status Check URL:', statusUrl);
-      console.log('📋 Using merchantTransactionId:', merchantTransactionId);
+      console.log('📋 Using merchantTransactionId:', merchantTxnId);
 
       // Try with OAuth2 token first
       try {
         const accessToken = await this.generateAccessToken();
 
         // Create checksum for v2 API using merchantTransactionId
-        const checksumPayload = `/pg/checkout/v2/order/${merchantTransactionId}/status?details=false${this.saltKey}`;
+        const checksumPayload = `/pg/checkout/v2/order/${merchantTxnId}/status?details=false${this.saltKey}`;
         const hash = crypto.createHash('sha256').update(checksumPayload).digest('hex');
         const checksum = `${hash}###${this.saltIndex}`;
 
         console.log('📋 Checksum payload:', checksumPayload);
         console.log('📋 Generated checksum:', checksum);
-        console.log('📋 Using merchantTransactionId for checksum:', merchantTransactionId);
+        console.log('📋 Using merchantTransactionId for checksum:', merchantTxnId);
         
         const response = await axios.get(statusUrl, {
           headers: {
@@ -457,7 +457,7 @@ class PhonePeService {
         console.log('🔄 Trying legacy status check method...');
         
         // Legacy API uses different checksum format
-        const legacyPayload = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}${this.saltKey}`;
+        const legacyPayload = `/pg/v1/status/${this.merchantId}/${merchantTxnId}${this.saltKey}`;
         const legacyHash = crypto.createHash('sha256').update(legacyPayload).digest('hex');
         const legacyChecksum = `${legacyHash}###${this.saltIndex}`;
 
@@ -465,10 +465,10 @@ class PhonePeService {
         console.log('📋 Legacy generated checksum:', legacyChecksum);
 
         // Legacy status URL (environment-specific) - use merchantTransactionId for legacy API
-        const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
+        const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${merchantTxnId}`;
 
         console.log('📋 Legacy Status Check URL:', legacyUrl);
-        console.log('📋 Legacy API using merchantTransactionId:', merchantTransactionId);
+        console.log('📋 Legacy API using merchantTransactionId:', merchantTxnId);
 
         const response = await axios.get(legacyUrl, {
           headers: {
