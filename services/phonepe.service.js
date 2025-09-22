@@ -400,8 +400,14 @@ class PhonePeService {
       console.log('📋 Status Check URL:', statusUrl);
       console.log('📋 Using merchantTransactionId:', merchantTxnId);
 
-      // Try with OAuth2 token first
+      // Try with OAuth2 token first - generate fresh token for each status check
       try {
+        console.log('🔄 Generating new OAuth2 access token for status check...');
+
+        // Force fresh token by clearing cache
+        this.accessToken = null;
+        this.tokenExpiresAt = null;
+
         const accessToken = await this.generateAccessToken();
 
         // Create checksum for v2 API using merchantTransactionId
