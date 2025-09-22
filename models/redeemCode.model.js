@@ -172,3 +172,5 @@ RedeemCode.prototype.calculateDiscount = function(orderAmount) {
 
 module.exports = RedeemCode;
 
+
+

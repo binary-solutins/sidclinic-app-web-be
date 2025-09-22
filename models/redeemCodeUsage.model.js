@@ -151,3 +151,5 @@ Payment.hasOne(RedeemCodeUsage, {
 
 module.exports = RedeemCodeUsage;
 
+
+
