@@ -1,13 +1,18 @@
 const crypto = require('crypto');
 const axios = require('axios');
-const { getCurrentEnvironment, getEnvironmentName } = require('../config/phonepe.config');
 
 class PhonePeService {
   constructor() {
-    // Get environment configuration - PRODUCTION ONLY (your credentials only work in production)
+    // Always use PRODUCTION environment (simplified)
     this.environmentName = 'PRODUCTION';
-    process.env.PHONEPE_ENVIRONMENT = 'PRODUCTION'; // Your credentials only work in production
-    this.config = getCurrentEnvironment();
+    this.config = {
+      name: 'Production',
+      tokenUrl: 'https://api.phonepe.com/apis/identity-manager/v1/oauth/token',
+      paymentUrl: 'https://api.phonepe.com/apis/pg/checkout/v2/pay',
+      statusBaseUrl: 'https://api.phonepe.com/apis/pg/checkout/v2/status',
+      legacyStatusUrl: 'https://api.phonepe.com/apis/hermes/pg/v1/status',
+      description: 'Live PhonePe environment - Real money transactions'
+    };
     
     // OAuth2 credentials for token generation (with env fallbacks)
     this.clientId = process.env.PHONEPE_CLIENT_ID || 'SU2509171722305638483883';
@@ -25,18 +30,9 @@ class PhonePeService {
     this.statusBaseUrl = this.config.statusBaseUrl;
     this.legacyStatusBaseUrl = this.config.legacyStatusUrl;
     
-    // Set URLs with multiple detection methods and hardcoded fallbacks
-    const isProduction = this.detectProductionEnvironment();
-    
-    if (isProduction) {
-      // Production URLs - redirect to FRONTEND, callback to BACKEND
-      this.redirectUrl = process.env.REDIRECT_URL || 'https://sidclinic.com/dashboard';
-      this.callbackUrl = process.env.CALLBACK_URL || 'https://apis.sidclinic.com/api/payment/phonepe/callback';
-    } else {
-      // Development URLs (hardcoded)
-      this.redirectUrl = process.env.REDIRECT_URL || 'http://localhost:3000/payment/success';
-      this.callbackUrl = process.env.CALLBACK_URL || 'http://localhost:3000/api/payment/phonepe/callback';
-    }
+    // Production-only URLs (no development mode)
+    this.redirectUrl = process.env.REDIRECT_URL || 'https://sidclinic.com/dashboard';
+    this.callbackUrl = process.env.CALLBACK_URL || 'https://apis.sidclinic.com/api/payment/phonepe/callback';
     
     // Token storage
     this.accessToken = null;
@@ -53,50 +49,9 @@ class PhonePeService {
     console.log('🌐 Status URL:', this.statusBaseUrl);
     console.log('🔗 Redirect URL:', this.redirectUrl);
     console.log('🔗 Callback URL:', this.callbackUrl);
-    console.log('🌍 Detected Environment:', isProduction ? 'PRODUCTION' : 'DEVELOPMENT');
+    console.log('🌍 Environment: PRODUCTION (hardcoded)');
   }
 
-  /**
-   * Detect if we're in production using multiple methods
-   */
-  detectProductionEnvironment() {
-    // Method 1: Check NODE_ENV environment variable
-    if (process.env.NODE_ENV === 'production') {
-      return true;
-    }
-
-    // Method 2: Check if we're running on production domain
-    const hostname = process.env.HOSTNAME || process.env.HOST || '';
-    if (hostname.includes('sidclinic.com') || hostname.includes('apis.sidclinic.com')) {
-      return true;
-    }
-
-    // Method 3: Check PORT (production usually runs on 80/443 or specific ports)
-    const port = process.env.PORT || process.env.SERVER_PORT || 3000;
-    if (port == 80 || port == 443 || port == 8080) {
-      return true;
-    }
-
-    // Method 4: Check if specific production environment variables exist
-    if (process.env.PRODUCTION || process.env.PROD || process.env.IS_PRODUCTION === 'true') {
-      return true;
-    }
-
-    // Method 5: Hardcoded check - you can manually set this to true for production
-    const FORCE_PRODUCTION = false; // Change this to true to force production mode
-    if (FORCE_PRODUCTION) {
-      return true;
-    }
-
-    // Method 6: Check if we have production database URL or other production indicators
-    const dbUrl = process.env.DATABASE_URL || process.env.DB_HOST || '';
-    if (dbUrl.includes('sidclinic') || dbUrl.includes('production') || dbUrl.includes('prod')) {
-      return true;
-    }
-
-    // Default to development
-    return false;
-  }
 
   /**
    * Generate SHA256 hash for PhonePe API
