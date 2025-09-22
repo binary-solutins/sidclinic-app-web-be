@@ -9,7 +9,7 @@ class PhonePeService {
       name: 'Production',
       tokenUrl: 'https://api.phonepe.com/apis/identity-manager/v1/oauth/token',
       paymentUrl: 'https://api.phonepe.com/apis/pg/checkout/v2/pay',
-      statusBaseUrl: 'https://api.phonepe.com/apis/pg/checkout/v2/status',
+      statusBaseUrl: 'https://api.phonepe.com/apis/hermes/pg/v1/status',
       legacyStatusUrl: 'https://api.phonepe.com/apis/hermes/pg/v1/status',
       description: 'Live PhonePe environment - Real money transactions'
     };
@@ -371,37 +371,46 @@ class PhonePeService {
       try {
         const accessToken = await this.generateAccessToken();
         
-        // PhonePe v2 status check endpoint (Environment-specific)
+        // PhonePe v1 status check endpoint - using standard method
         const statusUrl = `${this.statusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
         
         console.log('📋 Status Check URL:', statusUrl);
         
+        // Create checksum for v1 API
+        const payload = `/pg/v1/status/${this.merchantId}/${merchantTransactionId}${this.saltKey}`;
+        const hash = crypto.createHash('sha256').update(payload).digest('hex');
+        const checksum = `${hash}###${this.saltIndex}`;
+        
+        console.log('📋 Checksum payload:', payload);
+        console.log('📋 Generated checksum:', checksum);
+        
         const response = await axios.get(statusUrl, {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `O-Bearer ${accessToken}`,
+            'X-VERIFY': checksum,
+            'X-MERCHANT-ID': this.merchantId,
             'Accept': 'application/json'
           }
         });
 
         console.log('📋 PhonePe Status Response:', response.data);
 
-        if (response.data) {
+        if (response.data && response.data.success) {
           return {
             success: true,
             data: {
-              state: response.data.state || response.data.status,
-              responseCode: response.data.code,
-              responseMessage: response.data.message,
-              amount: response.data.amount,
-              merchantTransactionId: response.data.merchantTransactionId,
-              transactionId: response.data.transactionId,
-              paymentMethod: response.data.paymentMethod,
+              state: response.data.data.state,
+              responseCode: response.data.data.responseCode,
+              responseMessage: response.data.data.responseMessage,
+              amount: response.data.data.amount,
+              merchantTransactionId: response.data.data.merchantTransactionId,
+              transactionId: response.data.data.transactionId,
+              paymentMethod: response.data.data.paymentInstrument?.type,
               rawResponse: response.data
             }
           };
         } else {
-          throw new Error('Invalid status response');
+          throw new Error('Invalid status response or payment not found');
         }
 
       } catch (oauthError) {

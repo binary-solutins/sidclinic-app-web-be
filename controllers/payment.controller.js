@@ -304,11 +304,15 @@ exports.initiatePayment = async (req, res) => {
  */
 exports.handleCallback = async (req, res) => {
   try {
-    console.log('🔔 PhonePe callback received:', {
-      timestamp: new Date().toISOString(),
-      body: req.body,
-      headers: req.headers
-    });
+    console.log('🔔🔔🔔 PHONEPE CALLBACK RECEIVED 🔔🔔🔔');
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('🌐 IP Address:', req.ip);
+    console.log('📱 User Agent:', req.get('User-Agent'));
+    console.log('📋 Request Method:', req.method);
+    console.log('🔗 Request URL:', req.url);
+    console.log('📦 Request Body:', JSON.stringify(req.body, null, 2));
+    console.log('📋 Request Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('🔔🔔🔔 CALLBACK DATA END 🔔🔔🔔');
 
     const { response, checksum } = req.body;
 
@@ -508,6 +512,110 @@ exports.autoCheckPaymentStatus = async (paymentId) => {
     }
   } catch (error) {
     console.error('❌ Auto-check payment status error:', error);
+  }
+};
+
+/**
+ * Manual sync payment status from PhonePe (for debugging)
+ */
+exports.manualSyncPayment = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    console.log(`🔄 Manual sync for payment ID: ${paymentId}`);
+    
+    const payment = await Payment.findByPk(paymentId, {
+      include: [
+        { model: Appointment, as: 'appointment' }
+      ]
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Payment not found'
+      });
+    }
+
+    console.log(`📋 Current payment status: ${payment.status}`);
+    console.log(`📋 PhonePe merchant transaction ID: ${payment.phonepeMerchantTransactionId}`);
+
+    // Force check status with PhonePe
+    const statusResult = await phonepeService.checkPaymentStatus(payment.phonepeMerchantTransactionId);
+    
+    if (statusResult.success) {
+      const statusData = statusResult.data;
+      console.log(`📊 PhonePe status response:`, statusData);
+      
+      let newStatus = payment.status;
+
+      // Map PhonePe status to our internal status
+      switch (statusData.state) {
+        case 'COMPLETED':
+        case 'SUCCESS':
+          newStatus = 'success';
+          break;
+        case 'FAILED':
+        case 'FAILURE':
+          newStatus = 'failed';
+          break;
+        case 'CANCELLED':
+        case 'CANCELED':
+          newStatus = 'cancelled';
+          break;
+        case 'PENDING':
+        case 'PROCESSING':
+          newStatus = 'processing';
+          break;
+        default:
+          console.log('⚠️ Unknown PhonePe status:', statusData.state);
+      }
+
+      // Update database with latest status from PhonePe
+      console.log(`🔄 Updating payment ${payment.id} status from ${payment.status} to ${newStatus}`);
+      await payment.update({
+        status: newStatus,
+        completedAt: newStatus === 'success' ? new Date() : null,
+        failedAt: newStatus === 'failed' ? new Date() : null,
+        failureReason: newStatus === 'failed' ? statusData.responseMessage : null,
+        phonepeStatusResponse: statusData,
+        phonepeCallbackData: statusData // Manually set callback data
+      });
+
+      // Update appointment status if payment is successful
+      if (newStatus === 'success' && payment.appointment.status === 'pending') {
+        await payment.appointment.update({
+          status: 'confirmed',
+          confirmedAt: new Date()
+        });
+        console.log(`✅ Appointment ${payment.appointment.id} status updated to confirmed`);
+      }
+
+      return res.json({
+        status: 'success',
+        message: 'Payment status synced successfully',
+        data: {
+          paymentId: payment.id,
+          oldStatus: payment.status,
+          newStatus: newStatus,
+          phonepeStatus: statusData.state,
+          appointmentStatus: payment.appointment.status
+        }
+      });
+    } else {
+      console.log('⚠️ Could not get status from PhonePe:', statusResult.error);
+      return res.status(400).json({
+        status: 'error',
+        message: 'Could not sync with PhonePe',
+        error: statusResult.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Manual sync error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 };
 

@@ -158,6 +158,21 @@ app.get("/", (req, res) => {
   });
 });
 
+
+// Add this middleware to catch ALL payment-related requests
+app.use((req, res, next) => {
+  if (req.url.includes('/payment/') || req.url.includes('/callback')) {
+    console.log('🚨🚨🚨 PAYMENT ENDPOINT ACCESS 🚨🚨🚨');
+    console.log('⏰ Timestamp:', new Date().toISOString());
+    console.log('🔗 URL:', req.url);
+    console.log('📋 Method:', req.method);
+    console.log('🌐 IP:', req.ip);
+    console.log('📱 User Agent:', req.get('User-Agent') || 'None');
+    console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+    console.log('🚨🚨🚨 PAYMENT ACCESS END 🚨🚨🚨');
+  }
+  next();
+});
 // API Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
 

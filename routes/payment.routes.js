@@ -219,6 +219,35 @@ router.get('/status/:paymentId',
 
 /**
  * @swagger
+ * /payment/sync/{paymentId}:
+ *   post:
+ *     summary: Manual sync payment status from PhonePe
+ *     description: Force sync payment status from PhonePe for debugging
+ *     tags: [Payment]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paymentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Payment ID to sync
+ *     responses:
+ *       200:
+ *         description: Payment synced successfully
+ *       404:
+ *         description: Payment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/sync/:paymentId', 
+  authenticate(['user']), 
+  paymentController.manualSyncPayment
+);
+
+/**
+ * @swagger
  * /payment/history:
  *   get:
  *     summary: Get user's payment history
