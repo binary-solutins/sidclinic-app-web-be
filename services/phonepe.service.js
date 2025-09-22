@@ -397,17 +397,22 @@ class PhonePeService {
         // Try to get orderId from phonepeResponse
         let orderId = null;
         if (payment.phonepeResponse) {
+          // Try orderId first
           orderId = payment.phonepeResponse.orderId;
           console.log('📋 Extracted orderId from phonepeResponse:', orderId);
+
+          // If no orderId, try phonepeTransactionId from response
+          if (!orderId) {
+            orderId = payment.phonepeResponse.phonepeTransactionId;
+            console.log('📋 No orderId found, trying phonepeTransactionId from response:', orderId);
+          }
         }
 
-        // If orderId not found, try to get phonepeTransactionId and use that
+        // If still no orderId, try to get phonepeTransactionId from payment record
         if (!orderId && payment.phonepeTransactionId) {
-          console.log('📋 No orderId found, trying with phonepeTransactionId:', payment.phonepeTransactionId);
-          // For now, we'll use the transaction ID as orderId if it's available
-          // This is a fallback approach
+          console.log('📋 No orderId found in response, trying with payment record phonepeTransactionId:', payment.phonepeTransactionId);
           orderId = payment.phonepeTransactionId;
-          console.log('📋 Using phonepeTransactionId as fallback:', orderId);
+          console.log('📋 Using payment record phonepeTransactionId as fallback:', orderId);
         }
 
         if (!orderId) {
@@ -422,12 +427,14 @@ class PhonePeService {
         console.log('📋 Using identifier:', orderId);
 
         // Create checksum for v2 API
-        const payload = `/pg/checkout/v2/order/${orderId}/status?details=false${this.saltKey}`;
-        const hash = crypto.createHash('sha256').update(payload).digest('hex');
+        // PhonePe uses orderId in the URL but the transaction ID for checksum
+        const checksumPayload = `/pg/checkout/v2/order/${orderId}/status?details=false${this.saltKey}`;
+        const hash = crypto.createHash('sha256').update(checksumPayload).digest('hex');
         const checksum = `${hash}###${this.saltIndex}`;
 
-        console.log('📋 Checksum payload:', payload);
+        console.log('📋 Checksum payload:', checksumPayload);
         console.log('📋 Generated checksum:', checksum);
+        console.log('📋 Using identifier type:', orderId.includes('OMO') ? 'orderId' : 'transactionId');
         
         const response = await axios.get(statusUrl, {
           headers: {
@@ -481,10 +488,11 @@ class PhonePeService {
         const base64Payload = Buffer.from(payloadString).toString('base64');
         const checksum = this.generateHash(base64Payload);
 
-        // Legacy status URL (environment-specific)
-        const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${merchantTransactionId}`;
+        // Legacy status URL (environment-specific) - use orderId for legacy API too
+        const legacyUrl = `${this.legacyStatusBaseUrl}/${this.merchantId}/${orderId}`;
 
         console.log('📋 Legacy Status Check URL:', legacyUrl);
+        console.log('📋 Legacy API using identifier:', orderId);
 
         const response = await axios.get(legacyUrl, {
           headers: {
