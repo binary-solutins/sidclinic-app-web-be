@@ -422,7 +422,7 @@ class PhonePeService {
         const response = await axios.get(statusUrl, {
           headers: {
             'Content-Type': 'application/json',
-            'X-VERIFY': checksum,
+            'Authorization': `O-Bearer ${accessToken}`,
             'X-MERCHANT-ID': this.merchantId,
             'Accept': 'application/json'
           }
@@ -479,7 +479,7 @@ class PhonePeService {
         const response = await axios.get(legacyUrl, {
           headers: {
             'Content-Type': 'application/json',
-            'X-VERIFY': legacyChecksum,
+            'Authorization': `O-Bearer ${accessToken}`,
             'X-MERCHANT-ID': this.merchantId,
             'Accept': 'application/json'
           }
