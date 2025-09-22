@@ -310,7 +310,7 @@ router.post('/sync/:paymentId',
  * /payment/check/{paymentId}:
  *   get:
  *     summary: Check payment status immediately
- *     description: Get current payment status from PhonePe
+ *     description: Get current payment status from PhonePe (works for both manual checks and internal polling)
  *     tags: [Payment]
  *     security:
  *       - bearerAuth: []
@@ -324,6 +324,35 @@ router.post('/sync/:paymentId',
  *     responses:
  *       200:
  *         description: Payment status retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     paymentId:
+ *                       type: integer
+ *                       example: 9
+ *                     currentStatus:
+ *                       type: string
+ *                       example: "success"
+ *                     phonepeStatus:
+ *                       type: string
+ *                       example: "COMPLETED"
+ *                     lastChecked:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2025-09-22T09:12:46.000Z"
+ *                     appointmentStatus:
+ *                       type: string
+ *                       example: "confirmed"
+ *       400:
+ *         description: Could not check payment status
  *       401:
  *         description: Unauthorized
  *       404:
@@ -335,88 +364,10 @@ router.get('/check/:paymentId',
   authenticate(['user']),
   async (req, res) => {
     try {
-      const { paymentId } = req.params;
-      console.log(`🔄 Immediate status check for payment ID: ${paymentId}`);
-
-      const payment = await Payment.findByPk(paymentId, {
-        include: [
-          { model: Appointment, as: 'appointment' }
-        ]
-      });
-
-      if (!payment) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Payment not found'
-        });
-      }
-
-      // Check status with PhonePe
-      const phonepeService = require('../services/phonepe.service');
-      const statusResult = await phonepeService.checkPaymentStatus(payment.phonepeMerchantTransactionId);
-
-      if (statusResult.success) {
-        const statusData = statusResult.data;
-        let newStatus = payment.status;
-
-        // Map PhonePe status to our internal status
-        switch (statusData.state) {
-          case 'COMPLETED':
-          case 'SUCCESS':
-            newStatus = 'success';
-            break;
-          case 'FAILED':
-          case 'FAILURE':
-            newStatus = 'failed';
-            break;
-          case 'CANCELLED':
-          case 'CANCELED':
-            newStatus = 'cancelled';
-            break;
-          case 'PENDING':
-          case 'PROCESSING':
-            newStatus = 'processing';
-            break;
-        }
-
-        // Update database if status changed
-        if (newStatus !== payment.status) {
-          console.log(`🔄 Updating payment ${payment.id} status from ${payment.status} to ${newStatus}`);
-          await payment.update({
-            status: newStatus,
-            completedAt: newStatus === 'success' ? new Date() : null,
-            failedAt: newStatus === 'failed' ? new Date() : null,
-            phonepeStatusResponse: statusData
-          });
-
-          // Update appointment status if payment is successful
-          if (newStatus === 'success' && payment.appointment.status === 'pending') {
-            await payment.appointment.update({
-              status: 'confirmed',
-              confirmedAt: new Date()
-            });
-          }
-        }
-
-        res.json({
-          status: 'success',
-          data: {
-            paymentId: payment.id,
-            currentStatus: newStatus,
-            phonepeStatus: statusData.state,
-            lastChecked: new Date().toISOString(),
-            appointmentStatus: payment.appointment.status
-          }
-        });
-      } else {
-        res.status(400).json({
-          status: 'error',
-          message: 'Could not check payment status',
-          error: statusResult.error
-        });
-      }
+      console.log(`🔄 HTTP status check for payment ID: ${req.params.paymentId}`);
+      await paymentController.checkPaymentStatus(req);
     } catch (error) {
-      console.error('Error in immediate status check:', error);
+      console.error('Error in HTTP status check:', error);
       res.status(500).json({
         status: 'error',
         message: 'Internal server error',

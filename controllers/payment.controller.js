@@ -530,10 +530,23 @@ exports.autoCheckPaymentStatus = async (paymentId) => {
 };
 
 /**
- * Check payment status (simple version for auto-polling)
+ * Check payment status (works for both HTTP requests and direct calls)
  */
-exports.checkPaymentStatus = async (paymentId) => {
+exports.checkPaymentStatus = async (input) => {
   try {
+    // Handle both direct calls (paymentId) and HTTP calls (req)
+    let paymentId;
+    let req;
+
+    if (typeof input === 'object' && input.params) {
+      // HTTP request
+      req = input;
+      paymentId = req.params.paymentId;
+    } else {
+      // Direct call
+      paymentId = input;
+    }
+
     console.log(`🔄 Checking payment status for ID: ${paymentId}`);
 
     const payment = await Payment.findByPk(paymentId, {
@@ -542,12 +555,35 @@ exports.checkPaymentStatus = async (paymentId) => {
 
     if (!payment) {
       console.log(`❌ Payment ${paymentId} not found`);
+
+      // If this is an HTTP request, send error response
+      if (req && req.res) {
+        return req.res.status(404).json({
+          status: 'error',
+          message: 'Payment not found'
+        });
+      }
       return;
     }
 
     // Only check if still pending
     if (!['pending', 'initiated', 'processing'].includes(payment.status)) {
       console.log(`💡 Payment ${paymentId} already in final state: ${payment.status}`);
+
+      // If this is an HTTP request, send response
+      if (req && req.res) {
+        req.res.json({
+          status: 'success',
+          data: {
+            paymentId: payment.id,
+            currentStatus: payment.status,
+            phonepeStatus: 'already_final',
+            lastChecked: new Date().toISOString(),
+            appointmentStatus: payment.appointment?.status || 'unknown',
+            message: 'Payment already in final state'
+          }
+        });
+      }
       return;
     }
 
@@ -604,13 +640,60 @@ exports.checkPaymentStatus = async (paymentId) => {
         console.log(`✅ Payment ${payment.id} updated to ${newStatus}`);
       } else {
         console.log(`💡 Payment ${payment.id} status unchanged: ${payment.status}`);
+
+        // If this is an HTTP request, send response
+        if (req && req.res) {
+          req.res.json({
+            status: 'success',
+            data: {
+              paymentId: payment.id,
+              currentStatus: newStatus,
+              phonepeStatus: statusResult?.data?.state || 'unknown',
+              lastChecked: new Date().toISOString(),
+              appointmentStatus: payment.appointment?.status || 'unknown',
+              message: 'Payment status unchanged'
+            }
+          });
+        }
       }
     } else {
       console.log(`⚠️ Could not get status from PhonePe: ${statusResult.error}`);
+
+      // If this is an HTTP request, send error response
+      if (req && req.res) {
+        return req.res.status(400).json({
+          status: 'error',
+          message: 'Could not check payment status',
+          error: statusResult.error
+        });
+      }
+    }
+
+    // If this is an HTTP request, send response
+    if (req && req.res) {
+      req.res.json({
+        status: 'success',
+        data: {
+          paymentId: payment.id,
+          currentStatus: newStatus,
+          phonepeStatus: statusResult?.data?.state || 'unknown',
+          lastChecked: new Date().toISOString(),
+          appointmentStatus: payment.appointment?.status || 'unknown'
+        }
+      });
     }
 
   } catch (error) {
     console.error(`❌ Error checking payment ${paymentId}:`, error.message);
+
+    // If this is an HTTP request, send error response
+    if (req && req.res) {
+      return req.res.status(500).json({
+        status: 'error',
+        message: 'Error checking payment status',
+        error: error.message
+      });
+    }
   }
 };
 
