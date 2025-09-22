@@ -2,8 +2,6 @@ const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/payment.controller');
 const { authenticate, authorize } = require('../middleware/auth');
-const Payment = require('../models/payment.model');
-const Appointment = require('../models/appoinment.model');
 
 /**
  * @swagger
@@ -98,7 +96,7 @@ router.post('/initiate',
  * /payment/phonepe/callback:
  *   post:
  *     summary: Handle PhonePe payment callback
- *     description: Handle webhook callback from PhonePe payment gateway with OAuth2 authentication
+ *     description: Handle callback from PhonePe payment gateway
  *     tags: [Payment]
  *     requestBody:
  *       required: true
@@ -107,77 +105,20 @@ router.post('/initiate',
  *           schema:
  *             type: object
  *             required:
- *               - event
- *               - payload
+ *               - response
+ *               - checksum
  *             properties:
- *               event:
+ *               response:
  *                 type: string
- *                 description: Event type from PhonePe
- *                 example: "checkout.order.completed"
- *               payload:
- *                 type: object
- *                 description: Payment details from PhonePe
- *                 properties:
- *                   orderId:
- *                     type: string
- *                     description: PhonePe order ID
- *                     example: "OMO2509221347448928334310"
- *                   merchantOrderId:
- *                     type: string
- *                     description: Your merchant transaction ID
- *                     example: "TXN_4_11_1758530847215"
- *                   state:
- *                     type: string
- *                     description: Payment state
- *                     example: "COMPLETED"
- *                   amount:
- *                     type: integer
- *                     description: Payment amount
- *                     example: 100
- *                   paymentDetails:
- *                     type: array
- *                     description: Payment method details
- *                     items:
- *                       type: object
- *                       properties:
- *                         paymentMode:
- *                           type: string
- *                           example: "UPI_COLLECT"
- *                         transactionId:
- *                           type: string
- *                           example: "OM2403282020198651071949"
+ *                 description: Base64 encoded response from PhonePe
+ *                 example: eyJtZXJjaGFudElkIjoi...
+ *               checksum:
+ *                 type: string
+ *                 description: SHA256 checksum for verification
+ *                 example: 1234567890abcdef###1
  *     responses:
  *       200:
  *         description: Callback processed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "success"
- *                 message:
- *                   type: string
- *                   example: "Callback processed successfully"
- *                 data:
- *                   type: object
- *                   properties:
- *                     paymentId:
- *                       type: integer
- *                       example: 9
- *                     event:
- *                       type: string
- *                       example: "checkout.order.completed"
- *                     paymentState:
- *                       type: string
- *                       example: "COMPLETED"
- *                     status:
- *                       type: string
- *                       example: "success"
- *                     appointmentStatus:
- *                       type: string
- *                       example: "confirmed"
  *       400:
  *         description: Bad request - invalid callback data
  *       500:
@@ -303,78 +244,6 @@ router.get('/status/:paymentId',
 router.post('/sync/:paymentId',
   authenticate(['user']),
   paymentController.manualSyncPayment
-);
-
-/**
- * @swagger
- * /payment/check/{paymentId}:
- *   get:
- *     summary: Check payment status immediately
- *     description: Get current payment status from PhonePe (works for both manual checks and internal polling)
- *     tags: [Payment]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: paymentId
- *         required: true
- *         schema:
- *           type: integer
- *         description: Payment ID to check
- *     responses:
- *       200:
- *         description: Payment status retrieved
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: "success"
- *                 data:
- *                   type: object
- *                   properties:
- *                     paymentId:
- *                       type: integer
- *                       example: 9
- *                     currentStatus:
- *                       type: string
- *                       example: "success"
- *                     phonepeStatus:
- *                       type: string
- *                       example: "COMPLETED"
- *                     lastChecked:
- *                       type: string
- *                       format: date-time
- *                       example: "2025-09-22T09:12:46.000Z"
- *                     appointmentStatus:
- *                       type: string
- *                       example: "confirmed"
- *       400:
- *         description: Could not check payment status
- *       401:
- *         description: Unauthorized
- *       404:
- *         description: Payment not found
- *       500:
- *         description: Internal server error
- */
-router.get('/check/:paymentId',
-  authenticate(['user']),
-  async (req, res) => {
-    try {
-      console.log(`🔄 HTTP status check for payment ID: ${req.params.paymentId}`);
-      await paymentController.checkPaymentStatus(req);
-    } catch (error) {
-      console.error('Error in HTTP status check:', error);
-      res.status(500).json({
-        status: 'error',
-        message: 'Internal server error',
-        error: error.message
-      });
-    }
-  }
 );
 
 /**
@@ -903,6 +772,3 @@ router.get('/admin/stats',
 );
 
 module.exports = router;
-
-
-

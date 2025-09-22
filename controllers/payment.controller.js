@@ -265,15 +265,14 @@ exports.initiatePayment = async (req, res) => {
       await redeemCodeUsage.update({ paymentId: payment.id });
     }
 
-    // Simple polling mechanism - check status after 10 seconds
+    // Schedule auto-check for payment status after 2 minutes (fallback mechanism)
     setTimeout(async () => {
       try {
-        console.log(`🔄 Starting status check for payment ${payment.id}`);
-        await exports.checkPaymentStatus(payment.id);
+        await exports.autoCheckPaymentStatus(payment.id);
       } catch (error) {
-        console.error('❌ Auto-check failed:', error.message);
+        console.error('Error in scheduled payment status check:', error);
       }
-    }, 10 * 1000); // 10 seconds
+    }, 2 * 60 * 1000); // 2 minutes
 
     res.json({
       status: 'success',
@@ -322,24 +321,20 @@ exports.handleCallback = async (req, res) => {
     console.log('📋 Request Headers:', JSON.stringify(req.headers, null, 2));
     console.log('🔔🔔🔔 CALLBACK DATA END 🔔🔔🔔');
 
-    // PhonePe webhook format: { event: "checkout.order.completed", payload: {...} }
-    const { event, payload } = req.body;
+    const { response, checksum } = req.body;
 
-    if (!event || !payload) {
-      console.log('❌ Invalid callback data - missing event or payload');
+    if (!response || !checksum) {
+      console.log('❌ Invalid callback data - missing response or checksum');
       return res.status(400).json({
         status: 'error',
         code: 400,
-        message: 'Invalid callback data - missing event or payload'
+        message: 'Invalid callback data'
       });
     }
 
-    console.log('📋 Event:', event);
-    console.log('📋 Payload:', JSON.stringify(payload, null, 2));
-
     // Process callback with PhonePe service
     console.log('🔄 Processing callback with PhonePe service...');
-    const callbackResult = await phonepeService.processCallback({ event, payload });
+    const callbackResult = await phonepeService.processCallback({ response, checksum });
 
     if (!callbackResult.success) {
       console.log('❌ Callback processing failed:', callbackResult.error);
@@ -377,29 +372,30 @@ exports.handleCallback = async (req, res) => {
 
     console.log(`✅ Payment found - ID: ${payment.id}, Current Status: ${payment.status}, Appointment Status: ${payment.appointment.status}`);
 
-    // Update payment status based on callback event and payload state
+    // Update payment status based on callback
     let paymentStatus = 'failed';
     let appointmentStatus = payment.appointment.status;
 
-    console.log(`📊 Processing callback event: ${event}`);
-    console.log(`📊 Payment state in payload: ${payload.state}`);
-
-    // Handle different event types
-    if (event === 'checkout.order.completed' && payload.state === 'COMPLETED') {
-      paymentStatus = 'success';
-      if (payment.appointment.status === 'pending') {
-        appointmentStatus = 'confirmed';
-      }
-      console.log('✅ Payment completed successfully');
-    } else if (event === 'checkout.order.failed' || payload.state === 'FAILED') {
-      paymentStatus = 'failed';
-      console.log('❌ Payment failed');
-    } else if (payload.state === 'CANCELLED') {
-      paymentStatus = 'cancelled';
-      console.log('🚫 Payment cancelled');
-    } else {
-      console.log('⚠️ Unknown event/state:', event, payload.state);
-      paymentStatus = 'failed';
+    console.log(`📊 Processing callback status: ${callbackData.status}`);
+    switch (callbackData.status) {
+      case 'COMPLETED':
+        paymentStatus = 'success';
+        if (payment.appointment.status === 'pending') {
+          appointmentStatus = 'confirmed';
+        }
+        console.log('✅ Payment marked as successful');
+        break;
+      case 'FAILED':
+        paymentStatus = 'failed';
+        console.log('❌ Payment marked as failed');
+        break;
+      case 'CANCELLED':
+        paymentStatus = 'cancelled';
+        console.log('🚫 Payment marked as cancelled');
+        break;
+      default:
+        paymentStatus = 'failed';
+        console.log('⚠️ Unknown status, marking as failed:', callbackData.status);
     }
 
     // Update payment record
@@ -429,11 +425,8 @@ exports.handleCallback = async (req, res) => {
       message: 'Callback processed successfully',
       data: {
         paymentId: payment.id,
-        event: event,
-        paymentState: payload.state,
         status: paymentStatus,
-        appointmentStatus: appointmentStatus,
-        merchantTransactionId: callbackData.merchantTransactionId
+        appointmentStatus: appointmentStatus
       }
     });
 
@@ -526,174 +519,6 @@ exports.autoCheckPaymentStatus = async (paymentId) => {
     }
   } catch (error) {
     console.error('❌ Auto-check payment status error:', error);
-  }
-};
-
-/**
- * Check payment status (works for both HTTP requests and direct calls)
- */
-exports.checkPaymentStatus = async (input) => {
-  try {
-    // Handle both direct calls (paymentId) and HTTP calls (req)
-    let paymentId;
-    let req;
-
-    if (typeof input === 'object' && input.params) {
-      // HTTP request
-      req = input;
-      paymentId = req.params.paymentId;
-    } else {
-      // Direct call
-      paymentId = input;
-    }
-
-    console.log(`🔄 Checking payment status for ID: ${paymentId}`);
-
-    const payment = await Payment.findByPk(paymentId, {
-      include: [{ model: Appointment, as: 'appointment' }]
-    });
-
-    if (!payment) {
-      console.log(`❌ Payment ${paymentId} not found`);
-
-      // If this is an HTTP request, send error response
-      if (req && req.res) {
-        return req.res.status(404).json({
-          status: 'error',
-          message: 'Payment not found'
-        });
-      }
-      return;
-    }
-
-    // Only check if still pending
-    if (!['pending', 'initiated', 'processing'].includes(payment.status)) {
-      console.log(`💡 Payment ${paymentId} already in final state: ${payment.status}`);
-
-      // If this is an HTTP request, send response
-      if (req && req.res) {
-        req.res.json({
-          status: 'success',
-          data: {
-            paymentId: payment.id,
-            currentStatus: payment.status,
-            phonepeStatus: 'already_final',
-            lastChecked: new Date().toISOString(),
-            appointmentStatus: payment.appointment?.status || 'unknown',
-            message: 'Payment already in final state'
-          }
-        });
-      }
-      return;
-    }
-
-    console.log(`📋 Checking PhonePe status for: ${payment.phonepeMerchantTransactionId}`);
-
-    // Use the PhonePe service to check status
-    const phonepeService = require('../services/phonepe.service');
-    const statusResult = await phonepeService.checkPaymentStatus(payment.phonepeMerchantTransactionId);
-
-    if (statusResult.success) {
-      const { state, amount } = statusResult.data;
-      console.log(`📊 PhonePe returned status: ${state} for amount: ${amount}`);
-
-      let newStatus = payment.status;
-      let appointmentStatus = payment.appointment?.status;
-
-      switch (state) {
-        case 'COMPLETED':
-        case 'SUCCESS':
-          newStatus = 'success';
-          if (appointmentStatus === 'pending') {
-            appointmentStatus = 'confirmed';
-          }
-          break;
-        case 'FAILED':
-        case 'FAILURE':
-          newStatus = 'failed';
-          break;
-        case 'CANCELLED':
-          newStatus = 'cancelled';
-          break;
-      }
-
-      // Update if status changed
-      if (newStatus !== payment.status) {
-        console.log(`🔄 Updating payment ${payment.id} from ${payment.status} to ${newStatus}`);
-
-        await payment.update({
-          status: newStatus,
-          completedAt: newStatus === 'success' ? new Date() : null,
-          failedAt: newStatus === 'failed' ? new Date() : null,
-          phonepeStatusResponse: statusResult.data
-        });
-
-        // Update appointment if payment successful
-        if (newStatus === 'success' && appointmentStatus === 'confirmed') {
-          await payment.appointment.update({
-            status: 'confirmed',
-            confirmedAt: new Date()
-          });
-          console.log(`✅ Appointment ${payment.appointment.id} confirmed`);
-        }
-
-        console.log(`✅ Payment ${payment.id} updated to ${newStatus}`);
-      } else {
-        console.log(`💡 Payment ${payment.id} status unchanged: ${payment.status}`);
-
-        // If this is an HTTP request, send response
-        if (req && req.res) {
-          req.res.json({
-            status: 'success',
-            data: {
-              paymentId: payment.id,
-              currentStatus: newStatus,
-              phonepeStatus: statusResult?.data?.state || 'unknown',
-              lastChecked: new Date().toISOString(),
-              appointmentStatus: payment.appointment?.status || 'unknown',
-              message: 'Payment status unchanged'
-            }
-          });
-        }
-      }
-    } else {
-      console.log(`⚠️ Could not get status from PhonePe: ${statusResult.error}`);
-
-      // If this is an HTTP request, send error response
-      if (req && req.res) {
-        return req.res.status(400).json({
-          status: 'error',
-          message: 'Could not check payment status',
-          error: statusResult.error
-        });
-      }
-    }
-
-    // If this is an HTTP request, send response
-    if (req && req.res) {
-      req.res.json({
-        status: 'success',
-        data: {
-          paymentId: payment.id,
-          currentStatus: newStatus,
-          phonepeStatus: statusResult?.data?.state || 'unknown',
-          lastChecked: new Date().toISOString(),
-          appointmentStatus: payment.appointment?.status || 'unknown'
-        }
-      });
-    }
-
-  } catch (error) {
-    console.error(`❌ Error checking payment ${paymentId}:`, error.message);
-
-    // If this is an HTTP request, send error response
-    if (req && req.res) {
-      return req.res.status(500).json({
-        status: 'error',
-        message: 'Error checking payment status',
-        error: error.message
-      });
-    }
   }
 };
 
@@ -1544,4 +1369,3 @@ exports.completePayment = async (req, res) => {
     });
   }
 };
-
