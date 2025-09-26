@@ -4,24 +4,10 @@ const multer = require('multer');
 const dentalImageController = require('../controllers/dentalImage.controller');
 const { authenticate } = require('../middleware/auth');
 const { authorize } = require('../middleware/auth');
+const { multerConfigs, createMulterErrorHandler } = require('../config/multer.config');
 
-// Multer configuration for multiple file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ 
-  storage,
-  limits: { 
-    fileSize: 10 * 1024 * 1024, // 10MB limit per file
-    files: 10 // Maximum 10 files per upload
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow only image files
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed'), false);
-    }
-  }
-});
+// Use centralized multer configuration for multiple images
+const upload = multerConfigs.multipleImagesUpload;
 
 /**
  * @swagger
@@ -135,6 +121,9 @@ const upload = multer({
  *         $ref: '#/components/responses/ServerError'
  */
 router.post('/', authenticate(), upload.array('images', 10), dentalImageController.uploadDentalImages);
+
+// Error handling middleware for multer
+router.use(createMulterErrorHandler('10MB', 10));
 
 /**
  * @swagger

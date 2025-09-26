@@ -66,20 +66,8 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Multer middleware for multipart/form-data
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Allow all file types for now, but you can add restrictions here
-    cb(null, true);
-  }
-});
-
-// Apply multer middleware to handle multipart/form-data
-app.use(upload.any());
+// Note: Multer middleware is handled individually in each route file
+// to avoid conflicts and allow for specific configurations per endpoint
 
 // Static files
 app.use(express.static(path.join(__dirname, "public")));

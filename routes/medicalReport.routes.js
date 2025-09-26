@@ -3,11 +3,10 @@ const router = express.Router();
 const medicalReportController = require('../controllers/medicalReport.controller');
 const { authenticate } = require('../middleware/auth');
 const multer = require('multer');
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit for medical reports
-});
+const { multerConfigs, createMulterErrorHandler } = require('../config/multer.config');
+
+// Use centralized multer configuration for medical reports
+const upload = multerConfigs.medicalReportUpload;
 
 /**
  * @swagger
@@ -287,5 +286,8 @@ router.delete('/:id', authenticate(), medicalReportController.deleteMedicalRepor
  *         $ref: '#/components/responses/ServerError'
  */
 router.get('/', authenticate(), medicalReportController.getAllMedicalReports);
+
+// Error handling middleware for multer
+router.use(createMulterErrorHandler('50MB'));
 
 module.exports = router; 

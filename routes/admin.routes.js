@@ -1217,4 +1217,34 @@ const dentalImageController = require('../controllers/dentalImage.controller');
 router.get('/dental-images', authenticate(), authorize('admin'), dentalImageController.getAllDentalImages);
 router.get('/dental-images/urls', authenticate(), authorize('admin'), dentalImageController.getAllImageUrls);
 
+// Error handling middleware for multer
+router.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 10MB',
+        data: null
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 5 clinic photos allowed',
+        data: null
+      });
+    }
+  }
+  
+  if (error.message === 'Only image files are allowed') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only image files are allowed',
+      data: null
+    });
+  }
+  
+  next(error);
+});
+
 module.exports = router;
