@@ -4,48 +4,15 @@ const Appointment = require("../models/appoinment.model");
 const Patient = require("../models/patient.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
-const { Client, Storage } = require('appwrite');
-const { v4: uuidv4 } = require('uuid');
-const axios = require('axios');
-const FormData = require('form-data');
+const azureStorageService = require('../services/azureStorage.service');
 
-// Configure Appwrite
-const client = new Client();
-client
-  .setEndpoint(process.env.APPWRITE_ENDPOINT)
-  .setProject(process.env.APPWRITE_PROJECT_ID);
-
-const storage = new Storage(client);
-const bucketId = process.env.APPWRITE_BUCKET_ID;
-
-// Helper function to upload image to Appwrite
+// Helper function to upload image to Azure Blob Storage
 const uploadImage = async (file) => {
   try {
-    const fileId = uuidv4();
-
-    const formData = new FormData();
-    formData.append('fileId', fileId);
-    formData.append('file', file.buffer, {
-      filename: file.originalname,
-      contentType: file.mimetype
-    });
-
-    const response = await axios.post(
-      `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files`,
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID,
-          'X-Appwrite-Key': process.env.APPWRITE_API_KEY
-        }
-      }
-    );
-
-    const uploadedFile = response.data;
-    return `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${uploadedFile.$id}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+    const result = await azureStorageService.uploadFile(file, 'doctor-images');
+    return result.url;
   } catch (error) {
-    console.error('Error uploading image via API:', error.response ? error.response.data : error.message);
+    console.error('Error uploading image to Azure Storage:', error.message);
     throw new Error('Image upload failed');
   }
 };

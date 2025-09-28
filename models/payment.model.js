@@ -47,6 +47,12 @@ const Payment = sequelize.define('Payment', {
     defaultValue: 'phonepe',
     comment: 'Payment method used'
   },
+  integrationType: {
+    type: DataTypes.ENUM('web', 'sdk', 'api'),
+    allowNull: true,
+    defaultValue: 'web',
+    comment: 'Integration type (web, sdk, api)'
+  },
   status: {
     type: DataTypes.ENUM(
       'pending',
@@ -310,6 +316,7 @@ Payment.getTotalRevenue = async function(startDate, endDate) {
 };
 
 module.exports = Payment;
+
 
 
 

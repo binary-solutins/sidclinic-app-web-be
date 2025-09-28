@@ -93,6 +93,139 @@ router.post('/initiate',
 
 /**
  * @swagger
+ * /payment/initiate-sdk:
+ *   post:
+ *     summary: Initiate payment using PhonePe SDK
+ *     description: Initiate payment for virtual appointment using PhonePe SDK integration
+ *     tags: [Payment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - appointmentId
+ *               - amount
+ *               - mobileNumber
+ *               - email
+ *             properties:
+ *               appointmentId:
+ *                 type: integer
+ *                 description: ID of the virtual appointment
+ *                 example: 123
+ *               paymentMethod:
+ *                 type: string
+ *                 enum: [phonepe]
+ *                 default: phonepe
+ *                 description: Payment method (only phonepe supported for SDK)
+ *                 example: phonepe
+ *               amount:
+ *                 type: number
+ *                 description: Payment amount in INR
+ *                 example: 200
+ *               integrationType:
+ *                 type: string
+ *                 enum: [SDK]
+ *                 default: SDK
+ *                 description: Integration type
+ *                 example: SDK
+ *               userId:
+ *                 type: string
+ *                 description: User ID (optional for validation)
+ *                 example: user123
+ *               redeemCode:
+ *                 type: string
+ *                 description: Optional redeem code for discount
+ *                 example: DISCOUNT10
+ *               mobileNumber:
+ *                 type: string
+ *                 description: User's mobile number (required for SDK)
+ *                 example: "+919876543210"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address (required for SDK)
+ *                 example: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: SDK payment initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     paymentId:
+ *                       type: string
+ *                       example: PAY_123456789
+ *                     orderId:
+ *                       type: string
+ *                       example: TXN_123_1758957014534
+ *                     sdkToken:
+ *                       type: string
+ *                       example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                       description: Signed JWT token for PhonePe SDK
+ *                     amount:
+ *                       type: number
+ *                       example: 200
+ *                     currency:
+ *                       type: string
+ *                       example: INR
+ *                     originalAmount:
+ *                       type: number
+ *                       example: 200
+ *                     discountAmount:
+ *                       type: number
+ *                       example: 0
+ *                     redeemCode:
+ *                       type: object
+ *                       nullable: true
+ *                       properties:
+ *                         code:
+ *                           type: string
+ *                           example: DISCOUNT10
+ *                         name:
+ *                           type: string
+ *                           example: 10% Off
+ *                         discountType:
+ *                           type: string
+ *                           example: percentage
+ *                         discountValue:
+ *                           type: number
+ *                           example: 10
+ *       400:
+ *         description: Bad request - validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: error
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: Appointment ID is required
+ *       404:
+ *         description: Appointment not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/initiate-sdk', 
+  paymentController.initiateSDKPayment
+);
+
+/**
+ * @swagger
  * /payment/phonepe/callback:
  *   post:
  *     summary: Handle PhonePe payment callback
@@ -549,7 +682,7 @@ router.get('/pending',
  *                 example: 123
  *               paymentMethod:
  *                 type: string
- *                 description: Payment method (default: phonepe)
+ *                 description: Payment method - default phonepe
  *                 example: phonepe
  *                 default: phonepe
  *     responses:

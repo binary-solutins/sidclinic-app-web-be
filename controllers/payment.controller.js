@@ -1129,6 +1129,286 @@ exports.getPendingPayments = async (req, res) => {
 };
 
 /**
+ * Initiate payment using PhonePe SDK
+ */
+exports.initiateSDKPayment = async (req, res) => {
+  try {
+    const { 
+      appointmentId, 
+      paymentMethod = 'phonepe', 
+      amount, 
+      integrationType = 'SDK',
+      userId,
+      redeemCode,
+      mobileNumber,
+      email
+    } = req.body;
+
+    console.log('🔄 Initiating SDK payment:', {
+      appointmentId,
+      paymentMethod,
+      amount,
+      integrationType,
+      userId,
+      mobileNumber,
+      email
+    });
+
+    // Validate input
+    if (!appointmentId) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Appointment ID is required'
+      });
+    }
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Valid amount is required'
+      });
+    }
+
+    if (!mobileNumber) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Mobile number is required for SDK integration'
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Email is required for SDK integration'
+      });
+    }
+
+    // Get appointment details
+    const appointment = await Appointment.findByPk(appointmentId, {
+      include: [
+        { model: User, as: 'patient', attributes: ['id', 'name', 'phone'] }
+      ]
+    });
+
+    if (!appointment) {
+      return res.status(404).json({
+        status: 'error',
+        code: 404,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Check if appointment belongs to the user (if userId is provided)
+    if (userId && appointment.userId !== parseInt(userId)) {
+      return res.status(403).json({
+        status: 'error',
+        code: 403,
+        message: 'You are not authorized to pay for this appointment'
+      });
+    }
+
+    // Check if appointment is virtual
+    if (appointment.type !== 'virtual') {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'SDK payment is only available for virtual appointments'
+      });
+    }
+
+    // Check if appointment is in pending status
+    if (appointment.status !== 'pending') {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Payment can only be initiated for pending appointments'
+      });
+    }
+
+    let originalAmount = parseFloat(amount);
+    let discountAmount = 0;
+    let finalAmount = originalAmount;
+    let redeemCodeData = null;
+    let redeemCodeUsage = null;
+
+    // Process redeem code if provided
+    if (redeemCode) {
+      const redeemCodeRecord = await RedeemCode.findOne({
+        where: { 
+          code: redeemCode.toUpperCase(),
+          applicableFor: { [Op.in]: ['all', 'virtual_appointment'] }
+        }
+      });
+
+      if (!redeemCodeRecord) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: 'Invalid redeem code'
+        });
+      }
+
+      // Validate redeem code
+      if (!redeemCodeRecord.isValid()) {
+        let reason = 'Redeem code is not valid';
+        
+        if (!redeemCodeRecord.isActive) reason = 'Redeem code is inactive';
+        else if (redeemCodeRecord.validFrom && new Date() < redeemCodeRecord.validFrom) reason = 'Redeem code is not yet active';
+        else if (redeemCodeRecord.validUntil && new Date() > redeemCodeRecord.validUntil) reason = 'Redeem code has expired';
+        else if (redeemCodeRecord.usageLimit && redeemCodeRecord.usageCount >= redeemCodeRecord.usageLimit) reason = 'Redeem code usage limit exceeded';
+
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: reason
+        });
+      }
+
+      // Check user usage limit
+      if (redeemCodeRecord.userUsageLimit) {
+        const userUsageCount = await RedeemCodeUsage.count({
+          where: {
+            userId: appointment.userId,
+            redeemCodeId: redeemCodeRecord.id
+          }
+        });
+
+        if (userUsageCount >= redeemCodeRecord.userUsageLimit) {
+          return res.status(400).json({
+            status: 'error',
+            code: 400,
+            message: 'You have already used this redeem code maximum number of times'
+          });
+        }
+      }
+
+      // Check minimum order amount
+      if (redeemCodeRecord.minOrderAmount && originalAmount < redeemCodeRecord.minOrderAmount) {
+        return res.status(400).json({
+          status: 'error',
+          code: 400,
+          message: `Minimum order amount is ₹${redeemCodeRecord.minOrderAmount} to use this redeem code`
+        });
+      }
+
+      // Calculate discount
+      discountAmount = redeemCodeRecord.calculateDiscount(originalAmount);
+      finalAmount = originalAmount - discountAmount;
+      redeemCodeData = redeemCodeRecord;
+
+      // Create redeem code usage record
+      redeemCodeUsage = await RedeemCodeUsage.create({
+        userId: appointment.userId,
+        redeemCodeId: redeemCodeRecord.id,
+        appointmentId,
+        originalAmount,
+        discountAmount,
+        finalAmount,
+        status: 'applied',
+        usedAt: new Date()
+      });
+
+      // Update redeem code usage count
+      await redeemCodeRecord.increment('usageCount');
+    }
+
+    // Generate merchant transaction ID
+    const merchantTransactionId = phonepeService.generateMerchantTransactionId(appointment.userId, appointmentId);
+
+    // Create payment record
+    const payment = await Payment.create({
+      userId: appointment.userId,
+      appointmentId,
+      amount: finalAmount,
+      currency: 'INR',
+      paymentMethod,
+      status: 'initiated',
+      phonepeMerchantTransactionId: merchantTransactionId,
+      initiatedAt: new Date(),
+      ipAddress: req.ip,
+      deviceInfo: {
+        userAgent: req.get('User-Agent'),
+        platform: req.get('Platform') || 'sdk'
+      },
+      integrationType: 'SDK'
+    });
+
+    // Link redeem code usage to payment if applicable
+    if (redeemCodeUsage) {
+      await redeemCodeUsage.update({ paymentId: payment.id });
+    }
+
+    // Generate SDK token
+    const sdkTokenResult = phonepeService.generateSDKToken({
+      merchantTransactionId,
+      amount: finalAmount,
+      userId: appointment.userId,
+      mobileNumber,
+      email,
+      appointmentId
+    });
+
+    if (!sdkTokenResult.success) {
+      // Update payment status to failed
+      await payment.update({
+        status: 'failed',
+        failureReason: sdkTokenResult.error,
+        failedAt: new Date()
+      });
+
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'SDK token generation failed',
+        error: sdkTokenResult.error
+      });
+    }
+
+    // Update payment with SDK token
+    await payment.update({
+      phonepeResponse: {
+        sdkToken: sdkTokenResult.data.sdkToken,
+        payload: sdkTokenResult.data.payload
+      }
+    });
+
+    console.log('✅ SDK payment initiated successfully for payment ID:', payment.id);
+
+    res.json({
+      success: true,
+      data: {
+        paymentId: `PAY_${payment.id}`,
+        orderId: merchantTransactionId,
+        sdkToken: sdkTokenResult.data.sdkToken,
+        amount: finalAmount,
+        currency: 'INR',
+        originalAmount: originalAmount,
+        discountAmount: discountAmount,
+        redeemCode: redeemCodeData ? {
+          code: redeemCodeData.code,
+          name: redeemCodeData.name,
+          discountType: redeemCodeData.discountType,
+          discountValue: redeemCodeData.discountValue
+        } : null
+      }
+    });
+
+  } catch (error) {
+    console.error('SDK payment initiation error:', error);
+    res.status(500).json({
+      status: 'error',
+      code: 500,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Complete payment for existing appointment
  */
 exports.completePayment = async (req, res) => {

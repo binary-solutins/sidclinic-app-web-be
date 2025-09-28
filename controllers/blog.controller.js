@@ -1,56 +1,18 @@
 const Blog = require('../models/blog.model');
 const User = require('../models/user.model');
-const { Client, Storage } = require('appwrite');
-const fs = require('fs');
-const path = require('path');
-const { v4: uuidv4 } = require('uuid');
-const axios = require('axios');
-const FormData = require('form-data');
+const azureStorageService = require('../services/azureStorage.service');
 const { Op } = require('sequelize'); // Added Op for search functionality
-// Configure Appwrite
-const client = new Client();
-client
-  .setEndpoint(process.env.APPWRITE_ENDPOINT)
-  .setProject(process.env.APPWRITE_PROJECT_ID);
 
-const storage = new Storage(client);
-const bucketId = process.env.APPWRITE_BUCKET_ID;
-
-// Helper function to upload image to Appwrite
+// Helper function to upload image to Azure Blob Storage
 const uploadImage = async (file) => {
-    try {
-      // Create a file ID
-      const fileId = uuidv4();
-      
-      // Create form data
-      const formData = new FormData();
-      formData.append('fileId', fileId);
-      formData.append('file', file.buffer, {
-        filename: file.originalname,
-        contentType: file.mimetype
-      });
-      
-      // Make direct API call to Appwrite
-      const response = await axios.post(
-        `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files`,
-        formData,
-        {
-          headers: {
-            ...formData.getHeaders(),
-            'X-Appwrite-Project': process.env.APPWRITE_PROJECT_ID,
-            'X-Appwrite-Key': process.env.APPWRITE_API_KEY  // You'll need an API key for server-side operations
-          }
-        }
-      );
-      
-      // Return the file URL based on the response
-      const uploadedFile = response.data;
-      return `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${bucketId}/files/${uploadedFile.$id}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
-    } catch (error) {
-      console.error('Error uploading image via API:', error.response ? error.response.data : error.message);
-      throw new Error('Image upload failed');
-    }
-  };
+  try {
+    const result = await azureStorageService.uploadFile(file, 'blog-images');
+    return result.url;
+  } catch (error) {
+    console.error('Error uploading image to Azure Storage:', error.message);
+    throw new Error('Image upload failed');
+  }
+};
 // Create a new blog post
 exports.createBlog = async (req, res) => {
   try {

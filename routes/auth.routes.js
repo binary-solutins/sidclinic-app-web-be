@@ -46,7 +46,7 @@
  *           enum: [Male, Female, Other]
  *         role:
  *           type: string
- *           enum: [user, doctor, admin]
+ *           enum: ["user", "doctor", "admin"]
  *           default: user
  *     CheckUserExistsRequest:
  *       type: object
@@ -121,7 +121,7 @@
  *           example: "Male"
  *         role:
  *           type: string
- *           enum: [user, doctor, admin]
+ *           enum: ["user", "doctor", "admin"]
  *           default: user
  *           description: Required only for new user registration
  *     UserResponse:
@@ -132,7 +132,7 @@
  *           example: true
  *         message:
  *           type: string
- *           example: "Login successful" or "Registration completed successfully"
+ *           example: "Login successful"
  *         data:
  *           type: object
  *           properties:

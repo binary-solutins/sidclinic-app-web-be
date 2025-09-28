@@ -533,6 +533,84 @@ class PhonePeService {
   }
 
   /**
+   * Generate SDK token for PhonePe SDK integration
+   */
+  generateSDKToken(paymentData) {
+    try {
+      const {
+        merchantTransactionId,
+        amount,
+        userId,
+        mobileNumber,
+        email,
+        appointmentId
+      } = paymentData;
+
+      console.log('🔄 Generating SDK token for PhonePe integration:', {
+        merchantTransactionId,
+        amount,
+        userId,
+        mobileNumber,
+        email
+      });
+
+      // Create JWT payload as per PhonePe SDK requirements
+      const payload = {
+        merchantId: this.merchantId,
+        merchantTransactionId: merchantTransactionId,
+        amount: Math.round(amount * 100), // Convert to paise
+        currency: "INR",
+        merchantUserId: userId.toString(),
+        redirectUrl: this.redirectUrl,
+        redirectMode: "POST",
+        callbackUrl: this.callbackUrl,
+        mobileNumber: mobileNumber,
+        paymentInstrument: {
+          type: "PAY_PAGE"
+        }
+      };
+
+      console.log('📋 SDK Token Payload:', payload);
+
+      // Create JWT header
+      const header = {
+        alg: "HS256",
+        typ: "JWT"
+      };
+
+      // Encode header and payload
+      const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
+      const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
+
+      // Create signature using salt key
+      const signature = crypto
+        .createHmac('sha256', this.saltKey)
+        .update(`${encodedHeader}.${encodedPayload}`)
+        .digest('base64url');
+
+      // Combine to create JWT token
+      const sdkToken = `${encodedHeader}.${encodedPayload}.${signature}`;
+
+      console.log('✅ SDK token generated successfully');
+
+      return {
+        success: true,
+        data: {
+          sdkToken: sdkToken,
+          payload: payload
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ SDK token generation error:', error);
+      return {
+        success: false,
+        error: error.message || 'SDK token generation failed'
+      };
+    }
+  }
+
+  /**
    * Get available payment methods
    */
   getPaymentMethods() {
