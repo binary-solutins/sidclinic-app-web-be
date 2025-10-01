@@ -226,6 +226,76 @@ router.post('/initiate-sdk',
 
 /**
  * @swagger
+ * /payment/debug-sdk-token:
+ *   post:
+ *     summary: Debug SDK token generation (for testing)
+ *     description: Test SDK token generation and verify the token format
+ *     tags: [Payment]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               appointmentId:
+ *                 type: integer
+ *                 default: 123
+ *               amount:
+ *                 type: number
+ *                 default: 200
+ *               mobileNumber:
+ *                 type: string
+ *                 default: "+919876543210"
+ *               email:
+ *                 type: string
+ *                 default: "test@example.com"
+ *               userId:
+ *                 type: integer
+ *                 default: 4
+ *     responses:
+ *       200:
+ *         description: Debug information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: SDK token generated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     sdkToken:
+ *                       type: string
+ *                       description: Base64 encoded SDK token
+ *                     decodedToken:
+ *                       type: object
+ *                       description: Decoded token object for verification
+ *                     tokenLength:
+ *                       type: integer
+ *                       description: Length of the base64 token
+ *                     phonepeOrderId:
+ *                       type: string
+ *                       description: PhonePe's order ID
+ *                     state:
+ *                       type: string
+ *                       description: Order state
+ *       400:
+ *         description: SDK token generation failed
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/debug-sdk-token', 
+  paymentController.debugSDKToken
+);
+
+/**
+ * @swagger
  * /payment/phonepe/callback:
  *   post:
  *     summary: Handle PhonePe payment callback

@@ -1412,6 +1412,75 @@ exports.initiateSDKPayment = async (req, res) => {
 };
 
 /**
+ * Debug SDK token generation (for testing)
+ */
+exports.debugSDKToken = async (req, res) => {
+  try {
+    const { 
+      appointmentId = 123, 
+      amount = 200, 
+      mobileNumber = "+919876543210",
+      email = "test@example.com",
+      userId = 4
+    } = req.body;
+
+    console.log('🔍 DEBUG: Testing SDK token generation');
+
+    // Generate merchant transaction ID
+    const merchantTransactionId = phonepeService.generateMerchantTransactionId(userId, appointmentId);
+
+    // Test SDK token generation
+    const sdkTokenResult = await phonepeService.generateSDKToken({
+      merchantTransactionId,
+      amount,
+      userId,
+      mobileNumber,
+      email,
+      appointmentId
+    });
+
+    if (!sdkTokenResult.success) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'SDK token generation failed',
+        error: sdkTokenResult.error
+      });
+    }
+
+    // Decode the token to verify it
+    let decodedToken = null;
+    try {
+      const decodedString = Buffer.from(sdkTokenResult.data.sdkToken, 'base64').toString('utf-8');
+      decodedToken = JSON.parse(decodedString);
+    } catch (decodeError) {
+      console.error('❌ Token decode error:', decodeError);
+    }
+
+    res.json({
+      success: true,
+      message: 'SDK token generated successfully',
+      data: {
+        sdkToken: sdkTokenResult.data.sdkToken,
+        decodedToken: decodedToken,
+        tokenLength: sdkTokenResult.data.sdkToken.length,
+        merchantTransactionId: merchantTransactionId,
+        phonepeOrderId: sdkTokenResult.data.phonepeOrderId,
+        state: sdkTokenResult.data.state,
+        expireAt: sdkTokenResult.data.expireAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Debug SDK token error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Debug failed',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Complete payment for existing appointment
  */
 exports.completePayment = async (req, res) => {
