@@ -52,6 +52,21 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
     return response;
   } catch (error) {
     console.error("Error sending notification:", error);
+    
+    // Handle invalid/expired tokens
+    if (error.code === 'messaging/registration-token-not-registered' || 
+        error.code === 'messaging/invalid-registration-token') {
+      console.warn(`⚠️ Invalid FCM token for user: ${fcmToken}`);
+      console.warn("   This token should be removed from the database");
+      
+      // Return a special response instead of throwing
+      return {
+        success: false,
+        error: 'Invalid FCM token',
+        shouldRemoveToken: true
+      };
+    }
+    
     throw error;
   }
 };
@@ -87,10 +102,16 @@ const sendUserNotification = async (userId, title, message, options = {}) => {
 
     // Send push notification if enabled and token exists
     if (user.notificationEnabled && user.fcmToken) {
-      await sendPushNotification(user.fcmToken, title, message, {
+      const pushResult = await sendPushNotification(user.fcmToken, title, message, {
         notificationId: notification.id.toString(),
         ...options.data,
       });
+      
+      // If token is invalid, remove it from user record
+      if (pushResult && pushResult.shouldRemoveToken) {
+        console.log(`🗑️ Removing invalid FCM token for user ${userId}`);
+        await user.update({ fcmToken: null });
+      }
     }
 
     return notification;
