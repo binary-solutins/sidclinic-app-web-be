@@ -546,7 +546,7 @@ class PhonePeService {
         appointmentId
       } = paymentData;
 
-      console.log('🔄 Generating SDK token (base64 encoded payment request):', {
+      console.log('🔄 Creating PhonePe SDK order (as per official docs):', {
         merchantTransactionId,
         amount,
         userId,
@@ -554,42 +554,88 @@ class PhonePeService {
         email
       });
 
-      // Create payment request object for SDK (as per PhonePe SDK documentation)
-      // The SDK handles all PhonePe API calls internally
-      const paymentRequest = {
-        merchantId: this.merchantId,
-        merchantTransactionId: merchantTransactionId,
-        amount: Math.round(amount * 100), // In paisa
-        currency: "INR",
-        merchantUserId: userId.toString(),
-        redirectUrl: this.redirectUrl,
-        redirectMode: "POST",
-        callbackUrl: this.callbackUrl,
-        mobileNumber: mobileNumber,
-        paymentInstrument: {
-          type: "PAY_PAGE"
+      // Step 1: Get PhonePe's OAuth2 access token
+      const accessToken = await this.generateAccessToken();
+      console.log('✅ PhonePe OAuth2 access token obtained');
+
+      // Step 2: Call PhonePe Create Order API for SDK
+      const sdkOrderUrl = 'https://api.phonepe.com/apis/pg/checkout/v2/sdk/order';
+      
+      const orderPayload = {
+        merchantOrderId: merchantTransactionId,
+        amount: Math.round(amount * 100), // Convert to paisa
+        expireAfter: 3600, // 1 hour expiry
+        metaInfo: {
+          udf1: `appointment_${appointmentId}`,
+          udf2: `user_${userId}`,
+          udf3: "sid_clinic_sdk_payment",
+          udf4: mobileNumber,
+          udf5: email
+        },
+        paymentFlow: {
+          type: "PG_CHECKOUT"
         }
       };
 
-      // Convert to JSON string
-      const jsonString = JSON.stringify(paymentRequest);
+      console.log('📋 SDK Order Payload:', orderPayload);
 
-      // Base64 encode the JSON string
-      const base64Token = Buffer.from(jsonString).toString('base64');
-      
-      console.log('📋 Payment Request Object:', paymentRequest);
-      console.log('📋 JSON String:', jsonString);
-      console.log('📋 Base64 SDK Token:', base64Token);
-      
-      return {
-        success: true,
-        data: {
-          sdkToken: base64Token, // Base64 encoded payment request
+      const response = await axios.post(sdkOrderUrl, orderPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `O-Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('📋 PhonePe SDK Order Response:', response.data);
+
+      // Step 3: Use the Order Token from PhonePe response for SDK
+      if (response.data && response.data.orderId) {
+        console.log('✅ PhonePe SDK order created successfully');
+        
+        // Create JSON payload for SDK using PhonePe's order token
+        const sdkPayload = {
+          merchantId: this.merchantId,
           merchantTransactionId: merchantTransactionId,
-          amount: amount,
-          currency: "INR"
-        }
-      };
+          amount: Math.round(amount * 100), // In paisa
+          currency: "INR",
+          merchantUserId: userId.toString(),
+          redirectUrl: this.redirectUrl,
+          redirectMode: "POST",
+          callbackUrl: this.callbackUrl,
+          mobileNumber: mobileNumber,
+          paymentInstrument: {
+            type: "PAY_PAGE"
+          },
+          // Use PhonePe's order token
+          orderToken: response.data.token || response.data.orderId
+        };
+
+        // Convert to JSON string
+        const jsonString = JSON.stringify(sdkPayload);
+
+        // Base64 encode the JSON string
+        const base64Token = Buffer.from(jsonString).toString('base64');
+        
+        console.log('📋 SDK Payload with Order Token:', sdkPayload);
+        console.log('📋 Base64 SDK Token:', base64Token);
+        
+        return {
+          success: true,
+          data: {
+            sdkToken: base64Token, // Base64 encoded payload with PhonePe order token
+            orderId: response.data.orderId,
+            phonepeOrderId: response.data.orderId,
+            state: response.data.state,
+            expireAt: response.data.expireAt,
+            merchantTransactionId: merchantTransactionId,
+            amount: amount,
+            currency: "INR"
+          }
+        };
+      } else {
+        throw new Error('Invalid response from PhonePe SDK Order API: ' + JSON.stringify(response.data));
+      }
 
     } catch (error) {
       console.error('❌ PhonePe SDK order creation error:', error);

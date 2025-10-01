@@ -1383,7 +1383,10 @@ exports.initiateSDKPayment = async (req, res) => {
       data: {
         paymentId: `PAY_${payment.id}`,
         orderId: merchantTransactionId,
-        sdkToken: sdkTokenResult.data.sdkToken, // Base64 encoded payment request
+        sdkToken: sdkTokenResult.data.sdkToken, // Base64 encoded payload with PhonePe order token
+        phonepeOrderId: sdkTokenResult.data.phonepeOrderId,
+        state: sdkTokenResult.data.state,
+        expireAt: sdkTokenResult.data.expireAt,
         amount: finalAmount,
         currency: 'INR',
         originalAmount: originalAmount,
