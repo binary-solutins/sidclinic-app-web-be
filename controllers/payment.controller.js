@@ -1334,7 +1334,7 @@ exports.initiateSDKPayment = async (req, res) => {
         userAgent: req.get('User-Agent'),
         platform: req.get('Platform') || 'sdk'
       },
-      integrationType: 'SDK'
+      // integrationType: 'SDK'
     });
 
     // Link redeem code usage to payment if applicable
