@@ -533,9 +533,9 @@ class PhonePeService {
   }
 
   /**
-   * Generate SDK token for PhonePe SDK integration
+   * Generate SDK token using PhonePe's token generation (like normal API)
    */
-  generateSDKToken(paymentData) {
+  async generateSDKToken(paymentData) {
     try {
       const {
         merchantTransactionId,
@@ -546,7 +546,7 @@ class PhonePeService {
         appointmentId
       } = paymentData;
 
-      console.log('🔄 Generating SDK token for PhonePe integration:', {
+      console.log('🔄 Generating SDK token using PhonePe API:', {
         merchantTransactionId,
         amount,
         userId,
@@ -554,58 +554,62 @@ class PhonePeService {
         email
       });
 
-      // Create JWT payload as per PhonePe SDK requirements
+      // Use PhonePe's token generation (same as normal API)
+      const accessToken = await this.generateAccessToken();
+      
+      // Create payment payload for SDK
       const payload = {
-        merchantId: this.merchantId,
-        merchantTransactionId: merchantTransactionId,
+        merchantOrderId: merchantTransactionId,
         amount: Math.round(amount * 100), // Convert to paise
-        currency: "INR",
-        merchantUserId: userId.toString(),
-        redirectUrl: this.redirectUrl,
-        redirectMode: "POST",
-        callbackUrl: this.callbackUrl,
-        mobileNumber: mobileNumber,
-        paymentInstrument: {
-          type: "PAY_PAGE"
+        expireAfter: 3600, // 1 hour expiry
+        metaInfo: {
+          udf1: `appointment_${appointmentId}`,
+          udf2: `user_${userId}`,
+          udf3: "sid_clinic_sdk_payment"
+        },
+        paymentFlow: {
+          type: "PG_CHECKOUT",
+          message: "SID Clinic Virtual Appointment Payment",
+          merchantUrls: {
+            redirectUrl: this.redirectUrl
+          }
         }
       };
 
-      console.log('📋 SDK Token Payload:', payload);
+      console.log('📋 SDK Payment Payload:', payload);
 
-      // Create JWT header
-      const header = {
-        alg: "HS256",
-        typ: "JWT"
-      };
-
-      // Encode header and payload
-      const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
-      const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
-
-      // Create signature using salt key
-      const signature = crypto
-        .createHmac('sha256', this.saltKey)
-        .update(`${encodedHeader}.${encodedPayload}`)
-        .digest('base64url');
-
-      // Combine to create JWT token
-      const sdkToken = `${encodedHeader}.${encodedPayload}.${signature}`;
-
-      console.log('✅ SDK token generated successfully');
-
-      return {
-        success: true,
-        data: {
-          sdkToken: sdkToken,
-          payload: payload
+      // Call PhonePe API to get SDK token
+      const response = await axios.post(this.paymentUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `O-Bearer ${accessToken}`,
+          'Accept': 'application/json'
         }
-      };
+      });
+
+      console.log('📋 PhonePe SDK API Response:', response.data);
+
+      if (response.data && response.data.orderId) {
+        console.log('✅ PhonePe SDK token generated successfully');
+        return {
+          success: true,
+          data: {
+            sdkToken: response.data.orderId, // Use PhonePe's orderId as SDK token
+            paymentUrl: response.data.redirectUrl,
+            orderState: response.data.state,
+            expiresAt: response.data.expireAt,
+            phonepeResponse: response.data
+          }
+        };
+      } else {
+        throw new Error('Invalid response from PhonePe SDK API: ' + JSON.stringify(response.data));
+      }
 
     } catch (error) {
-      console.error('❌ SDK token generation error:', error);
+      console.error('❌ PhonePe SDK token generation error:', error);
       return {
         success: false,
-        error: error.message || 'SDK token generation failed'
+        error: error.message || 'PhonePe SDK token generation failed'
       };
     }
   }

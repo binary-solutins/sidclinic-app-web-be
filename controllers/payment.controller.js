@@ -1342,8 +1342,8 @@ exports.initiateSDKPayment = async (req, res) => {
       await redeemCodeUsage.update({ paymentId: payment.id });
     }
 
-    // Generate SDK token
-    const sdkTokenResult = phonepeService.generateSDKToken({
+    // Generate SDK token using PhonePe API
+    const sdkTokenResult = await phonepeService.generateSDKToken({
       merchantTransactionId,
       amount: finalAmount,
       userId: appointment.userId,
@@ -1384,10 +1384,13 @@ exports.initiateSDKPayment = async (req, res) => {
         paymentId: `PAY_${payment.id}`,
         orderId: merchantTransactionId,
         sdkToken: sdkTokenResult.data.sdkToken,
+        paymentUrl: sdkTokenResult.data.paymentUrl, // PhonePe's payment URL
         amount: finalAmount,
         currency: 'INR',
         originalAmount: originalAmount,
         discountAmount: discountAmount,
+        orderState: sdkTokenResult.data.orderState,
+        expiresAt: sdkTokenResult.data.expiresAt,
         redeemCode: redeemCodeData ? {
           code: redeemCodeData.code,
           name: redeemCodeData.name,
