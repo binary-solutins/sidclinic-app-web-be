@@ -589,16 +589,41 @@ class PhonePeService {
 
       console.log('📋 PhonePe SDK Order Response:', response.data);
 
-      if (response.data && response.data.token) {
-        console.log('✅ PhonePe SDK order token generated successfully');
+      // Check if we have a valid response with orderId
+      if (response.data && response.data.orderId) {
+        console.log('✅ PhonePe SDK order created successfully');
+        
+        // Create JSON payload for SDK as per PhonePe documentation
+        const sdkPayload = {
+          merchantId: this.merchantId,
+          merchantTransactionId: merchantTransactionId,
+          merchantOrderId: merchantTransactionId,
+          amount: Math.round(amount * 100), // In paisa
+          mobileNumber: mobileNumber,
+          message: "SID Clinic Virtual Appointment Payment",
+          orderId: response.data.orderId, // PhonePe's order ID
+          token: response.data.token || response.data.orderId, // PhonePe's token
+          callbackUrl: this.callbackUrl,
+          redirectUrl: this.redirectUrl,
+          redirectMode: "POST"
+        };
+
+        // Base64 encode the JSON payload
+        const base64Token = Buffer.from(JSON.stringify(sdkPayload)).toString('base64');
+        
+        console.log('📋 SDK Payload:', sdkPayload);
+        console.log('📋 Base64 Token:', base64Token);
+        
         return {
           success: true,
           data: {
-            sdkToken: response.data.token, // PhonePe's order token for SDK
+            sdkToken: base64Token, // Base64 encoded JSON token for SDK
             orderId: response.data.orderId,
+            phonepeOrderId: response.data.orderId,
             state: response.data.state,
             expireAt: response.data.expireAt,
-            merchantOrderId: merchantTransactionId
+            merchantOrderId: merchantTransactionId,
+            rawToken: response.data.token // Original token from PhonePe
           }
         };
       } else {
@@ -607,9 +632,14 @@ class PhonePeService {
 
     } catch (error) {
       console.error('❌ PhonePe SDK order creation error:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error headers:', error.response?.headers);
+      
       return {
         success: false,
-        error: error.message || 'PhonePe SDK order creation failed'
+        error: error.message || 'PhonePe SDK order creation failed',
+        details: error.response?.data || error.message
       };
     }
   }
