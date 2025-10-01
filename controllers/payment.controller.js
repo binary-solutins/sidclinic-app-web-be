@@ -1383,14 +1383,11 @@ exports.initiateSDKPayment = async (req, res) => {
       data: {
         paymentId: `PAY_${payment.id}`,
         orderId: merchantTransactionId,
-        sdkToken: sdkTokenResult.data.sdkToken,
-        paymentUrl: sdkTokenResult.data.paymentUrl, // PhonePe's payment URL
+        sdkToken: sdkTokenResult.data.sdkToken, // PhonePe's OAuth2 access token
         amount: finalAmount,
         currency: 'INR',
         originalAmount: originalAmount,
         discountAmount: discountAmount,
-        orderState: sdkTokenResult.data.orderState,
-        expiresAt: sdkTokenResult.data.expiresAt,
         redeemCode: redeemCodeData ? {
           code: redeemCodeData.code,
           name: redeemCodeData.name,

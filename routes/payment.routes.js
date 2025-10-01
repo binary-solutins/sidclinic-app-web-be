@@ -169,12 +169,8 @@ router.post('/initiate',
  *                       example: TXN_123_1758957014534
  *                     sdkToken:
  *                       type: string
- *                       example: ORDER_123456789
- *                       description: PhonePe SDK token (orderId from PhonePe API)
- *                     paymentUrl:
- *                       type: string
- *                       example: https://mercury.phonepe.com/transact/...
- *                       description: PhonePe payment URL for SDK integration
+ *                       example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                       description: PhonePe OAuth2 access token for SDK integration
  *                     amount:
  *                       type: number
  *                       example: 200

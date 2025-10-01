@@ -533,7 +533,7 @@ class PhonePeService {
   }
 
   /**
-   * Generate SDK token using PhonePe's token generation (like normal API)
+   * Generate SDK token using PhonePe's OAuth2 access token directly
    */
   async generateSDKToken(paymentData) {
     try {
@@ -546,7 +546,7 @@ class PhonePeService {
         appointmentId
       } = paymentData;
 
-      console.log('🔄 Generating SDK token using PhonePe API:', {
+      console.log('🔄 Getting PhonePe OAuth2 access token for SDK:', {
         merchantTransactionId,
         amount,
         userId,
@@ -554,56 +554,22 @@ class PhonePeService {
         email
       });
 
-      // Use PhonePe's token generation (same as normal API)
+      // Get PhonePe's OAuth2 access token directly
       const accessToken = await this.generateAccessToken();
       
-      // Create payment payload for SDK
-      const payload = {
-        merchantOrderId: merchantTransactionId,
-        amount: Math.round(amount * 100), // Convert to paise
-        expireAfter: 3600, // 1 hour expiry
-        metaInfo: {
-          udf1: `appointment_${appointmentId}`,
-          udf2: `user_${userId}`,
-          udf3: "sid_clinic_sdk_payment"
-        },
-        paymentFlow: {
-          type: "PG_CHECKOUT",
-          message: "SID Clinic Virtual Appointment Payment",
-          merchantUrls: {
-            redirectUrl: this.redirectUrl
-          }
+      console.log('✅ PhonePe OAuth2 access token obtained successfully');
+
+      return {
+        success: true,
+        data: {
+          sdkToken: accessToken, // Use PhonePe's OAuth2 access token directly
+          merchantTransactionId: merchantTransactionId,
+          amount: amount,
+          userId: userId,
+          mobileNumber: mobileNumber,
+          email: email
         }
       };
-
-      console.log('📋 SDK Payment Payload:', payload);
-
-      // Call PhonePe API to get SDK token
-      const response = await axios.post(this.paymentUrl, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `O-Bearer ${accessToken}`,
-          'Accept': 'application/json'
-        }
-      });
-
-      console.log('📋 PhonePe SDK API Response:', response.data);
-
-      if (response.data && response.data.orderId) {
-        console.log('✅ PhonePe SDK token generated successfully');
-        return {
-          success: true,
-          data: {
-            sdkToken: response.data.orderId, // Use PhonePe's orderId as SDK token
-            paymentUrl: response.data.redirectUrl,
-            orderState: response.data.state,
-            expiresAt: response.data.expireAt,
-            phonepeResponse: response.data
-          }
-        };
-      } else {
-        throw new Error('Invalid response from PhonePe SDK API: ' + JSON.stringify(response.data));
-      }
 
     } catch (error) {
       console.error('❌ PhonePe SDK token generation error:', error);
