@@ -1161,13 +1161,6 @@ exports.initiateSDKPayment = async (req, res) => {
       });
     }
 
-    if (!amount || amount <= 0) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'Valid amount is required'
-      });
-    }
 
     if (!mobileNumber) {
       return res.status(400).json({
