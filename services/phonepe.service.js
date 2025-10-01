@@ -593,22 +593,15 @@ class PhonePeService {
       if (response.data && response.data.orderId) {
         console.log('✅ PhonePe SDK order created successfully');
         
-        // Create JSON payload for SDK using PhonePe's order token
+        // According to PhonePe docs, we need to create a specific payload for SDK
+        // The SDK expects a JSON with orderId, merchantId, token, and paymentMode
         const sdkPayload = {
+          orderId: response.data.orderId, // PhonePe's orderId
           merchantId: this.merchantId,
-          merchantTransactionId: merchantTransactionId,
-          amount: Math.round(amount * 100), // In paisa
-          currency: "INR",
-          merchantUserId: userId.toString(),
-          redirectUrl: this.redirectUrl,
-          redirectMode: "POST",
-          callbackUrl: this.callbackUrl,
-          mobileNumber: mobileNumber,
-          paymentInstrument: {
+          token: response.data.token || response.data.orderId, // PhonePe's order token
+          paymentMode: {
             type: "PAY_PAGE"
-          },
-          // Use PhonePe's order token
-          orderToken: response.data.token || response.data.orderId
+          }
         };
 
         // Convert to JSON string
@@ -617,7 +610,7 @@ class PhonePeService {
         // Base64 encode the JSON string
         const base64Token = Buffer.from(jsonString).toString('base64');
         
-        console.log('📋 SDK Payload with Order Token:', sdkPayload);
+        console.log('📋 SDK Payload (PhonePe Standard Format):', sdkPayload);
         console.log('📋 Base64 SDK Token:', base64Token);
         
         return {
