@@ -106,7 +106,6 @@ router.post('/initiate',
  *             type: object
  *             required:
  *               - appointmentId
- *               - amount
  *               - mobileNumber
  *               - email
  *             properties:
@@ -120,10 +119,6 @@ router.post('/initiate',
  *                 default: phonepe
  *                 description: Payment method (only phonepe supported for SDK)
  *                 example: phonepe
- *               amount:
- *                 type: number
- *                 description: Payment amount in INR
- *                 example: 200
  *               integrationType:
  *                 type: string
  *                 enum: [SDK]
@@ -241,9 +236,6 @@ router.post('/initiate-sdk',
  *               appointmentId:
  *                 type: integer
  *                 default: 123
- *               amount:
- *                 type: number
- *                 default: 200
  *               mobileNumber:
  *                 type: string
  *                 default: "+919876543210"

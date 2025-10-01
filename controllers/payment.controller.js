@@ -1136,7 +1136,6 @@ exports.initiateSDKPayment = async (req, res) => {
     const { 
       appointmentId, 
       paymentMethod = 'phonepe', 
-      amount, 
       integrationType = 'SDK',
       userId,
       redeemCode,
@@ -1147,7 +1146,6 @@ exports.initiateSDKPayment = async (req, res) => {
     console.log('🔄 Initiating SDK payment:', {
       appointmentId,
       paymentMethod,
-      amount,
       integrationType,
       userId,
       mobileNumber,
@@ -1229,7 +1227,20 @@ exports.initiateSDKPayment = async (req, res) => {
       });
     }
 
-    let originalAmount = parseFloat(amount);
+    // Get virtual appointment price from services prices table
+    const virtualAppointmentPrice = await Price.findOne({
+      where: { serviceName: 'Virtual Appointment', isActive: true }
+    });
+
+    if (!virtualAppointmentPrice || !virtualAppointmentPrice.price) {
+      return res.status(400).json({
+        status: 'error',
+        code: 400,
+        message: 'Virtual appointment pricing is not configured'
+      });
+    }
+
+    let originalAmount = parseFloat(virtualAppointmentPrice.price);
     let discountAmount = 0;
     let finalAmount = originalAmount;
     let redeemCodeData = null;
@@ -1418,11 +1429,24 @@ exports.debugSDKToken = async (req, res) => {
   try {
     const { 
       appointmentId = 123, 
-      amount = 200, 
       mobileNumber = "+919876543210",
       email = "test@example.com",
       userId = 4
     } = req.body;
+
+    // Get virtual appointment price from services prices table
+    const virtualAppointmentPrice = await Price.findOne({
+      where: { serviceName: 'Virtual Appointment', isActive: true }
+    });
+
+    if (!virtualAppointmentPrice || !virtualAppointmentPrice.price) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Virtual appointment pricing is not configured'
+      });
+    }
+
+    const amount = parseFloat(virtualAppointmentPrice.price);
 
     console.log('🔍 DEBUG: Testing SDK token generation');
 
