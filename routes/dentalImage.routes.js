@@ -123,7 +123,7 @@ const upload = multerConfigs.multipleImagesUpload;
 router.post('/', authenticate(), upload.array('images', 10), dentalImageController.uploadDentalImages);
 
 // Error handling middleware for multer
-router.use(createMulterErrorHandler('10MB', 10));
+router.use(createMulterErrorHandler('25MB', 10));
 
 /**
  * @swagger

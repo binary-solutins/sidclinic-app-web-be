@@ -8,7 +8,7 @@ const reportController = require('../controllers/report.controller');
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 25 * 1024 * 1024, // 25MB limit
     files: 3 // Exactly 3 files required
   },
   fileFilter: (req, file, cb) => {
@@ -294,7 +294,7 @@ router.use((error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'File too large. Maximum size is 10MB',
+        message: 'File too large. Maximum size is 25MB',
         data: null
       });
     }

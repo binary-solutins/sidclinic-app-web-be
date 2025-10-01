@@ -2,11 +2,11 @@ const multer = require('multer');
 
 // Centralized multer configurations for different use cases
 const multerConfigs = {
-  // Standard image upload (10MB limit)
+  // Standard image upload (25MB limit)
   imageUpload: multer({
     storage: multer.memoryStorage(),
     limits: {
-      fileSize: 10 * 1024 * 1024, // 10MB limit
+      fileSize: 25 * 1024 * 1024, // 25MB limit
     },
     fileFilter: (req, file, cb) => {
       // Allow only image files
@@ -43,11 +43,11 @@ const multerConfigs = {
     }
   }),
 
-  // Multiple images upload (10MB per file, max 10 files)
+  // Multiple images upload (25MB per file, max 10 files)
   multipleImagesUpload: multer({
     storage: multer.memoryStorage(),
     limits: {
-      fileSize: 10 * 1024 * 1024, // 10MB limit per file
+      fileSize: 25 * 1024 * 1024, // 25MB limit per file
       files: 10 // Maximum 10 files per upload
     },
     fileFilter: (req, file, cb) => {
@@ -60,11 +60,11 @@ const multerConfigs = {
     }
   }),
 
-  // Doctor profile upload (10MB per file, max 5 clinic photos)
+  // Doctor profile upload (25MB per file, max 5 clinic photos)
   doctorProfileUpload: multer({
     storage: multer.memoryStorage(),
     limits: {
-      fileSize: 10 * 1024 * 1024, // 10MB limit per file
+      fileSize: 25 * 1024 * 1024, // 25MB limit per file
       files: 5 // Maximum 5 clinic photos
     },
     fileFilter: (req, file, cb) => {
@@ -96,7 +96,7 @@ const multerConfigs = {
 };
 
 // Error handling middleware factory
-const createMulterErrorHandler = (maxSize = '10MB', maxFiles = null) => {
+const createMulterErrorHandler = (maxSize = '25MB', maxFiles = null) => {
   return (error, req, res, next) => {
     if (error instanceof multer.MulterError) {
       if (error.code === 'LIMIT_FILE_SIZE') {
