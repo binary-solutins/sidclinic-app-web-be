@@ -533,7 +533,7 @@ class PhonePeService {
   }
 
   /**
-   * Generate SDK token using PhonePe's OAuth2 access token directly
+   * Generate SDK token using PhonePe's Create Order API
    */
   async generateSDKToken(paymentData) {
     try {
@@ -546,7 +546,7 @@ class PhonePeService {
         appointmentId
       } = paymentData;
 
-      console.log('🔄 Getting PhonePe OAuth2 access token for SDK:', {
+      console.log('🔄 Creating PhonePe SDK order:', {
         merchantTransactionId,
         amount,
         userId,
@@ -554,28 +554,62 @@ class PhonePeService {
         email
       });
 
-      // Get PhonePe's OAuth2 access token directly
+      // Step 1: Get PhonePe's OAuth2 access token
       const accessToken = await this.generateAccessToken();
-      
-      console.log('✅ PhonePe OAuth2 access token obtained successfully');
+      console.log('✅ PhonePe OAuth2 access token obtained');
 
-      return {
-        success: true,
-        data: {
-          sdkToken: accessToken, // Use PhonePe's OAuth2 access token directly
-          merchantTransactionId: merchantTransactionId,
-          amount: amount,
-          userId: userId,
-          mobileNumber: mobileNumber,
-          email: email
+      // Step 2: Call PhonePe Create Order API for SDK
+      const sdkOrderUrl = 'https://api.phonepe.com/apis/pg/checkout/v2/sdk/order';
+      
+      const orderPayload = {
+        merchantOrderId: merchantTransactionId,
+        amount: Math.round(amount * 100), // Convert to paise
+        expireAfter: 3600, // 1 hour expiry
+        metaInfo: {
+          udf1: `appointment_${appointmentId}`,
+          udf2: `user_${userId}`,
+          udf3: "sid_clinic_sdk_payment",
+          udf4: mobileNumber,
+          udf5: email
+        },
+        paymentFlow: {
+          type: "PG_CHECKOUT"
         }
       };
 
+      console.log('📋 SDK Order Payload:', orderPayload);
+
+      const response = await axios.post(sdkOrderUrl, orderPayload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `O-Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('📋 PhonePe SDK Order Response:', response.data);
+
+      if (response.data && response.data.token) {
+        console.log('✅ PhonePe SDK order token generated successfully');
+        return {
+          success: true,
+          data: {
+            sdkToken: response.data.token, // PhonePe's order token for SDK
+            orderId: response.data.orderId,
+            state: response.data.state,
+            expireAt: response.data.expireAt,
+            merchantOrderId: merchantTransactionId
+          }
+        };
+      } else {
+        throw new Error('Invalid response from PhonePe SDK Order API: ' + JSON.stringify(response.data));
+      }
+
     } catch (error) {
-      console.error('❌ PhonePe SDK token generation error:', error);
+      console.error('❌ PhonePe SDK order creation error:', error);
       return {
         success: false,
-        error: error.message || 'PhonePe SDK token generation failed'
+        error: error.message || 'PhonePe SDK order creation failed'
       };
     }
   }

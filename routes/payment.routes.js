@@ -169,8 +169,20 @@ router.post('/initiate',
  *                       example: TXN_123_1758957014534
  *                     sdkToken:
  *                       type: string
- *                       example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
- *                       description: PhonePe OAuth2 access token for SDK integration
+ *                       example: "order_token_123456789"
+ *                       description: PhonePe order token for SDK integration
+ *                     phonepeOrderId:
+ *                       type: string
+ *                       example: "OMO123456789"
+ *                       description: PhonePe's internal order ID
+ *                     state:
+ *                       type: string
+ *                       example: "PENDING"
+ *                       description: Order state from PhonePe
+ *                     expireAt:
+ *                       type: number
+ *                       example: 1703756259307
+ *                       description: Order expiry timestamp
  *                     amount:
  *                       type: number
  *                       example: 200
