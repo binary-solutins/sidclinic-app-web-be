@@ -47,12 +47,20 @@ exports.createVirtualDoctor = async (req, res) => {
     const endTime = getString(req.body.endTime) || '18:00:00';
     const registrationNumber = getString(req.body.registrationNumber) || `VIRTUAL-${Date.now()}`;
 
+    // Debug: Log the request files
+    console.log('🔍 Debug - req.files:', req.files);
+    console.log('🔍 Debug - req.file:', req.file);
+    console.log('🔍 Debug - req.body:', req.body);
+
     // Handle doctor photo upload if provided
     let doctorPhotoUrl = null;
     if (req.files && req.files.doctorPhoto && req.files.doctorPhoto[0]) {
+      console.log('📸 Processing doctor photo upload...');
       try {
         doctorPhotoUrl = await uploadImage(req.files.doctorPhoto[0]);
+        console.log('✅ Doctor photo uploaded successfully:', doctorPhotoUrl);
       } catch (uploadError) {
+        console.error('❌ Doctor photo upload failed:', uploadError);
         return res.status(400).json({
           status: "error",
           code: 400,
@@ -61,6 +69,8 @@ exports.createVirtualDoctor = async (req, res) => {
           data: null
         });
       }
+    } else {
+      console.log('ℹ️ No doctor photo provided');
     }
 
     // Validate required fields
@@ -104,6 +114,9 @@ exports.createVirtualDoctor = async (req, res) => {
       role: 'virtual-doctor'
     });
 
+    // Debug: Log what we're about to store
+    console.log('💾 Creating virtual doctor with doctorPhoto:', doctorPhotoUrl);
+
     // Create virtual doctor record in VirtualDoctor table
     const virtualDoctor = await VirtualDoctor.create({
       userId: virtualDoctorUser.id,
@@ -126,6 +139,9 @@ exports.createVirtualDoctor = async (req, res) => {
       isApproved: true, // Auto-approve virtual doctors
       is_active: true
     });
+
+    console.log('✅ Virtual doctor created with ID:', virtualDoctor.id);
+    console.log('📸 Stored doctorPhoto URL:', virtualDoctor.doctorPhoto);
 
     // Send welcome email to virtual doctor
     try {

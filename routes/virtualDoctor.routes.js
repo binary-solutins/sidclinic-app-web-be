@@ -8,7 +8,12 @@ const multer = require('multer');
 const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
-  limits: { fileSize: 4 * 1024 * 1024 } // 4MB limit
+  limits: { fileSize: 4 * 1024 * 1024 }, // 4MB limit
+  fileFilter: (req, file, cb) => {
+    console.log('🔍 Multer fileFilter - file:', file);
+    // Allow all file types for now
+    cb(null, true);
+  }
 });
 
 /**
