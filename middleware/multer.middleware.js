@@ -87,6 +87,21 @@ class MulterMiddleware {
     return this.formDataConfig.none();
   }
 
+  // Form data with optional files (more flexible)
+  formDataWithOptionalFiles() {
+    return multer({
+      storage: multer.memoryStorage(),
+      limits: {
+        fileSize: 4 * 1024 * 1024, // 4MB limit
+        files: 5 // Maximum 5 files
+      },
+      fileFilter: (req, file, cb) => {
+        // Allow all file types for form data
+        cb(null, true);
+      }
+    }).any(); // Accept any field names
+  }
+
   // Custom configuration
   custom(options = {}) {
     const defaultOptions = {
@@ -132,7 +147,7 @@ const handleMulterError = (error, req, res, next) => {
     if (error.code === 'LIMIT_UNEXPECTED_FILE') {
       return res.status(400).json({
         success: false,
-        message: 'Unexpected file field',
+        message: 'Unexpected file field. Please check your form data field names.',
         data: null
       });
     }

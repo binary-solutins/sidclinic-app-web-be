@@ -237,7 +237,7 @@ const { multerMiddleware, handleMulterError } = require('../middleware/multer.mi
  */
 router.post('/admin/virtual-doctors', 
   authenticate(['admin']), 
-  multerMiddleware.formDataOnly(), // Accept form data without files
+  multerMiddleware.formDataWithOptionalFiles(), // Accept form data with optional files
   virtualDoctorController.createVirtualDoctor
 );
 
