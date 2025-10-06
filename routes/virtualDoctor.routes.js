@@ -324,6 +324,10 @@ router.post('/admin/virtual-doctors',
  *                       role:
  *                         type: string
  *                         example: "virtual-doctor"
+ *                       doctorPhoto:
+ *                         type: string
+ *                         example: "https://example.com/doctor-photo.jpg"
+ *                         description: Virtual doctor's profile photo URL
  *                       specialty:
  *                         type: string
  *                         example: "General Medicine"

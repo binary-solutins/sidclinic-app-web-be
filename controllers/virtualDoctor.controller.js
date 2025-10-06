@@ -221,6 +221,7 @@ exports.getAllVirtualDoctors = async (req, res) => {
       phone: doctor.User.phone,
       gender: doctor.User.gender,
       role: 'virtual-doctor',
+      doctorPhoto: doctor.doctorPhoto, // Added doctor image field
       specialty: doctor.specialty,
       degree: doctor.degree,
       registrationNumber: doctor.registrationNumber,
