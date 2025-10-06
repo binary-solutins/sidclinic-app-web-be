@@ -485,12 +485,29 @@ exports.getVirtualApis = async (req, res) => {
 exports.deleteVirtualDoctor = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    console.log('🗑️ Deleting virtual doctor with ID:', id);
 
-    const virtualDoctor = await User.findOne({
-      where: { id, role: 'virtual-doctor' }
+    // First find the virtual doctor record by ID
+    const virtualDoctorRecord = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'role']
+      }]
     });
 
-    if (!virtualDoctor) {
+    console.log('🔍 Virtual doctor record found:', virtualDoctorRecord ? 'Yes' : 'No');
+    if (virtualDoctorRecord) {
+      console.log('📋 Virtual doctor details:', {
+        id: virtualDoctorRecord.id,
+        name: virtualDoctorRecord.User?.name,
+        userId: virtualDoctorRecord.userId
+      });
+    }
+
+    if (!virtualDoctorRecord) {
+      console.log('❌ Virtual doctor not found with ID:', id);
       return res.status(404).json({
         status: "error",
         code: 404,
@@ -499,17 +516,17 @@ exports.deleteVirtualDoctor = async (req, res) => {
       });
     }
 
-    // Find and delete the corresponding virtual doctor record
-    const virtualDoctorRecord = await VirtualDoctor.findOne({
-      where: { userId: id }
-    });
+    // Get the associated user ID
+    const userId = virtualDoctorRecord.userId;
 
-    if (virtualDoctorRecord) {
-      await virtualDoctorRecord.destroy();
+    // Delete the virtual doctor record first
+    await virtualDoctorRecord.destroy();
+
+    // Then delete the associated user record
+    const user = await User.findByPk(userId);
+    if (user) {
+      await user.destroy();
     }
-
-    // Delete the user record
-    await virtualDoctor.destroy();
 
     res.status(200).json({
       status: "success",
