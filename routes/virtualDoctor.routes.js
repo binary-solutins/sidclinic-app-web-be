@@ -334,7 +334,7 @@ const upload = multer({
  */
 router.post('/admin/virtual-doctors', 
   authenticate(['admin']), 
-  upload.none(), // Accept form data without files
+  multerMiddleware.formDataOnly(), // Accept form data without files
   virtualDoctorController.createVirtualDoctor
 );
 
