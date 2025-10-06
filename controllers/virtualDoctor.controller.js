@@ -7,6 +7,18 @@ const Price = require("../models/price.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
 const { DateTime } = require('luxon');
+const azureStorageService = require('../services/azureStorage.service');
+
+// Helper function to upload image to Azure Blob Storage
+const uploadImage = async (file) => {
+  try {
+    const result = await azureStorageService.uploadFile(file, 'virtual-doctor-images');
+    return result.url;
+  } catch (error) {
+    console.error('Error uploading image to Azure Storage:', error.message);
+    throw new Error('Image upload failed');
+  }
+};
 
 // Create virtual doctor function
 exports.createVirtualDoctor = async (req, res) => {
@@ -34,6 +46,22 @@ exports.createVirtualDoctor = async (req, res) => {
     const startTime = getString(req.body.startTime) || '09:00:00';
     const endTime = getString(req.body.endTime) || '18:00:00';
     const registrationNumber = getString(req.body.registrationNumber) || `VIRTUAL-${Date.now()}`;
+
+    // Handle doctor photo upload if provided
+    let doctorPhotoUrl = null;
+    if (req.files && req.files.doctorPhoto && req.files.doctorPhoto[0]) {
+      try {
+        doctorPhotoUrl = await uploadImage(req.files.doctorPhoto[0]);
+      } catch (uploadError) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Failed to upload doctor photo",
+          error: uploadError.message,
+          data: null
+        });
+      }
+    }
 
     // Validate required fields
     if (!name || !phone || !password || !gender) {
@@ -79,6 +107,7 @@ exports.createVirtualDoctor = async (req, res) => {
     // Create virtual doctor record in VirtualDoctor table
     const virtualDoctor = await VirtualDoctor.create({
       userId: virtualDoctorUser.id,
+      doctorPhoto: doctorPhotoUrl, // Include doctor photo URL
       clinicName,
       clinicPhotos: null,
       yearsOfExperience: isNaN(yearsOfExperience) ? 0 : yearsOfExperience,

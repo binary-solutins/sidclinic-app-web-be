@@ -2,7 +2,14 @@ const express = require('express');
 const router = express.Router();
 const virtualDoctorController = require('../controllers/virtualDoctor.controller');
 const { authenticate, authorize } = require('../middleware/auth');
-const { multerMiddleware, handleMulterError } = require('../middleware/multer.middleware');
+const multer = require('multer');
+
+// Configure multer for file upload (same as doctor routes)
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 4 * 1024 * 1024 } // 4MB limit
+});
 
 /**
  * @swagger
@@ -43,6 +50,11 @@ const { multerMiddleware, handleMulterError } = require('../middleware/multer.mi
  *               - gender
  *               - password
  *             properties:
+ *               doctorPhoto:
+ *                 type: string
+ *                 format: binary
+ *                 description: Virtual doctor's profile photo (optional)
+ *                 example: "doctor-photo.jpg"
  *               name:
  *                 type: string
  *                 description: Virtual doctor's full name
@@ -237,7 +249,9 @@ const { multerMiddleware, handleMulterError } = require('../middleware/multer.mi
  */
 router.post('/admin/virtual-doctors', 
   authenticate(['admin']), 
-  multerMiddleware.formDataWithOptionalFiles(), // Accept form data with optional files
+  upload.fields([
+    { name: 'doctorPhoto', maxCount: 1 }
+  ]), // Accept form data with doctor photo upload
   virtualDoctorController.createVirtualDoctor
 );
 
@@ -749,5 +763,35 @@ router.get('/virtual-appointment/slots',
 router.post('/virtual-appointment/book', 
   virtualDoctorController.bookVirtualAppointment
 );
+
+// Error handling middleware for multer
+router.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 4MB',
+        data: null
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum 1 doctor photo allowed',
+        data: null
+      });
+    }
+  }
+  
+  if (error.message === 'Only image files are allowed') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only image files are allowed',
+      data: null
+    });
+  }
+  
+  next(error);
+});
 
 module.exports = router;
