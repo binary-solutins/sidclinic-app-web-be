@@ -25,6 +25,12 @@ router.get(
   authorize("admin"),
   controller.getNotificationStats
 );
+router.get(
+  "/admin/debug",
+  authenticate(),
+  authorize("admin"),
+  controller.getAllNotificationsDebug
+);
 router.post(
   "/admin/cleanup-tokens",
   authenticate(),

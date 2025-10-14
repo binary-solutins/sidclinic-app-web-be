@@ -716,7 +716,7 @@ module.exports = {
       );
 
       const {
-        limit = 20,
+        limit = 100,  // Increased default limit to show more notifications
         offset = 0,
         type,
         isRead,
@@ -778,6 +778,9 @@ module.exports = {
       const totalCount = await Notification.count({
         where: whereClause,
       });
+      
+      console.log(`[DEBUG] Total notifications in database: ${totalCount}`);
+      console.log(`[DEBUG] Limit: ${limit}, Offset: ${offset}`);
 
       // Get notifications with pagination and include user information
       const notifications = await Notification.findAll({
@@ -786,6 +789,7 @@ module.exports = {
           {
             model: User,
             attributes: ['id', 'name', 'phone', 'role'],
+            required: false, // LEFT JOIN to include notifications even if user is deleted
           },
         ],
         order: [['createdAt', 'DESC']],
@@ -832,6 +836,45 @@ module.exports = {
         `[ERROR] getAllNotificationsForAdmin - Admin ID: ${req.user.id}, Error:`,
         error.message
       );
+      res.status(500).json({
+        status: 'error',
+        code: 500,
+        message: error.message,
+      });
+    }
+  },
+
+  // Debug endpoint to get all notifications without pagination
+  getAllNotificationsDebug: async (req, res) => {
+    try {
+      console.log(`[DEBUG] getAllNotificationsDebug - Getting ALL notifications`);
+
+      const allNotifications = await Notification.findAll({
+        include: [
+          {
+            model: User,
+            attributes: ['id', 'name', 'phone', 'role'],
+            required: false,
+          },
+        ],
+        order: [['createdAt', 'DESC']],
+      });
+
+      const totalCount = await Notification.count();
+
+      console.log(`[DEBUG] Found ${allNotifications.length} notifications out of ${totalCount} total`);
+
+      res.json({
+        status: 'success',
+        code: 200,
+        data: {
+          notifications: allNotifications,
+          totalCount: totalCount,
+          message: `Found ${allNotifications.length} notifications out of ${totalCount} total`
+        },
+      });
+    } catch (error) {
+      console.error(`[ERROR] getAllNotificationsDebug - Error:`, error.message);
       res.status(500).json({
         status: 'error',
         code: 500,
