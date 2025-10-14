@@ -894,7 +894,7 @@ exports.listAllUsers = async (req, res) => {
         {
           model: Patient,
           as: 'Patient',
-          attributes: ['id', 'isActive', 'email', 'languagePreference'],
+          attributes: ['id', 'isActive', 'email', 'languagePreference', 'profileImage'],
           where: Object.keys(patientWhere).length ? patientWhere : undefined,
           required: false // LEFT JOIN to include users without patient records
         }
@@ -916,7 +916,8 @@ exports.listAllUsers = async (req, res) => {
         id: user.Patient.id,
         isActive: user.Patient.isActive,
         email: user.Patient.email,
-        languagePreference: user.Patient.languagePreference
+        languagePreference: user.Patient.languagePreference,
+        profileImage: user.Patient.profileImage
       } : null
     }));
 
