@@ -631,10 +631,16 @@ module.exports = {
       if (startDate || endDate) {
         whereClause.createdAt = {};
         if (startDate) {
-          whereClause.createdAt[Op.gte] = new Date(startDate);
+          // Ensure startDate starts at beginning of day
+          const startDateObj = new Date(startDate);
+          startDateObj.setHours(0, 0, 0, 0);
+          whereClause.createdAt[Op.gte] = startDateObj;
         }
         if (endDate) {
-          whereClause.createdAt[Op.lte] = new Date(endDate + ' 23:59:59');
+          // Ensure endDate ends at end of day
+          const endDateObj = new Date(endDate);
+          endDateObj.setHours(23, 59, 59, 999);
+          whereClause.createdAt[Op.lte] = endDateObj;
         }
       }
 

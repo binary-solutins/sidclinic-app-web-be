@@ -387,8 +387,18 @@ exports.getAllQueries = async (req, res) => {
     // Date filtering
     if (dateFrom || dateTo) {
       where.createdAt = {};
-      if (dateFrom) where.createdAt[Op.gte] = new Date(dateFrom);
-      if (dateTo) where.createdAt[Op.lte] = new Date(dateTo);
+      if (dateFrom) {
+        // Ensure dateFrom starts at beginning of day
+        const dateFromObj = new Date(dateFrom);
+        dateFromObj.setHours(0, 0, 0, 0);
+        where.createdAt[Op.gte] = dateFromObj;
+      }
+      if (dateTo) {
+        // Ensure dateTo ends at end of day
+        const dateToObj = new Date(dateTo);
+        dateToObj.setHours(23, 59, 59, 999);
+        where.createdAt[Op.lte] = dateToObj;
+      }
     }
 
     // Sorting - Always ensure DESC order for recent first

@@ -947,8 +947,18 @@ exports.getAllPayments = async (req, res) => {
 
     if (fromDate || toDate) {
       where.createdAt = {};
-      if (fromDate) where.createdAt[Op.gte] = new Date(fromDate);
-      if (toDate) where.createdAt[Op.lte] = new Date(`${toDate}T23:59:59.999Z`);
+      if (fromDate) {
+        // Ensure fromDate starts at beginning of day
+        const fromDateObj = new Date(fromDate);
+        fromDateObj.setHours(0, 0, 0, 0);
+        where.createdAt[Op.gte] = fromDateObj;
+      }
+      if (toDate) {
+        // Ensure toDate ends at end of day
+        const toDateObj = new Date(toDate);
+        toDateObj.setHours(23, 59, 59, 999);
+        where.createdAt[Op.lte] = toDateObj;
+      }
     }
 
     const { count, rows: payments } = await Payment.findAndCountAll({
@@ -997,8 +1007,16 @@ exports.getPaymentStats = async (req, res) => {
   try {
     const { fromDate, toDate } = req.query;
     
-    const startDate = fromDate ? new Date(fromDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: 30 days ago
-    const endDate = toDate ? new Date(`${toDate}T23:59:59.999Z`) : new Date();
+    const startDate = fromDate ? (() => {
+      const date = new Date(fromDate);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    })() : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default: 30 days ago
+    const endDate = toDate ? (() => {
+      const date = new Date(toDate);
+      date.setHours(23, 59, 59, 999);
+      return date;
+    })() : new Date();
 
     // Get total revenue and transaction count
     const revenueStats = await Payment.getTotalRevenue(startDate, endDate);
