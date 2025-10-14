@@ -856,19 +856,19 @@ exports.getVirtualAppointmentSlots = async (req, res) => {
       });
     }
 
-    // Don't allow booking for weekends
-    const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
-    if (dayOfWeek === 6 || dayOfWeek === 7) {
-      return res.json({
-        status: 'success',
-        code: 200,
-        data: {
-          date: date,
-          slots: [],
-          message: 'No virtual appointments available on weekends'
-        }
-      });
-    }
+    // REMOVED: Weekend restrictions - virtual appointments now available on weekends
+    // const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
+    // if (dayOfWeek === 6 || dayOfWeek === 7) {
+    //   return res.json({
+    //     status: 'success',
+    //     code: 200,
+    //     data: {
+    //       date: date,
+    //       slots: [],
+    //       message: 'No virtual appointments available on weekends'
+    //     }
+    //   });
+    // }
 
     // Parse admin's virtual appointment working hours
     const [startHour, startMinute] = adminSetting.virtualAppointmentStartTime.split(':').map(Number);
@@ -1045,14 +1045,14 @@ exports.bookVirtualAppointment = async (req, res) => {
     const appointmentHour = requestedTime.hour;
     const appointmentMinute = requestedTime.minute;
 
-    // Don't allow booking for weekends
-    if (appointmentDay === 6 || appointmentDay === 7) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'Virtual appointments are not available on weekends',
-      });
-    }
+    // REMOVED: Weekend restrictions - virtual appointments now available on weekends
+    // if (appointmentDay === 6 || appointmentDay === 7) {
+    //   return res.status(400).json({
+    //     status: 'error',
+    //     code: 400,
+    //     message: 'Virtual appointments are not available on weekends',
+    //   });
+    // }
 
     // Check if appointment is within admin's configured working hours
     const appointmentTime = appointmentHour * 60 + appointmentMinute;

@@ -121,21 +121,23 @@ module.exports = {
       const appointmentHour = requestedTime.hour;
       const appointmentDay = requestedTime.weekday; // 1 = Monday, 7 = Sunday
 
-      if (appointmentDay === 6 || appointmentDay === 7) {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'Appointments are not available on weekends',
-        });
-      }
+      // REMOVED: Weekend restrictions - appointments now available on weekends
+      // if (appointmentDay === 6 || appointmentDay === 7) {
+      //   return res.status(400).json({
+      //     status: 'error',
+      //     code: 400,
+      //     message: 'Appointments are not available on weekends',
+      //   });
+      // }
 
-      if (appointmentHour < 9 || appointmentHour >= 18) {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'Appointments are only available between 9:00 AM and 6:00 PM',
-        });
-      }
+      // REMOVED: Time restrictions - appointments now available after 4 PM
+      // if (appointmentHour < 9 || appointmentHour >= 18) {
+      //   return res.status(400).json({
+      //     status: 'error',
+      //     code: 400,
+      //     message: 'Appointments are only available between 9:00 AM and 6:00 PM',
+      //   });
+      // }
 
              // Check time slot availability (30-minute blocks) - all in IST
        const slotStart = requestedTime.set({ minute: Math.floor(requestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
@@ -808,21 +810,23 @@ module.exports = {
       const appointmentHour = newRequestedTime.hour;
       const appointmentDay = newRequestedTime.weekday;
 
-      if (appointmentDay === 6 || appointmentDay === 7) {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'Appointments are not available on weekends',
-        });
-      }
+      // REMOVED: Weekend restrictions - appointments now available on weekends
+      // if (appointmentDay === 6 || appointmentDay === 7) {
+      //   return res.status(400).json({
+      //     status: 'error',
+      //     code: 400,
+      //     message: 'Appointments are not available on weekends',
+      //   });
+      // }
 
-      if (appointmentHour < 9 || appointmentHour >= 18) {
-        return res.status(400).json({
-          status: 'error',
-          code: 400,
-          message: 'Appointments are only available between 9:00 AM and 6:00 PM',
-        });
-      }
+      // REMOVED: Time restrictions - appointments now available after 4 PM
+      // if (appointmentHour < 9 || appointmentHour >= 18) {
+      //   return res.status(400).json({
+      //     status: 'error',
+      //     code: 400,
+      //     message: 'Appointments are only available between 9:00 AM and 6:00 PM',
+      //   });
+      // }
 
       // Check availability for new time slot
       const slotStart = newRequestedTime.set({ minute: Math.floor(newRequestedTime.minute / 30) * 30, second: 0, millisecond: 0 });
@@ -1588,19 +1592,19 @@ module.exports = {
         });
       }
 
-      // Don't allow booking for weekends
-      const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
-      if (dayOfWeek === 6 || dayOfWeek === 7) {
-        return res.json({
-          status: 'success',
-          code: 200,
-          data: {
-            date: date,
-            slots: [],
-            message: 'No appointments available on weekends'
-          }
-        });
-      }
+      // REMOVED: Weekend restrictions - appointments now available on weekends
+      // const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
+      // if (dayOfWeek === 6 || dayOfWeek === 7) {
+      //   return res.json({
+      //     status: 'success',
+      //     code: 200,
+      //     data: {
+      //       date: date,
+      //       slots: [],
+      //       message: 'No appointments available on weekends'
+      //     }
+      //   });
+      // }
 
       // Parse doctor's working hours and create DateTime objects for the requested date
       const [startHour, startMinute] = doctor.startTime.split(':').map(Number);
