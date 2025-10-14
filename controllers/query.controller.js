@@ -1,5 +1,6 @@
 const Query = require("../models/query.model");
 const User = require("../models/user.model");
+const Doctor = require("../models/doctor.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
 const sequelize = require("../config/db");
@@ -120,13 +121,13 @@ exports.getUserQueries = async (req, res) => {
         {
           model: User,
           as: 'admin',
-          attributes: ['id', 'name'],
+          attributes: ['id', 'name', 'role'],
           required: false
         },
         {
           model: User,
           as: 'assignedUser',
-          attributes: ['id', 'name'],
+          attributes: ['id', 'name', 'role'],
           required: false
         }
       ],
@@ -416,18 +417,26 @@ exports.getAllQueries = async (req, res) => {
           model: User,
           as: 'user',
           attributes: ['id', 'name', 'phone', 'role'],
-          where: Object.keys(userWhere).length ? userWhere : undefined
+          where: Object.keys(userWhere).length ? userWhere : undefined,
+          include: [
+            {
+              model: Doctor,
+              as: 'Doctor',
+              attributes: ['email'],
+              required: false
+            }
+          ]
         },
         {
           model: User,
           as: 'admin',
-          attributes: ['id', 'name'],
+          attributes: ['id', 'name', 'role'],
           required: false
         },
         {
           model: User,
           as: 'assignedUser',
-          attributes: ['id', 'name'],
+          attributes: ['id', 'name', 'role'],
           required: false
         }
       ],
@@ -454,11 +463,22 @@ exports.getAllQueries = async (req, res) => {
       closed: stats.find(s => s.status === 'Closed')?.count || 0
     };
 
+    // Transform queries to add userRole and userEmail fields
+    const transformedQueries = queries.map(query => {
+      const queryData = query.toJSON();
+      
+      // Add userRole and userEmail based on the user's role and doctor info
+      queryData.userRole = queryData.user?.role || 'user';
+      queryData.userEmail = queryData.user?.Doctor?.email || null;
+      
+      return queryData;
+    });
+
     res.status(200).json({
       status: "success",
       code: 200,
       message: "All queries retrieved successfully",
-      data: queries,
+      data: transformedQueries,
       pagination: {
         total: count,
         page,
