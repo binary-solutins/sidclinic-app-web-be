@@ -621,10 +621,16 @@ exports.getVirtualAppointments = async (req, res) => {
     if (fromDate || toDate) {
       where.appointmentDateTime = {};
       if (fromDate) {
-        where.appointmentDateTime[Op.gte] = new Date(fromDate);
+        // Ensure fromDate starts at beginning of day
+        const fromDateObj = new Date(fromDate);
+        fromDateObj.setHours(0, 0, 0, 0);
+        where.appointmentDateTime[Op.gte] = fromDateObj;
       }
       if (toDate) {
-        where.appointmentDateTime[Op.lte] = new Date(`${toDate}T23:59:59.999Z`);
+        // Ensure toDate ends at end of day
+        const toDateObj = new Date(toDate);
+        toDateObj.setHours(23, 59, 59, 999);
+        where.appointmentDateTime[Op.lte] = toDateObj;
       }
     }
 
