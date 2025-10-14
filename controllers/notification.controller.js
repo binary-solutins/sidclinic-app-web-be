@@ -714,75 +714,17 @@ module.exports = {
         `[DEBUG] getAllNotificationsForAdmin - Admin ID: ${req.user.id}, Query params:`,
         req.query
       );
-      
-      // Debug: Check if userId is being passed in query
-      if (req.query.userId) {
-        console.log(`[WARNING] userId parameter detected: ${req.query.userId} - This will filter notifications to only this user!`);
-      }
 
       const {
-        limit = 100,  // Increased default limit to show more notifications
+        limit = 1000,  // Very high limit to show all notifications
         offset = 0,
-        type,
-        isRead,
-        userId,
-        startDate,
-        endDate,
       } = req.query;
 
-      // Build where clause for filtering
+      // NO FILTERING - Show ALL notifications
       const whereClause = {};
 
-      if (type) {
-        whereClause.type = type;
-      }
-
-      if (isRead !== undefined) {
-        whereClause.isRead = isRead === 'true';
-      }
-
-      if (userId) {
-        whereClause.userId = parseInt(userId);
-      }
-
-      // Date range filtering
-      if (startDate || endDate) {
-        whereClause.createdAt = {};
-        if (startDate) {
-          // Ensure startDate starts at beginning of day
-          const startDateObj = new Date(startDate);
-          startDateObj.setHours(0, 0, 0, 0);
-          whereClause.createdAt[Op.gte] = startDateObj;
-        }
-        if (endDate) {
-          // Ensure endDate ends at end of day
-          const endDateObj = new Date(endDate);
-          endDateObj.setHours(23, 59, 59, 999);
-          whereClause.createdAt[Op.lte] = endDateObj;
-        }
-      }
-
-      // Debug: Check what's actually in the database
-      const allNotifications = await Notification.findAll({
-        order: [['createdAt', 'DESC']],
-        limit: 10,
-        attributes: ['id', 'userId', 'title', 'message', 'type', 'isRead', 'createdAt']
-      });
-      console.log(`[DEBUG] Recent notifications in database:`, allNotifications.map(n => ({
-        id: n.id,
-        userId: n.userId,
-        title: n.title,
-        type: n.type,
-        createdAt: n.createdAt
-      })));
-
-      // Debug: Show the where clause being used
-      console.log(`[DEBUG] Where clause for admin notifications:`, JSON.stringify(whereClause, null, 2));
-
       // Get total count for pagination
-      const totalCount = await Notification.count({
-        where: whereClause,
-      });
+      const totalCount = await Notification.count();
       
       console.log(`[DEBUG] Total notifications in database: ${totalCount}`);
       console.log(`[DEBUG] Limit: ${limit}, Offset: ${offset}`);
@@ -809,18 +751,6 @@ module.exports = {
       console.log(
         `[DEBUG] getAllNotificationsForAdmin - Found ${notifications.length} notifications out of ${totalCount} total for admin ${req.user.id}`
       );
-      
-      // Debug: Log the actual notifications being returned
-      console.log(`[DEBUG] Notifications being returned:`, notifications.map(n => ({
-        id: n.id,
-        userId: n.userId,
-        title: n.title,
-        message: n.message,
-        type: n.type,
-        isRead: n.isRead,
-        createdAt: n.createdAt,
-        user: n.User ? { id: n.User.id, name: n.User.name, role: n.User.role } : null
-      })));
 
       res.json({
         status: 'success',
@@ -834,12 +764,7 @@ module.exports = {
             totalPages,
             currentPage,
           },
-          filters: {
-            applied: whereClause,
-            message: Object.keys(whereClause).length > 0 
-              ? `Filters applied: ${JSON.stringify(whereClause)}` 
-              : 'No filters applied - showing all notifications'
-          }
+          message: `Showing all ${notifications.length} notifications`
         },
       });
     } catch (error) {
