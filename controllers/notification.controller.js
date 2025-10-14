@@ -757,6 +757,23 @@ module.exports = {
         }
       }
 
+      // Debug: Check what's actually in the database
+      const allNotifications = await Notification.findAll({
+        order: [['createdAt', 'DESC']],
+        limit: 10,
+        attributes: ['id', 'userId', 'title', 'message', 'type', 'isRead', 'createdAt']
+      });
+      console.log(`[DEBUG] Recent notifications in database:`, allNotifications.map(n => ({
+        id: n.id,
+        userId: n.userId,
+        title: n.title,
+        type: n.type,
+        createdAt: n.createdAt
+      })));
+
+      // Debug: Show the where clause being used
+      console.log(`[DEBUG] Where clause for admin notifications:`, JSON.stringify(whereClause, null, 2));
+
       // Get total count for pagination
       const totalCount = await Notification.count({
         where: whereClause,
@@ -783,6 +800,18 @@ module.exports = {
       console.log(
         `[DEBUG] getAllNotificationsForAdmin - Found ${notifications.length} notifications out of ${totalCount} total for admin ${req.user.id}`
       );
+      
+      // Debug: Log the actual notifications being returned
+      console.log(`[DEBUG] Notifications being returned:`, notifications.map(n => ({
+        id: n.id,
+        userId: n.userId,
+        title: n.title,
+        message: n.message,
+        type: n.type,
+        isRead: n.isRead,
+        createdAt: n.createdAt,
+        user: n.User ? { id: n.User.id, name: n.User.name, role: n.User.role } : null
+      })));
 
       res.json({
         status: 'success',
