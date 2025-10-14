@@ -4,6 +4,51 @@ const sequelize = require("../config/db");
 const { Op } = require("sequelize");
 const { sendPushNotification } = require("../services/firebase.services");
 
+// Utility function to clean up invalid FCM tokens
+const cleanupInvalidTokens = async () => {
+  try {
+    console.log('🧹 Starting FCM token cleanup...');
+    
+    // Find all users with FCM tokens
+    const usersWithTokens = await User.findAll({
+      where: {
+        fcmToken: { [Op.ne]: null }
+      },
+      attributes: ['id', 'fcmToken', 'name', 'role']
+    });
+    
+    console.log(`Found ${usersWithTokens.length} users with FCM tokens`);
+    
+    let cleanedCount = 0;
+    
+    for (const user of usersWithTokens) {
+      try {
+        // Test the token by sending a test message
+        await sendPushNotification(
+          user.fcmToken,
+          'Test',
+          'Token validation',
+          { test: true }
+        );
+        console.log(`✅ Token valid for user ${user.id} (${user.name})`);
+      } catch (error) {
+        if (error.code === 'messaging/registration-token-not-registered' || 
+            error.code === 'messaging/invalid-registration-token') {
+          console.log(`🗑️ Removing invalid token for user ${user.id} (${user.name})`);
+          await user.update({ fcmToken: null });
+          cleanedCount++;
+        }
+      }
+    }
+    
+    console.log(`🧹 Cleanup completed: ${cleanedCount} invalid tokens removed`);
+    return { cleanedCount, totalUsers: usersWithTokens.length };
+  } catch (error) {
+    console.error('Error during token cleanup:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   /**
    * @swagger
@@ -332,6 +377,19 @@ module.exports = {
               data || {}
             );
 
+            // Check if token should be removed
+            if (response && response.shouldRemoveToken) {
+              console.log(`🗑️ Removing invalid FCM token: ${fcmToken.substring(0, 20)}...`);
+              // Find and update user with invalid token
+              const userWithInvalidToken = await User.findOne({
+                where: { fcmToken: fcmToken }
+              });
+              if (userWithInvalidToken) {
+                await userWithInvalidToken.update({ fcmToken: null });
+                console.log(`✅ Removed invalid FCM token for user ${userWithInvalidToken.id}`);
+              }
+            }
+
             return {
               token: fcmToken,
               success: true,
@@ -595,6 +653,28 @@ module.exports = {
    *       500:
    *         description: Server error
    */
+
+  // Cleanup invalid FCM tokens endpoint
+  cleanupInvalidTokens: async (req, res) => {
+    try {
+      const result = await cleanupInvalidTokens();
+      res.json({
+        status: "success",
+        code: 200,
+        message: "FCM token cleanup completed",
+        data: result
+      });
+    } catch (error) {
+      console.error('Cleanup error:', error);
+      res.status(500).json({
+        status: "error",
+        code: 500,
+        message: "Failed to cleanup invalid tokens",
+        error: error.message
+      });
+    }
+  },
+
   getAllNotificationsForAdmin: async (req, res) => {
     try {
       console.log(

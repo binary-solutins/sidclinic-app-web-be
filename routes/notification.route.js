@@ -25,5 +25,11 @@ router.get(
   authorize("admin"),
   controller.getNotificationStats
 );
+router.post(
+  "/admin/cleanup-tokens",
+  authenticate(),
+  authorize("admin"),
+  controller.cleanupInvalidTokens
+);
 
 module.exports = router;

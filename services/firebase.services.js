@@ -56,7 +56,7 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
     // Handle invalid/expired tokens
     if (error.code === 'messaging/registration-token-not-registered' || 
         error.code === 'messaging/invalid-registration-token') {
-      console.warn(`⚠️ Invalid FCM token for user: ${fcmToken}`);
+      console.warn(`⚠️ Invalid FCM token detected: ${fcmToken.substring(0, 20)}...`);
       console.warn("   This token should be removed from the database");
       
       // Return a special response instead of throwing
