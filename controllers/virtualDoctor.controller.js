@@ -874,19 +874,12 @@ exports.getVirtualAppointmentSlots = async (req, res) => {
     const [startHour, startMinute] = adminSetting.virtualAppointmentStartTime.split(':').map(Number);
     const [endHour, endMinute] = adminSetting.virtualAppointmentEndTime.split(':').map(Number);
 
-    // Check if it's a weekend and use extended hours
+    // Use admin's configured time settings for ALL days (including weekends)
     const dayOfWeek = requestedDate.weekday; // 1 = Monday, 7 = Sunday
-    let actualStartHour = startHour;
-    let actualEndHour = endHour;
+    const actualStartHour = startHour;
+    const actualEndHour = endHour;
 
-    // For weekends, use extended hours (8 AM to 8 PM)
-    if (dayOfWeek === 6 || dayOfWeek === 7) {
-      actualStartHour = 8;  // 8 AM
-      actualEndHour = 20;   // 8 PM
-      console.log(`[DEBUG] Weekend detected - using extended hours: ${actualStartHour}:00 to ${actualEndHour}:00`);
-    } else {
-      console.log(`[DEBUG] Weekday - using admin settings: ${actualStartHour}:00 to ${actualEndHour}:00`);
-    }
+    console.log(`[DEBUG] Using admin settings for all days: ${actualStartHour}:00 to ${actualEndHour}:00 (Day: ${dayOfWeek})`);
 
     const startOfDay = requestedDate.set({
       hour: actualStartHour,
@@ -1068,25 +1061,18 @@ exports.bookVirtualAppointment = async (req, res) => {
     //   });
     // }
 
-    // Check if appointment is within admin's configured working hours
+    // Check if appointment is within admin's configured working hours (same for all days)
     const appointmentTime = appointmentHour * 60 + appointmentMinute;
-    let startTime = startHour * 60 + startMinute;
-    let endTime = endHour * 60 + endMinute;
+    const startTime = startHour * 60 + startMinute;
+    const endTime = endHour * 60 + endMinute;
 
-    // For weekends, use extended hours (8 AM to 8 PM)
-    if (appointmentDay === 6 || appointmentDay === 7) {
-      startTime = 8 * 60;  // 8 AM
-      endTime = 20 * 60;   // 8 PM
-    }
+    console.log(`[DEBUG] Checking appointment time: ${appointmentHour}:${appointmentMinute} against admin settings: ${adminSetting.virtualAppointmentStartTime} - ${adminSetting.virtualAppointmentEndTime}`);
 
     if (appointmentTime < startTime || appointmentTime >= endTime) {
-      const startTimeStr = appointmentDay === 6 || appointmentDay === 7 ? '08:00' : adminSetting.virtualAppointmentStartTime;
-      const endTimeStr = appointmentDay === 6 || appointmentDay === 7 ? '20:00' : adminSetting.virtualAppointmentEndTime;
-      
       return res.status(400).json({
         status: 'error',
         code: 400,
-        message: `Virtual appointments are only available between ${startTimeStr} and ${endTimeStr}`,
+        message: `Virtual appointments are only available between ${adminSetting.virtualAppointmentStartTime} and ${adminSetting.virtualAppointmentEndTime}`,
       });
     }
 
