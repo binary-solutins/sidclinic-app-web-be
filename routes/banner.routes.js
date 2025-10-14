@@ -30,6 +30,9 @@ const upload = multer({
  *         image:
  *           type: string
  *           example: "https://example.com/banner.jpg"
+ *         bannerUrl:
+ *           type: string
+ *           example: "https://example.com/landing-page"
  *         isDoctorApp:
  *           type: boolean
  *           example: true
@@ -50,6 +53,9 @@ const upload = multer({
  *         image:
  *           type: string
  *           example: "https://example.com/banner.jpg"
+ *         bannerUrl:
+ *           type: string
+ *           example: "https://example.com/landing-page"
  *         order:
  *           type: integer
  *           example: 1
@@ -73,6 +79,9 @@ const upload = multer({
  *         image:
  *           type: string
  *           example: "https://example.com/banner.jpg"
+ *         bannerUrl:
+ *           type: string
+ *           example: "https://example.com/landing-page"
  *         isDoctorApp:
  *           type: boolean
  *           example: true
@@ -299,6 +308,10 @@ router.get('/', bannerController.getAllBanners);
  *                 type: string
  *                 format: binary
  *                 description: Banner image file
+ *               bannerUrl:
+ *                 type: string
+ *                 description: Banner URL for navigation
+ *                 example: "https://example.com/landing-page"
  *               isDoctorApp:
  *                 type: boolean
  *                 description: Flag to determine app type (true = doctor app, false = patient app)
@@ -459,6 +472,10 @@ router.get('/admin',
  *                 type: string
  *                 format: binary
  *                 description: Banner image file
+ *               bannerUrl:
+ *                 type: string
+ *                 description: Banner URL for navigation
+ *                 example: "https://example.com/updated-landing-page"
  *               isDoctorApp:
  *                 type: boolean
  *                 description: Flag to determine app type

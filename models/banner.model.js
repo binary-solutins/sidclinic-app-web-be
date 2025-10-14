@@ -36,6 +36,11 @@ const Banner = sequelize.define('Banner', {
     type: DataTypes.INTEGER,
     defaultValue: 0,
     comment: 'Display order for banners'
+  },
+  bannerUrl: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Banner URL for navigation'
   }
 }, {
   tableName: 'banners',

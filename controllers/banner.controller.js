@@ -43,15 +43,17 @@ exports.getAllBanners = async (req, res) => {
           title: banner.title,
           subtitle: banner.subtitle,
           image: banner.image,
+          bannerUrl: banner.bannerUrl,
           isDoctorApp: banner.isDoctorApp,
           order: banner.order,
           createdAt: banner.createdAt
         };
       } else {
-        // For patient app (isDoctorApp = 0): return only image
+        // For patient app (isDoctorApp = 0): return only image and bannerUrl
         return {
           id: banner.id,
           image: banner.image,
+          bannerUrl: banner.bannerUrl,
           order: banner.order,
           createdAt: banner.createdAt
         };
@@ -106,15 +108,17 @@ exports.getBannerById = async (req, res) => {
         title: banner.title,
         subtitle: banner.subtitle,
         image: banner.image,
+        bannerUrl: banner.bannerUrl,
         isDoctorApp: banner.isDoctorApp,
         order: banner.order,
         createdAt: banner.createdAt
       };
     } else {
-      // For patient app (isDoctorApp = 0): return only image
+      // For patient app (isDoctorApp = 0): return only image and bannerUrl
       transformedBanner = {
         id: banner.id,
         image: banner.image,
+        bannerUrl: banner.bannerUrl,
         order: banner.order,
         createdAt: banner.createdAt
       };
@@ -141,7 +145,7 @@ exports.getBannerById = async (req, res) => {
 // Create banner (Admin only)
 exports.createBanner = async (req, res) => {
   try {
-    const { title, subtitle, isDoctorApp, order } = req.body;
+    const { title, subtitle, isDoctorApp, order, bannerUrl } = req.body;
 
     // Handle image upload
     let imageUrl = null;
@@ -171,6 +175,7 @@ exports.createBanner = async (req, res) => {
       title: title || null,
       subtitle: subtitle || null,
       image: imageUrl,
+      bannerUrl: bannerUrl || null,
       isDoctorApp: isDoctorApp === 1 || isDoctorApp === '1' || isDoctorApp === true,
       order: order || 0,
       isActive: true
@@ -185,6 +190,7 @@ exports.createBanner = async (req, res) => {
         title: banner.title,
         subtitle: banner.subtitle,
         image: banner.image,
+        bannerUrl: banner.bannerUrl,
         isDoctorApp: banner.isDoctorApp,
         order: banner.order,
         isActive: banner.isActive,
@@ -207,7 +213,7 @@ exports.createBanner = async (req, res) => {
 exports.updateBanner = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, subtitle, isDoctorApp, order, isActive } = req.body;
+    const { title, subtitle, isDoctorApp, order, isActive, bannerUrl } = req.body;
 
     // Find banner
     const banner = await Banner.findByPk(id);
@@ -241,6 +247,7 @@ exports.updateBanner = async (req, res) => {
       title: title !== undefined ? title : banner.title,
       subtitle: subtitle !== undefined ? subtitle : banner.subtitle,
       image: imageUrl,
+      bannerUrl: bannerUrl !== undefined ? bannerUrl : banner.bannerUrl,
       isDoctorApp: isDoctorApp !== undefined ? (isDoctorApp === 1 || isDoctorApp === '1' || isDoctorApp === true) : banner.isDoctorApp,
       order: order !== undefined ? order : banner.order,
       isActive: isActive !== undefined ? isActive : banner.isActive
@@ -255,6 +262,7 @@ exports.updateBanner = async (req, res) => {
         title: banner.title,
         subtitle: banner.subtitle,
         image: banner.image,
+        bannerUrl: banner.bannerUrl,
         isDoctorApp: banner.isDoctorApp,
         order: banner.order,
         isActive: banner.isActive,
