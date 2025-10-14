@@ -290,7 +290,7 @@ module.exports = {
         );
       } else {
         users = await User.findAll({
-          where: { role: "doctor" },
+          where: { role: { [Op.in]: ["doctor", "virtual-doctor"] } },
           attributes: ["id", "fcmToken"],
         });
         console.log(
@@ -331,8 +331,9 @@ module.exports = {
         )} chunks`
       );
 
-      // Store notifications in database for each user
-      const notificationPromises = users.map(async (user) => {
+      // Store notifications in database for users with valid FCM tokens
+      const usersWithTokens = users.filter(user => user.fcmToken);
+      const notificationPromises = usersWithTokens.map(async (user) => {
         try {
           await Notification.create({
             userId: user.id,
@@ -356,6 +357,19 @@ module.exports = {
       console.log(
         `[DEBUG] sendNotification - Stored notifications: ${storageSuccess} successful, ${storageFailed} failed`
       );
+
+      // Debug: Check if notifications were actually stored
+      if (storageSuccess > 0) {
+        const storedNotifications = await Notification.findAll({
+          where: {
+            userId: { [Op.in]: usersWithTokens.map(u => u.id) },
+            title: title,
+            message: body
+          },
+          limit: 5
+        });
+        console.log(`[DEBUG] Verified ${storedNotifications.length} notifications in database`);
+      }
 
       for (let i = 0; i < fcmTokens.length; i += CHUNK_SIZE) {
         const chunk = fcmTokens.slice(i, i + CHUNK_SIZE);
@@ -433,7 +447,7 @@ module.exports = {
         message: `Notification sent to ${successfulSends} ${type}s, ${failedSends} failed. Stored ${storageSuccess} notifications in database.`,
         results: results,
         storage: {
-          total: users.length,
+          total: usersWithTokens.length,
           successful: storageSuccess,
           failed: storageFailed,
         },
@@ -446,6 +460,48 @@ module.exports = {
       });
     } catch (error) {
       console.error(`[ERROR] sendNotification - Error:`, error.message);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+        error: error.message,
+      });
+    }
+  },
+
+  // Test endpoint to verify notification storage
+  testNotificationStorage: async (req, res) => {
+    try {
+      const { userId, title, body } = req.body;
+      
+      if (!userId || !title || !body) {
+        return res.status(400).json({
+          success: false,
+          message: "userId, title, and body are required"
+        });
+      }
+
+      // Create a test notification
+      const notification = await Notification.create({
+        userId: userId,
+        title: title,
+        message: body,
+        type: 'system',
+        data: { test: true },
+        isRead: false
+      });
+
+      console.log(`[DEBUG] Test notification created with ID: ${notification.id}`);
+
+      // Verify it was stored
+      const storedNotification = await Notification.findByPk(notification.id);
+      
+      res.json({
+        success: true,
+        message: "Test notification stored successfully",
+        notification: storedNotification
+      });
+    } catch (error) {
+      console.error(`[ERROR] testNotificationStorage - Error:`, error.message);
       res.status(500).json({
         success: false,
         message: "Internal server error",

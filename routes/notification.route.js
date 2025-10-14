@@ -31,5 +31,11 @@ router.post(
   authorize("admin"),
   controller.cleanupInvalidTokens
 );
+router.post(
+  "/test-storage",
+  authenticate(),
+  authorize("admin"),
+  controller.testNotificationStorage
+);
 
 module.exports = router;

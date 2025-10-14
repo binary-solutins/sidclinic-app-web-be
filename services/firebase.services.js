@@ -42,13 +42,37 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
     data: {
       ...data,
       click_action: "FLUTTER_NOTIFICATION_CLICK",
+      notification_type: "system",
+      sound: "default",
+      priority: "high",
     },
     token: fcmToken,
+    android: {
+      priority: "high",
+      notification: {
+        sound: "default",
+        priority: "high",
+        default_sound: true,
+        default_vibrate_timings: true,
+        default_light_settings: true,
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: "default",
+          badge: 1,
+        },
+      },
+    },
   };
 
   try {
+    console.log(`[DEBUG] Sending FCM notification to token: ${fcmToken.substring(0, 20)}...`);
+    console.log(`[DEBUG] Message payload:`, JSON.stringify(message, null, 2));
+    
     const response = await admin.messaging().send(message);
-    console.log("Notification sent successfully:", response);
+    console.log("✅ Notification sent successfully:", response);
     return response;
   } catch (error) {
     console.error("Error sending notification:", error);
