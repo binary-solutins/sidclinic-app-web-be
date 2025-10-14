@@ -1,6 +1,7 @@
 const Query = require("../models/query.model");
 const User = require("../models/user.model");
 const Doctor = require("../models/doctor.model");
+const Patient = require("../models/patient.model");
 const { Op } = require('sequelize');
 const { emailService } = require('../services/email.services');
 const sequelize = require("../config/db");
@@ -424,6 +425,12 @@ exports.getAllQueries = async (req, res) => {
               as: 'Doctor',
               attributes: ['email'],
               required: false
+            },
+            {
+              model: Patient,
+              as: 'Patient',
+              attributes: ['email'],
+              required: false
             }
           ]
         },
@@ -467,9 +474,18 @@ exports.getAllQueries = async (req, res) => {
     const transformedQueries = queries.map(query => {
       const queryData = query.toJSON();
       
-      // Add userRole and userEmail based on the user's role and doctor info
+      // Add userRole and userEmail based on the user's role
       queryData.userRole = queryData.user?.role || 'user';
-      queryData.userEmail = queryData.user?.Doctor?.email || null;
+      
+      // Fetch email from appropriate table based on role
+      if (queryData.user?.role === 'doctor') {
+        queryData.userEmail = queryData.user?.Doctor?.email || null;
+      } else if (queryData.user?.role === 'user') {
+        queryData.userEmail = queryData.user?.Patient?.email || null;
+      } else {
+        // For admin or virtual-doctor roles, no email available
+        queryData.userEmail = null;
+      }
       
       return queryData;
     });
