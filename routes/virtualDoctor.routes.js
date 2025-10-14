@@ -435,6 +435,520 @@ router.delete('/admin/virtual-doctors/:id',
   virtualDoctorController.deleteVirtualDoctor
 );
 
+/**
+ * @swagger
+ * /admin/virtual-doctors/{id}:
+ *   put:
+ *     summary: Update a virtual doctor (Admin only)
+ *     description: Update an existing virtual doctor's information. Supports both JSON and multipart/form-data requests for photo uploads.
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Virtual doctor ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Virtual doctor's full name
+ *                 example: "Dr. Virtual Smith"
+ *               phone:
+ *                 type: string
+ *                 description: Virtual doctor's phone number
+ *                 example: "+1234567890"
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *                 description: Virtual doctor's gender
+ *                 example: "Male"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Virtual doctor's password
+ *                 example: "virtual123"
+ *               specialty:
+ *                 type: string
+ *                 description: Virtual doctor's medical specialty
+ *                 example: "General Medicine"
+ *               degree:
+ *                 type: string
+ *                 description: Virtual doctor's medical degree
+ *                 example: "MBBS"
+ *               yearsOfExperience:
+ *                 type: integer
+ *                 description: Years of medical experience
+ *                 example: 5
+ *               clinicName:
+ *                 type: string
+ *                 description: Virtual clinic name
+ *                 example: "Virtual Health Clinic"
+ *               clinicContactNumber:
+ *                 type: string
+ *                 description: Clinic contact number
+ *                 example: "+1234567890"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Virtual doctor's email
+ *                 example: "dr.virtual@clinic.com"
+ *               address:
+ *                 type: string
+ *                 description: Virtual clinic address
+ *                 example: "123 Virtual Street, Digital City"
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *                 example: "India"
+ *               state:
+ *                 type: string
+ *                 description: State
+ *                 example: "Maharashtra"
+ *               city:
+ *                 type: string
+ *                 description: City
+ *                 example: "Mumbai"
+ *               locationPin:
+ *                 type: string
+ *                 description: Location PIN code
+ *                 example: "400001"
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic start time (HH:MM:SS format)
+ *                 example: "09:00:00"
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic end time (HH:MM:SS format)
+ *                 example: "18:00:00"
+ *               registrationNumber:
+ *                 type: string
+ *                 description: Medical registration number
+ *                 example: "VIRTUAL-1705123456789"
+ *               isApproved:
+ *                 type: boolean
+ *                 description: Approval status
+ *                 example: true
+ *               is_active:
+ *                 type: boolean
+ *                 description: Active status
+ *                 example: true
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               doctorPhoto:
+ *                 type: string
+ *                 format: binary
+ *                 description: Virtual doctor's profile photo (optional)
+ *                 example: "doctor-photo.jpg"
+ *               name:
+ *                 type: string
+ *                 description: Virtual doctor's full name
+ *                 example: "Dr. Virtual Smith"
+ *               phone:
+ *                 type: string
+ *                 description: Virtual doctor's phone number
+ *                 example: "+1234567890"
+ *               gender:
+ *                 type: string
+ *                 enum: [Male, Female, Other]
+ *                 description: Virtual doctor's gender
+ *                 example: "Male"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Virtual doctor's password
+ *                 example: "virtual123"
+ *               specialty:
+ *                 type: string
+ *                 description: Virtual doctor's medical specialty
+ *                 example: "General Medicine"
+ *               degree:
+ *                 type: string
+ *                 description: Virtual doctor's medical degree
+ *                 example: "MBBS"
+ *               yearsOfExperience:
+ *                 type: integer
+ *                 description: Years of medical experience
+ *                 example: 5
+ *               clinicName:
+ *                 type: string
+ *                 description: Virtual clinic name
+ *                 example: "Virtual Health Clinic"
+ *               clinicContactNumber:
+ *                 type: string
+ *                 description: Clinic contact number
+ *                 example: "+1234567890"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Virtual doctor's email
+ *                 example: "dr.virtual@clinic.com"
+ *               address:
+ *                 type: string
+ *                 description: Virtual clinic address
+ *                 example: "123 Virtual Street, Digital City"
+ *               country:
+ *                 type: string
+ *                 description: Country
+ *                 example: "India"
+ *               state:
+ *                 type: string
+ *                 description: State
+ *                 example: "Maharashtra"
+ *               city:
+ *                 type: string
+ *                 description: City
+ *                 example: "Mumbai"
+ *               locationPin:
+ *                 type: string
+ *                 description: Location PIN code
+ *                 example: "400001"
+ *               startTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic start time (HH:MM:SS format)
+ *                 example: "09:00:00"
+ *               endTime:
+ *                 type: string
+ *                 format: time
+ *                 description: Virtual clinic end time (HH:MM:SS format)
+ *                 example: "18:00:00"
+ *               registrationNumber:
+ *                 type: string
+ *                 description: Medical registration number
+ *                 example: "VIRTUAL-1705123456789"
+ *               isApproved:
+ *                 type: boolean
+ *                 description: Approval status
+ *                 example: true
+ *               is_active:
+ *                 type: boolean
+ *                 description: Active status
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Virtual doctor updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor updated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Doctor record ID
+ *                     userId:
+ *                       type: integer
+ *                       example: 1
+ *                       description: User record ID
+ *                     name:
+ *                       type: string
+ *                       example: "Dr. Virtual Smith"
+ *                     phone:
+ *                       type: string
+ *                       example: "+1234567890"
+ *                     role:
+ *                       type: string
+ *                       example: "virtual-doctor"
+ *                     gender:
+ *                       type: string
+ *                       example: "Male"
+ *                     doctorPhoto:
+ *                       type: string
+ *                       example: "https://example.com/doctor-photo.jpg"
+ *                       description: Virtual doctor's profile photo URL
+ *                     specialty:
+ *                       type: string
+ *                       example: "General Medicine"
+ *                     degree:
+ *                       type: string
+ *                       example: "MBBS"
+ *                     yearsOfExperience:
+ *                       type: integer
+ *                       example: 5
+ *                     registrationNumber:
+ *                       type: string
+ *                       example: "VIRTUAL-1705123456789"
+ *                       description: Medical registration number
+ *                     clinicName:
+ *                       type: string
+ *                       example: "Virtual Health Clinic"
+ *                     clinicContactNumber:
+ *                       type: string
+ *                       example: "+1234567890"
+ *                     email:
+ *                       type: string
+ *                       example: "dr.virtual@clinic.com"
+ *                     address:
+ *                       type: string
+ *                       example: "123 Virtual Street, Digital City"
+ *                     country:
+ *                       type: string
+ *                       example: "India"
+ *                     state:
+ *                       type: string
+ *                       example: "Maharashtra"
+ *                     city:
+ *                       type: string
+ *                       example: "Mumbai"
+ *                     locationPin:
+ *                       type: string
+ *                       example: "400001"
+ *                     startTime:
+ *                       type: string
+ *                       example: "09:00:00"
+ *                     endTime:
+ *                       type: string
+ *                       example: "18:00:00"
+ *                     isApproved:
+ *                       type: boolean
+ *                       example: true
+ *                     is_active:
+ *                       type: boolean
+ *                       example: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-01-15T10:30:00Z"
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-01-15T11:30:00Z"
+ *       400:
+ *         description: Bad request - validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 400
+ *                 message:
+ *                   type: string
+ *                   example: "Please provide a valid 10-digit Indian mobile number (without country code)"
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Virtual doctor not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor not found"
+ *       409:
+ *         description: Conflict - Phone number already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 409
+ *                 message:
+ *                   type: string
+ *                   example: "Phone number already registered to another user"
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/admin/virtual-doctors/:id', 
+  authenticate(['admin']), 
+  upload.fields([
+    { name: 'doctorPhoto', maxCount: 1 }
+  ]), // Accept form data with doctor photo upload
+  virtualDoctorController.updateVirtualDoctor
+);
+
+/**
+ * @swagger
+ * /admin/virtual-doctors/{id}:
+ *   get:
+ *     summary: Get virtual doctor details by ID (Admin only)
+ *     description: Retrieve detailed information about a specific virtual doctor including both User and VirtualDoctor data.
+ *     tags: [Admin - Virtual Doctors]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Virtual doctor ID
+ *     responses:
+ *       200:
+ *         description: Virtual doctor details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "success"
+ *                 code:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor details retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                       description: Doctor record ID
+ *                     userId:
+ *                       type: integer
+ *                       example: 1
+ *                       description: User record ID
+ *                     name:
+ *                       type: string
+ *                       example: "Dr. Virtual Smith"
+ *                     phone:
+ *                       type: string
+ *                       example: "+1234567890"
+ *                     role:
+ *                       type: string
+ *                       example: "virtual-doctor"
+ *                     gender:
+ *                       type: string
+ *                       example: "Male"
+ *                     doctorPhoto:
+ *                       type: string
+ *                       example: "https://example.com/doctor-photo.jpg"
+ *                       description: Virtual doctor's profile photo URL
+ *                     specialty:
+ *                       type: string
+ *                       example: "General Medicine"
+ *                     degree:
+ *                       type: string
+ *                       example: "MBBS"
+ *                     yearsOfExperience:
+ *                       type: integer
+ *                       example: 5
+ *                     registrationNumber:
+ *                       type: string
+ *                       example: "VIRTUAL-1705123456789"
+ *                       description: Medical registration number
+ *                     clinicName:
+ *                       type: string
+ *                       example: "Virtual Health Clinic"
+ *                     clinicContactNumber:
+ *                       type: string
+ *                       example: "+1234567890"
+ *                     email:
+ *                       type: string
+ *                       example: "dr.virtual@clinic.com"
+ *                     address:
+ *                       type: string
+ *                       example: "123 Virtual Street, Digital City"
+ *                     country:
+ *                       type: string
+ *                       example: "India"
+ *                     state:
+ *                       type: string
+ *                       example: "Maharashtra"
+ *                     city:
+ *                       type: string
+ *                       example: "Mumbai"
+ *                     locationPin:
+ *                       type: string
+ *                       example: "400001"
+ *                     startTime:
+ *                       type: string
+ *                       example: "09:00:00"
+ *                     endTime:
+ *                       type: string
+ *                       example: "18:00:00"
+ *                     isApproved:
+ *                       type: boolean
+ *                       example: true
+ *                     is_active:
+ *                       type: boolean
+ *                       example: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-01-15T10:30:00Z"
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2024-01-15T11:30:00Z"
+ *                     notificationEnabled:
+ *                       type: boolean
+ *                       example: true
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin access required
+ *       404:
+ *         description: Virtual doctor not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "error"
+ *                 code:
+ *                   type: integer
+ *                   example: 404
+ *                 message:
+ *                   type: string
+ *                   example: "Virtual doctor not found"
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/admin/virtual-doctors/:id', 
+  authenticate(['admin']), 
+  virtualDoctorController.getVirtualDoctorDetails
+);
+
 // Virtual doctor routes for accessing APIs
 /**
  * @swagger

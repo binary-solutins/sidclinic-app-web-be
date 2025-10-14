@@ -1196,4 +1196,250 @@ exports.bookVirtualAppointment = async (req, res) => {
       message: error.message,
     });
   }
+};
+
+// Update virtual doctor
+exports.updateVirtualDoctor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Normalize all fields to string and trim
+    const getString = (val) => (typeof val === 'string' ? val.trim() : (val !== undefined && val !== null ? String(val).trim() : ''));
+    
+    // Extract update data from request body
+    const updateData = {};
+    const userUpdateData = {};
+    
+    // Fields that can be updated in VirtualDoctor table
+    if (req.body.specialty !== undefined) updateData.specialty = getString(req.body.specialty);
+    if (req.body.degree !== undefined) updateData.degree = getString(req.body.degree);
+    if (req.body.yearsOfExperience !== undefined) {
+      updateData.yearsOfExperience = parseInt(req.body.yearsOfExperience) || 0;
+    }
+    if (req.body.clinicName !== undefined) updateData.clinicName = getString(req.body.clinicName);
+    if (req.body.clinicContactNumber !== undefined) updateData.clinicContactNumber = getString(req.body.clinicContactNumber);
+    if (req.body.email !== undefined) updateData.email = getString(req.body.email);
+    if (req.body.address !== undefined) updateData.address = getString(req.body.address);
+    if (req.body.country !== undefined) updateData.country = getString(req.body.country);
+    if (req.body.state !== undefined) updateData.state = getString(req.body.state);
+    if (req.body.city !== undefined) updateData.city = getString(req.body.city);
+    if (req.body.locationPin !== undefined) updateData.locationPin = getString(req.body.locationPin);
+    if (req.body.startTime !== undefined) updateData.startTime = getString(req.body.startTime);
+    if (req.body.endTime !== undefined) updateData.endTime = getString(req.body.endTime);
+    if (req.body.registrationNumber !== undefined) updateData.registrationNumber = getString(req.body.registrationNumber);
+    if (req.body.isApproved !== undefined) updateData.isApproved = req.body.isApproved === 'true' || req.body.isApproved === true;
+    if (req.body.is_active !== undefined) updateData.is_active = req.body.is_active === 'true' || req.body.is_active === true;
+    
+    // Fields that can be updated in User table
+    if (req.body.name !== undefined) userUpdateData.name = getString(req.body.name);
+    if (req.body.phone !== undefined) {
+      const phone = getString(req.body.phone);
+      const phoneDigits = phone.replace(/^\+?91/, '').replace(/\D/g, '');
+      if (!/^[6-9]\d{9}$/.test(phoneDigits)) {
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Please provide a valid 10-digit Indian mobile number (without country code)",
+          data: null
+        });
+      }
+      userUpdateData.phone = phoneDigits;
+    }
+    if (req.body.gender !== undefined) userUpdateData.gender = getString(req.body.gender);
+    if (req.body.password !== undefined) userUpdateData.password = getString(req.body.password);
+
+    // Debug: Log the request files
+    console.log('🔍 Debug - req.files:', req.files);
+    console.log('🔍 Debug - req.file:', req.file);
+    console.log('🔍 Debug - req.body:', req.body);
+
+    // Handle doctor photo upload if provided
+    if (req.files && req.files.doctorPhoto && req.files.doctorPhoto[0]) {
+      console.log('📸 Processing doctor photo upload...');
+      try {
+        const doctorPhotoUrl = await uploadImage(req.files.doctorPhoto[0]);
+        updateData.doctorPhoto = doctorPhotoUrl;
+        console.log('✅ Doctor photo uploaded successfully:', doctorPhotoUrl);
+      } catch (uploadError) {
+        console.error('❌ Doctor photo upload failed:', uploadError);
+        return res.status(400).json({
+          status: "error",
+          code: 400,
+          message: "Failed to upload doctor photo",
+          error: uploadError.message,
+          data: null
+        });
+      }
+    }
+
+    // Find the virtual doctor record
+    const virtualDoctor = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender', 'role', 'createdAt']
+      }]
+    });
+
+    if (!virtualDoctor) {
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Virtual doctor not found",
+        data: null
+      });
+    }
+
+    // Check if phone number is being updated and if it already exists for another user
+    if (userUpdateData.phone && userUpdateData.phone !== virtualDoctor.User.phone) {
+      const existingUser = await User.findOne({ 
+        where: { 
+          phone: userUpdateData.phone,
+          id: { [Op.ne]: virtualDoctor.userId }
+        } 
+      });
+      if (existingUser) {
+        return res.status(409).json({
+          status: "error",
+          code: 409,
+          message: "Phone number already registered to another user",
+          data: null
+        });
+      }
+    }
+
+    // Update virtual doctor record if there's data to update
+    if (Object.keys(updateData).length > 0) {
+      await virtualDoctor.update(updateData);
+      console.log('✅ Virtual doctor record updated');
+    }
+
+    // Update user record if there's data to update
+    if (Object.keys(userUpdateData).length > 0) {
+      await virtualDoctor.User.update(userUpdateData);
+      console.log('✅ User record updated');
+    }
+
+    // Fetch the updated virtual doctor data
+    const updatedVirtualDoctor = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender', 'role', 'createdAt']
+      }]
+    });
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Virtual doctor updated successfully",
+      data: {
+        id: updatedVirtualDoctor.id,
+        userId: updatedVirtualDoctor.userId,
+        name: updatedVirtualDoctor.User.name,
+        phone: updatedVirtualDoctor.User.phone,
+        role: updatedVirtualDoctor.User.role,
+        gender: updatedVirtualDoctor.User.gender,
+        doctorPhoto: updatedVirtualDoctor.doctorPhoto,
+        specialty: updatedVirtualDoctor.specialty,
+        degree: updatedVirtualDoctor.degree,
+        yearsOfExperience: updatedVirtualDoctor.yearsOfExperience,
+        registrationNumber: updatedVirtualDoctor.registrationNumber,
+        clinicName: updatedVirtualDoctor.clinicName,
+        clinicContactNumber: updatedVirtualDoctor.clinicContactNumber,
+        email: updatedVirtualDoctor.email,
+        address: updatedVirtualDoctor.address,
+        country: updatedVirtualDoctor.country,
+        state: updatedVirtualDoctor.state,
+        city: updatedVirtualDoctor.city,
+        locationPin: updatedVirtualDoctor.locationPin,
+        startTime: updatedVirtualDoctor.startTime,
+        endTime: updatedVirtualDoctor.endTime,
+        isApproved: updatedVirtualDoctor.isApproved,
+        is_active: updatedVirtualDoctor.is_active,
+        createdAt: updatedVirtualDoctor.User.createdAt,
+        updatedAt: updatedVirtualDoctor.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error updating virtual doctor:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: error.message || "Internal Server Error",
+      data: null
+    });
+  }
+};
+
+// Get virtual doctor details by ID
+exports.getVirtualDoctorDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log('🔍 Fetching virtual doctor details for ID:', id);
+
+    // Find the virtual doctor record with user information
+    const virtualDoctor = await VirtualDoctor.findByPk(id, {
+      include: [{
+        model: User,
+        as: 'User',
+        attributes: ['id', 'name', 'phone', 'gender', 'role', 'createdAt', 'notificationEnabled']
+      }]
+    });
+
+    if (!virtualDoctor) {
+      console.log('❌ Virtual doctor not found with ID:', id);
+      return res.status(404).json({
+        status: "error",
+        code: 404,
+        message: "Virtual doctor not found",
+        data: null
+      });
+    }
+
+    console.log('✅ Virtual doctor found:', virtualDoctor.User.name);
+
+    res.status(200).json({
+      status: "success",
+      code: 200,
+      message: "Virtual doctor details retrieved successfully",
+      data: {
+        id: virtualDoctor.id,
+        userId: virtualDoctor.userId,
+        name: virtualDoctor.User.name,
+        phone: virtualDoctor.User.phone,
+        role: virtualDoctor.User.role,
+        gender: virtualDoctor.User.gender,
+        doctorPhoto: virtualDoctor.doctorPhoto,
+        specialty: virtualDoctor.specialty,
+        degree: virtualDoctor.degree,
+        yearsOfExperience: virtualDoctor.yearsOfExperience,
+        registrationNumber: virtualDoctor.registrationNumber,
+        clinicName: virtualDoctor.clinicName,
+        clinicContactNumber: virtualDoctor.clinicContactNumber,
+        email: virtualDoctor.email,
+        address: virtualDoctor.address,
+        country: virtualDoctor.country,
+        state: virtualDoctor.state,
+        city: virtualDoctor.city,
+        locationPin: virtualDoctor.locationPin,
+        startTime: virtualDoctor.startTime,
+        endTime: virtualDoctor.endTime,
+        isApproved: virtualDoctor.isApproved,
+        is_active: virtualDoctor.is_active,
+        createdAt: virtualDoctor.User.createdAt,
+        updatedAt: virtualDoctor.updatedAt,
+        notificationEnabled: virtualDoctor.User.notificationEnabled
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching virtual doctor details:', error);
+    res.status(500).json({
+      status: "error",
+      code: 500,
+      message: error.message || "Internal Server Error",
+      data: null
+    });
+  }
 }; 
