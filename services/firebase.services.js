@@ -35,21 +35,22 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
   }
 
   const message = {
+    token: fcmToken,
     notification: {
       title,
       body,
     },
     data: {
       ...data,
-      click_action: "FLUTTER_NOTIFICATION_CLICK",
       notification_type: "system",
       sound: "default",
       priority: "high",
     },
-    token: fcmToken,
     android: {
       priority: "high",
       notification: {
+        title,
+        body,
         sound: "default",
         priority: "high",
         default_sound: true,
@@ -60,6 +61,10 @@ const sendPushNotification = async (fcmToken, title, body, data = {}) => {
     apns: {
       payload: {
         aps: {
+          alert: {
+            title,
+            body,
+          },
           sound: "default",
           badge: 1,
         },
