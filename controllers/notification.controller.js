@@ -714,6 +714,11 @@ module.exports = {
         `[DEBUG] getAllNotificationsForAdmin - Admin ID: ${req.user.id}, Query params:`,
         req.query
       );
+      
+      // Debug: Check if userId is being passed in query
+      if (req.query.userId) {
+        console.log(`[WARNING] userId parameter detected: ${req.query.userId} - This will filter notifications to only this user!`);
+      }
 
       const {
         limit = 100,  // Increased default limit to show more notifications
@@ -829,6 +834,12 @@ module.exports = {
             totalPages,
             currentPage,
           },
+          filters: {
+            applied: whereClause,
+            message: Object.keys(whereClause).length > 0 
+              ? `Filters applied: ${JSON.stringify(whereClause)}` 
+              : 'No filters applied - showing all notifications'
+          }
         },
       });
     } catch (error) {
