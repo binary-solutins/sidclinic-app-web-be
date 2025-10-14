@@ -347,7 +347,7 @@ exports.getDoctorDetails = async (req, res) => {
         {
           model: User,
           as: 'User',
-          attributes: ["name", "phone", "createdAt"],
+          attributes: ["name", "phone", "gender", "createdAt"],
         },
       ],
     });
