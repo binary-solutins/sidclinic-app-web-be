@@ -250,7 +250,7 @@ exports.getAllVirtualDoctors = async (req, res) => {
       include: [{
         model: User,
         as: 'User',
-        attributes: ['id', 'name', 'phone', 'gender', 'createdAt', 'notificationEnabled'],
+        attributes: ['id', 'name', 'phone', 'role', 'fcmToken', 'notificationEnabled', 'gender', 'createdAt', 'updatedAt'],
         where: Object.keys(userWhere).length ? userWhere : undefined
       }],
       order,
@@ -260,22 +260,50 @@ exports.getAllVirtualDoctors = async (req, res) => {
 
     // Transform the data to include both virtual doctor and user information
     const transformedVirtualDoctors = virtualDoctors.map(doctor => ({
+      // VirtualDoctor model fields
       id: doctor.id,
       userId: doctor.userId,
-      name: doctor.User.name,
-      phone: doctor.User.phone,
-      gender: doctor.User.gender,
-      role: 'virtual-doctor',
-      doctorPhoto: doctor.doctorPhoto, // Added doctor image field
-      specialty: doctor.specialty,
+      doctorPhoto: doctor.doctorPhoto,
       degree: doctor.degree,
       registrationNumber: doctor.registrationNumber,
       clinicName: doctor.clinicName,
+      clinicPhotos: doctor.clinicPhotos,
       yearsOfExperience: doctor.yearsOfExperience,
+      specialty: doctor.specialty,
+      subSpecialties: doctor.subSpecialties,
+      clinicContactNumber: doctor.clinicContactNumber,
+      email: doctor.email,
+      address: doctor.address,
+      country: doctor.country,
+      state: doctor.state,
+      city: doctor.city,
+      locationPin: doctor.locationPin,
       isApproved: doctor.isApproved,
       is_active: doctor.is_active,
-      createdAt: doctor.User.createdAt,
-      notificationEnabled: doctor.User.notificationEnabled
+      startTime: doctor.startTime,
+      endTime: doctor.endTime,
+      consultationFee: doctor.consultationFee,
+      languages: doctor.languages,
+      timezone: doctor.timezone,
+      maxPatientsPerDay: doctor.maxPatientsPerDay,
+      averageConsultationTime: doctor.averageConsultationTime,
+      bio: doctor.bio,
+      qualifications: doctor.qualifications,
+      virtualConsultationTypes: doctor.virtualConsultationTypes,
+      isAvailableForEmergency: doctor.isAvailableForEmergency,
+      emergencyFee: doctor.emergencyFee,
+      createdAt: doctor.createdAt,
+      updatedAt: doctor.updatedAt,
+      
+      // User model fields
+      name: doctor.User.name,
+      phone: doctor.User.phone,
+      role: doctor.User.role,
+      fcmToken: doctor.User.fcmToken,
+      notificationEnabled: doctor.User.notificationEnabled,
+      gender: doctor.User.gender,
+      userCreatedAt: doctor.User.createdAt,
+      userUpdatedAt: doctor.User.updatedAt
     }));
 
     res.status(200).json({
