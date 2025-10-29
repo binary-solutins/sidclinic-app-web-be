@@ -794,7 +794,7 @@ router.delete('/admin/virtual-doctors/:id',
  *         description: Internal server error
  */
 router.put('/admin/virtual-doctors/:id', 
-  authenticate(['admin']), 
+  authenticate(['admin','virtual-doctor']), 
   upload.fields([
     { name: 'doctorPhoto', maxCount: 1 }
   ]), // Accept form data with doctor photo upload
@@ -945,7 +945,7 @@ router.put('/admin/virtual-doctors/:id',
  *         description: Internal server error
  */
 router.get('/admin/virtual-doctors/:id', 
-  authenticate(['admin']), 
+  authenticate(['admin','virtual-doctor']), 
   virtualDoctorController.getVirtualDoctorDetails
 );
 
