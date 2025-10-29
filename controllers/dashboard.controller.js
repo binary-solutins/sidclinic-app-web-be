@@ -54,6 +54,28 @@ const generateMonthlyData = async (model, dateField, whereCondition = {}) => {
  *                 doctorCount:
  *                   type: integer
  *                   description: Number of doctors in the system
+ *                 totalAppointments:
+ *                   type: integer
+ *                   description: Total number of appointments in the system
+ *                 totalSuccessfulPayments:
+ *                   type: integer
+ *                   description: Total number of successful payments
+ *                 totalRevenue:
+ *                   type: number
+ *                   format: float
+ *                   description: Total revenue from successful payments
+ *                 totalQueries:
+ *                   type: integer
+ *                   description: Total number of support queries
+ *                 totalMedicalReports:
+ *                   type: integer
+ *                   description: Total number of medical reports
+ *                 pendingAppointments:
+ *                   type: integer
+ *                   description: Number of pending appointments
+ *                 completedAppointments:
+ *                   type: integer
+ *                   description: Number of completed appointments
  *                 graphData:
  *                   type: object
  *                   properties:
@@ -147,6 +169,38 @@ exports.getCardData = async (req, res) => {
         where: { role: 'doctor' }
       });
 
+      // Get additional total counts for card data
+      const [
+        totalAppointments,
+        totalSuccessfulPayments,
+        totalRevenue,
+        totalQueries,
+        totalMedicalReports,
+        pendingAppointments,
+        completedAppointments
+      ] = await Promise.all([
+        // Total appointments
+        Appointment.count(),
+        
+        // Total successful payments
+        Payment.count({ where: { status: 'success' } }),
+        
+        // Total revenue from successful payments
+        Payment.sum('amount', { where: { status: 'success' } }),
+        
+        // Total queries
+        Query.count(),
+        
+        // Total medical reports
+        MedicalReport.count(),
+        
+        // Pending appointments
+        Appointment.count({ where: { status: 'pending' } }),
+        
+        // Completed appointments
+        Appointment.count({ where: { status: 'completed' } })
+      ]);
+
       // Generate graph data for various metrics
       const [
         usersMonthly,
@@ -206,6 +260,13 @@ exports.getCardData = async (req, res) => {
         data: {
           customerCount,
           doctorCount,
+          totalAppointments,
+          totalSuccessfulPayments,
+          totalRevenue: totalRevenue || 0,
+          totalQueries,
+          totalMedicalReports,
+          pendingAppointments,
+          completedAppointments,
           graphData: {
             users: usersMonthly,
             appointments: appointmentsMonthly,
