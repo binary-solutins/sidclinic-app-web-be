@@ -1289,7 +1289,11 @@ module.exports = {
         confirmationTemplate,
         {
           cancelerName,
-          otherPartyName: isPatient ? `Dr. ${appointment.doctor.User.name}` : appointment.patient.name,
+          otherPartyName: isPatient
+            ? (appointment.doctorId && appointment.doctor
+                ? `Dr. ${appointment.doctor.User.name}`
+                : 'Virtual Doctor')
+            : appointment.patient.name,
           appointmentDate: DateTime.fromJSDate(appointment.appointmentDateTime)
             .setZone('Asia/Kolkata')
             .toFormat('dd LLL yyyy'),
