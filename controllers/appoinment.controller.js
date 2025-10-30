@@ -1212,10 +1212,32 @@ module.exports = {
       await appointment.save();
 
       // Determine who canceled and notify the other party
-      const cancelerName = isPatient ? appointment.patient.name : `Dr. ${appointment.doctor.User.name}`;
-      const recipientId = isPatient ? appointment.doctor.User.id : appointment.userId;
-      const recipientEmail = isPatient ? (appointment.doctor.email || 'doctor@sidclinic.com') : (appointment.patient.email || 'patient@sidclinic.com');
-      const recipientName = isPatient ? appointment.doctor.User.name : appointment.patient.name;
+      let cancelerName;
+      let recipientId;
+      let recipientEmail;
+      let recipientName;
+      
+      if (isPatient) {
+        // Patient canceled - notify doctor/virtual doctor
+        if (appointment.doctorId && appointment.doctor) {
+          cancelerName = appointment.patient.name;
+          recipientId = appointment.doctor.User.id;
+          recipientEmail = appointment.doctor.email || 'doctor@sidclinic.com';
+          recipientName = appointment.doctor.User.name;
+        } else if (appointment.virtualDoctorId) {
+          // For virtual appointments, use appropriate notification logic
+          cancelerName = appointment.patient.name;
+          recipientId = null; // Handle virtual doctor notification differently
+          recipientEmail = 'virtual-doctor@sidclinic.com';
+          recipientName = 'Virtual Doctor';
+        }
+      } else {
+        // Doctor/virtual doctor canceled - notify patient
+        cancelerName = isDoctor ? 'Virtual Doctor' : `Dr. ${appointment.doctor.User.name}`;
+        recipientId = appointment.userId;
+        recipientEmail = appointment.patient.email || 'patient@sidclinic.com';
+        recipientName = appointment.patient.name;
+      }
 
       await sendUserNotification(
         recipientId,
