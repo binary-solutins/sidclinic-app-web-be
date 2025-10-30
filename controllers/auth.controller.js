@@ -459,6 +459,7 @@ exports.login = async (req, res) => {
     // If user is a doctor, fetch doctor id
     let doctorId = null;
     let patientId = null;
+    let virtualDoctorId = null;
     if (user.role === 'doctor') {
       // Lazy require to avoid circular dependency if any
       const Doctor = require('../models/doctor.model');
@@ -472,6 +473,13 @@ exports.login = async (req, res) => {
       const patient = await Patient.findOne({ where: { userId: user.id }, attributes: ['id'] });
       if (patient) {
         patientId = patient.id;
+      }
+    } else if (user.role === 'virtual-doctor') {
+      // Lazy require to avoid circular dependency if any
+      const VirtualDoctor = require('../models/virtualDoctor.model');
+      const virtualDoctor = await VirtualDoctor.findOne({ where: { userId: user.id }, attributes: ['id'] });
+      if (virtualDoctor) {
+        virtualDoctorId = virtualDoctor.id;
       }
     }
 
@@ -488,6 +496,9 @@ exports.login = async (req, res) => {
     }
     if (patientId) {
       responseData.patientId = patientId;
+    }
+    if (virtualDoctorId) {
+      responseData.virtualDoctorId = virtualDoctorId;
     }
 
     res.json({
