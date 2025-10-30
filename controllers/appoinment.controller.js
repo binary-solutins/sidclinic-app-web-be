@@ -1176,7 +1176,16 @@ module.exports = {
 
       // Check if the requesting user is either the patient or the doctor
       const isPatient = req.user.id === appointment.userId;
-      const isDoctor = req.user.id === appointment.doctor.User.id;
+      
+      // Handle both physical and virtual appointments
+      let isDoctor = false;
+      if (appointment.doctorId && appointment.doctor) {
+        isDoctor = req.user.id === appointment.doctor.User.id;
+      } else if (appointment.virtualDoctorId) {
+        // For virtual appointments, check if user has appropriate permissions
+        // This might need additional logic based on your virtual doctor implementation
+        isDoctor = req.user.role === 'admin' || req.user.role === 'virtual-doctor';
+      }
 
       if (!isPatient && !isDoctor) {
         return res.status(403).json({
