@@ -53,6 +53,8 @@ exports.getAllBanners = async (req, res) => {
         return {
           id: banner.id,
           image: banner.image,
+          title: banner.title,
+          subtitle: banner.subtitle,
           bannerUrl: banner.bannerUrl,
           order: banner.order,
           createdAt: banner.createdAt
@@ -118,6 +120,8 @@ exports.getBannerById = async (req, res) => {
       transformedBanner = {
         id: banner.id,
         image: banner.image,
+        title: banner.title,
+        subtitle: banner.subtitle,
         bannerUrl: banner.bannerUrl,
         order: banner.order,
         createdAt: banner.createdAt
