@@ -1233,7 +1233,13 @@ module.exports = {
         }
       } else {
         // Doctor/virtual doctor canceled - notify patient
-        cancelerName = isDoctor ? 'Virtual Doctor' : `Dr. ${appointment.doctor.User.name}`;
+        if (isDoctor && appointment.virtualDoctorId) {
+          cancelerName = 'Virtual Doctor';
+        } else if (appointment.doctorId && appointment.doctor) {
+          cancelerName = `Dr. ${appointment.doctor.User.name}`;
+        } else {
+          cancelerName = 'Doctor';
+        }
         recipientId = appointment.userId;
         recipientEmail = appointment.patient.email || 'patient@sidclinic.com';
         recipientName = appointment.patient.name;
