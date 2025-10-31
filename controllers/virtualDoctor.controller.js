@@ -1124,18 +1124,19 @@ exports.bookVirtualAppointment = async (req, res) => {
       });
     }
 
+    // PAYMENT CODE COMMENTED OUT - Virtual appointments now booked directly without payment
     // Get virtual appointment price
-    const virtualAppointmentPrice = await Price.findOne({
-      where: { serviceName: 'Virtual Appointment', isActive: true }
-    });
+    // const virtualAppointmentPrice = await Price.findOne({
+    //   where: { serviceName: 'Virtual Appointment', isActive: true }
+    // });
 
-    if (!virtualAppointmentPrice || !virtualAppointmentPrice.price) {
-      return res.status(400).json({
-        status: 'error',
-        code: 400,
-        message: 'Virtual appointment pricing is not configured. Please contact admin.',
-      });
-    }
+    // if (!virtualAppointmentPrice || !virtualAppointmentPrice.price) {
+    //   return res.status(400).json({
+    //     status: 'error',
+    //     code: 400,
+    //     message: 'Virtual appointment pricing is not configured. Please contact admin.',
+    //   });
+    // }
 
     // Build appointment data
     const appointmentData = {
@@ -1143,12 +1144,16 @@ exports.bookVirtualAppointment = async (req, res) => {
       doctorId: null, // Virtual appointments have doctorId = null
       appointmentDateTime: requestedTime.toJSDate(),
       type: 'virtual',
-      status: 'pending',
+      status: 'confirmed', // Changed from 'pending' to 'confirmed' - no payment required
       notes,
       bookingDate: new Date(),
-      paymentRequired: true,
-      paymentStatus: 'pending',
-      paymentAmount: parseFloat(virtualAppointmentPrice.price)
+      // PAYMENT FIELDS COMMENTED OUT
+      // paymentRequired: true,
+      // paymentStatus: 'pending',
+      // paymentAmount: parseFloat(virtualAppointmentPrice.price)
+      paymentRequired: false, // Payment no longer required
+      paymentStatus: null,
+      paymentAmount: null
     };
 
     // Setup video call for virtual appointment
@@ -1216,19 +1221,23 @@ exports.bookVirtualAppointment = async (req, res) => {
     res.status(201).json({
       status: 'success',
       code: 201,
-      message: 'Virtual appointment booked successfully. Payment required to confirm appointment.',
+      message: 'Virtual appointment booked successfully.', // Removed payment message
       data: {
         id: appointment.id,
         appointmentDateTime: requestedTime.toISO(),
         type: 'virtual',
-        status: 'pending',
+        status: 'confirmed', // Changed from 'pending' to 'confirmed'
         videoCallLink: appointment.videoCallLink,
         roomId: appointment.roomId,
-        paymentRequired: true,
-        paymentStatus: 'pending',
-        paymentAmount: parseFloat(virtualAppointmentPrice.price),
-        currency: 'INR',
-        nextStep: 'payment_required'
+        // PAYMENT FIELDS COMMENTED OUT IN RESPONSE
+        // paymentRequired: true,
+        // paymentStatus: 'pending',
+        // paymentAmount: parseFloat(virtualAppointmentPrice.price),
+        // currency: 'INR',
+        // nextStep: 'payment_required'
+        paymentRequired: false,
+        paymentStatus: null,
+        paymentAmount: null
       }
     });
   } catch (error) {
