@@ -1757,6 +1757,17 @@ module.exports = {
           {
             model: Doctor,
             as: 'doctor',
+            required: false, // Make it optional for virtual appointments
+            include: [{
+              model: User,
+              as: 'User',
+              attributes: ['id', 'name']
+            }]
+          },
+          {
+            model: VirtualDoctor,
+            as: 'virtualDoctor',
+            required: false, // Make it optional for physical appointments
             include: [{
               model: User,
               as: 'User',
@@ -1781,10 +1792,11 @@ module.exports = {
 
       // Check authorization
       const isPatient = req.user.id === appointment.userId;
-      const isDoctor = req.user.id === appointment.doctor.User.id;
+      const isDoctor = appointment.doctor && appointment.doctor.User && req.user.id === appointment.doctor.User.id;
+      const isVirtualDoctor = appointment.virtualDoctor && appointment.virtualDoctor.User && req.user.id === appointment.virtualDoctor.User.id;
       const isAdmin = req.user.role === 'admin';
 
-      if (!isPatient && !isDoctor && !isAdmin) {
+      if (!isPatient && !isDoctor && !isVirtualDoctor && !isAdmin) {
         return res.status(403).json({
           status: 'error',
           code: 403,
